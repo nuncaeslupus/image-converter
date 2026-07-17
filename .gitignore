@@ -1,0 +1,11 @@
+claude-arsenal/session/surface_profile.json
+
+claude-arsenal/session/rate_limits.json
+
+claude-arsenal/session/budget_iterations.json
+
+claude-arsenal/session/worktree_isolation
+
+# Python bytecode
+__pycache__/
+*.py[cod]
