@@ -6,7 +6,7 @@
 
 - **ID**: N/A (T1 was executed directly, before the queue existed)
 - **Title**: T1: Vite + TypeScript + Preact scaffold + dev tooling
-- **Status at handover**: done — PR open, not yet merged (blocked on CI; see below)
+- **Status at handover**: done — PR #4 **merged**. CI is still red (see below) but that did not block the merge.
 
 ## What was done this session
 
@@ -27,31 +27,36 @@
    `build_exit_code == 0`).
 4. Opened **PR #4** (`claude/plan-creation-c6x6pe` -> `main`) with all of the
    above. Subscribed to its activity.
-5. **CI failed on PR #4 with 0ms billable runner time** (job completed in 4s,
-   never picked up by a runner) — this looks like a repo/account Actions
-   settings issue (Actions disabled, or a $0 spending limit on this private
-   repo), not a bug in `ci.yml`. Posted this diagnosis as a PR comment asking
-   the user to check Settings -> Actions -> General. **Unresolved at
-   handover** — needs the user to act in GitHub settings, then a re-run or
-   empty commit to confirm green.
+5. **CI failed on PR #4 with 0ms billable runner time** on every push (job
+   completes in ~4s, never picked up by a runner). Initially misdiagnosed as
+   an Actions-settings issue and flagged as such on the PR. **User corrected
+   this**: this repo's private-repo free Actions minutes (2000/month) are
+   exhausted for the month, same as last month — resets **2026-08-01**. Not
+   a workflow bug, not fixable from here, and not going away with a re-run
+   before then.
 6. Seeded the `arsenal-queue` coordination branch with **T2-T12** (11 tasks,
    `lo-*` IDs), priorities from Size (S=10/M=5/L=1), dependency edges
    mirroring `status/plan.md`'s Depends column. Wrote a payload file per
    task (gate, tests, references, context) at
    `claude-arsenal/queue/<id>.md`. `queue_doctor.sh` reports 0 findings.
    Pushed to `origin/arsenal-queue` (commit `e618f3f`).
+7. PR #4 merged despite red CI (not a required check on this repo) — normal
+   for this account until the minutes reset.
 
 ## What remains
 
-- **Unblock CI on PR #4** — user needs to check GitHub repo/account Actions
-  settings (see comment on PR #4). Once fixed, re-run the `ci` check or push
-  an empty commit; then the PR is mergeable.
-- Merge PR #4, then start the worker loop against the seeded queue
+- **GitHub Actions CI is unusable until 2026-08-01** (monthly minutes
+  exhausted, recurring pattern). Until then, **`make ci` (local) is the
+  gate-verification method** for every task's Evidence log row — do not wait
+  on or expect a green GitHub check. `gate_run.sh` already runs gates
+  locally regardless of CI, so this doesn't block `execution` work.
+- Start the worker loop against the seeded queue
   (`T2: lo-59ed`, `T4: lo-38a1`, `T12: lo-d6ec` are immediately unblocked;
-  see dependency graph in `status/plan.md`).
-- T12's payload flags a known risk: its deploy workflow will hit the same
-  Actions blocker as T1's CI workflow until the settings issue above is
-  resolved — don't start it until CI is confirmed green.
+  see dependency graph in `status/plan.md`) — nothing is blocking this now.
+- **T12 (deploy pipeline) specifically depends on Actions working** — its
+  gate (`deployed_site_status_code == 200`) can't be exercised until minutes
+  reset on 2026-08-01. Leave it queued but don't start it before then; T2-T11
+  have no such dependency and can proceed immediately.
 - User mentioned wanting to bring in **Claude Design** / discuss frontend
   design tooling further — the `frontend-design` skill is available
   automatically (part of the standard skill set, not a per-repo install) and
@@ -62,11 +67,11 @@
 ## How to continue
 
 1. Read `claude-arsenal/AGENTS.md` for the worker loop algorithm.
-2. Check PR #4's CI status first — don't dispatch workers against a red
-   main/CI baseline.
+2. Do **not** gate dispatch on GitHub CI status — it's expected red until
+   2026-08-01 (see above). Use `make ci` locally instead.
 3. `export ARSENAL_QUEUE_DIR="$(claude-arsenal/bin/queue_branch.sh)"`, then
    `claude-arsenal/bin/queue_eval.sh` (or `/continue`) to get the next
-   unblocked task.
+   unblocked task. Skip `lo-d6ec` (T12) until Actions minutes reset.
 
 ## Surface profile at handover
 
