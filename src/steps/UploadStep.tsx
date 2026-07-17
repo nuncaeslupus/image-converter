@@ -26,7 +26,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
       setStatus({ kind: "decoding", fileName: file.name });
       try {
         const bitmap = await decodeImage(file);
-        bitmap.close();
+        wizard.setImage(bitmap);
         setStatus({ kind: "idle" });
         wizard.next();
       } catch (err) {
