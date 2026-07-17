@@ -6,6 +6,8 @@ claude-arsenal/session/budget_iterations.json
 
 claude-arsenal/session/worktree_isolation
 
+claude-arsenal/session/host_branch
+
 # Python bytecode
 __pycache__/
 *.py[cod]
