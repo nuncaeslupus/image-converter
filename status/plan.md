@@ -56,6 +56,26 @@ No step in this pipeline makes a network request carrying image data — the
 whole flow satisfies the spec's `network_requests_carrying_user_image_data == 0`
 success criterion by construction.
 
+### UI flow (step wizard)
+
+The user-facing flow is a **single-page wizard**, not separate routed pages:
+one bundle, one URL, step transitions are component/state changes only — no
+router dependency, no re-derivation of the in-memory image across navigation.
+
+1. **Upload** — file picker / drag-and-drop, client-side decode (T4).
+2. **Edit** — optional crop/resize/rotate on the decoded bitmap; skippable,
+   defaults straight to Trace & Tweak (T5).
+3. **Trace & Tweak** — palette/smoothness/detail/contrast/background controls
+   driving the two-tier retrace pipeline, with the original-vs-traced compare
+   preview (T6, T7).
+4. **Export** — download `.svg`, copy markup, size/viewBox override, size/path
+   estimate (T9).
+
+Back/forward between steps is in-memory state, not browser history — there is
+no per-step URL to bookmark or share, which is an accepted tradeoff for a flow
+that takes seconds end-to-end. Revisit this decision only if usage data shows
+people need to resume or share a specific step.
+
 ### State changes
 
 | Service | Database | Change | Description |
@@ -109,7 +129,7 @@ The **Gate** column is required: a measurable acceptance condition `<metric> <op
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-☐ T1 · ☐ T2 · ☐ T3 · ☐ T4 · ☐ T5 · ☐ T6 · ☐ T7 · ☐ T8 · ☐ T9 · ☐ T10 · ☐ T11 · ☐ T12
+☑ T1 · ☐ T2 · ☐ T3 · ☐ T4 · ☐ T5 · ☐ T6 · ☐ T7 · ☐ T8 · ☐ T9 · ☐ T10 · ☐ T11 · ☐ T12
 
 **Merge order**: T1 first; then T2 and T4 in parallel; then T3 (needs T2) and T5 (needs T4) in parallel; then T6; then T7, T8, T10 in parallel; then T9 (needs T8); then T11. T12 can land any time after T1, in parallel with the rest.
 
@@ -121,6 +141,7 @@ The **Gate** column is required: a measurable acceptance condition `<metric> <op
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| T1 | `build_exit_code == 0` | `0` | `npm run test:build` (spawns `npm run build`, asserts `dist/index.html` exists) | `6618e37` | cloud (Claude Code remote session) | 2026-07-17 |
 
 ### Dependency graph
 

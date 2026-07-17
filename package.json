@@ -1,0 +1,42 @@
+{
+  "name": "image-converter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Free, browser-based raster-to-SVG converter. Everything runs client-side.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run --exclude tests/build.test.ts",
+    "test:watch": "vitest --exclude tests/build.test.ts",
+    "test:build": "vitest run tests/build.test.ts",
+    "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" \"*.{json,js,ts}\" \"index.html\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"tests/**/*.ts\" \"*.{json,js,ts}\" \"index.html\"",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "preact": "^10.29.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@preact/preset-vite": "^2.10.5",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/preact": "^3.2.4",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.9.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.64.0",
+    "vite": "^8.1.5",
+    "vitest": "^4.1.10"
+  }
+}
