@@ -56,6 +56,26 @@ No step in this pipeline makes a network request carrying image data — the
 whole flow satisfies the spec's `network_requests_carrying_user_image_data == 0`
 success criterion by construction.
 
+### UI flow (step wizard)
+
+The user-facing flow is a **single-page wizard**, not separate routed pages:
+one bundle, one URL, step transitions are component/state changes only — no
+router dependency, no re-derivation of the in-memory image across navigation.
+
+1. **Upload** — file picker / drag-and-drop, client-side decode (T4).
+2. **Edit** — optional crop/resize/rotate on the decoded bitmap; skippable,
+   defaults straight to Trace & Tweak (T5).
+3. **Trace & Tweak** — palette/smoothness/detail/contrast/background controls
+   driving the two-tier retrace pipeline, with the original-vs-traced compare
+   preview (T6, T7).
+4. **Export** — download `.svg`, copy markup, size/viewBox override, size/path
+   estimate (T9).
+
+Back/forward between steps is in-memory state, not browser history — there is
+no per-step URL to bookmark or share, which is an accepted tradeoff for a flow
+that takes seconds end-to-end. Revisit this decision only if usage data shows
+people need to resume or share a specific step.
+
 ### State changes
 
 | Service | Database | Change | Description |

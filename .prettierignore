@@ -1,0 +1,9 @@
+dist
+node_modules
+
+# Vendored / hand-authored docs — not part of the app's own source tree.
+.claude
+claude-arsenal
+status
+CLAUDE.md
+README.md
