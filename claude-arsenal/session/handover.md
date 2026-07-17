@@ -4,91 +4,119 @@
 
 ## Last task
 
-- **ID**: N/A (T1 was executed directly, before the queue existed)
-- **Title**: T1: Vite + TypeScript + Preact scaffold + dev tooling
-- **Status at handover**: done — PR #4 **merged**. CI is still red (see below) but that did not block the merge.
+- **ID**: `lo-4058`
+- **Title**: T5: Basic image editing (crop/resize/rotate)
+- **Status at handover**: `merged` — PR #9 merged into `main`.
 
 ## What was done this session
 
-1. Completed the `design` phase (PR #3, **merged**): appended sections 5-6
-   (contracts, risks) to `status/specification.md` and created
-   `status/plan.md` with the technical solution and a 12-task breakdown
-   (T1-T12).
-2. Confirmed with the user: the vectorization flow is a **single-page wizard**
-   (Upload -> Edit -> Trace & Tweak -> Export), no router. Documented in
-   `status/plan.md` "UI flow (step wizard)".
-3. Implemented **T1** directly (not via the queue, since the queue didn't
-   exist yet): Vite + TypeScript + Preact scaffold with a wizard shell
-   (`src/App.tsx`, `src/lib/wizard.ts`, `src/steps/*` placeholders), plus
-   supporting tooling — ESLint (flat config) + Prettier, Vitest +
-   Testing Library + jsdom, a `Makefile` (`make ci` mirrors CI), a GitHub
-   Actions `ci.yml`, and `.gitignore` updates. Recorded T1's gate evidence
-   in `status/plan.md`'s Evidence log (commit `6618e37`, measured
-   `build_exit_code == 0`).
-4. Opened **PR #4** (`claude/plan-creation-c6x6pe` -> `main`) with all of the
-   above. Subscribed to its activity.
-5. **CI failed on PR #4 with 0ms billable runner time** on every push (job
-   completes in ~4s, never picked up by a runner). Initially misdiagnosed as
-   an Actions-settings issue and flagged as such on the PR. **User corrected
-   this**: this repo's private-repo free Actions minutes (2000/month) are
-   exhausted for the month, same as last month — resets **2026-08-01**. Not
-   a workflow bug, not fixable from here, and not going away with a re-run
-   before then.
-6. Seeded the `arsenal-queue` coordination branch with **T2-T12** (11 tasks,
-   `lo-*` IDs), priorities from Size (S=10/M=5/L=1), dependency edges
-   mirroring `status/plan.md`'s Depends column. Wrote a payload file per
-   task (gate, tests, references, context) at
-   `claude-arsenal/queue/<id>.md`. `queue_doctor.sh` reports 0 findings.
-   Pushed to `origin/arsenal-queue` (commit `e618f3f`).
-7. PR #4 merged despite red CI (not a required check on this repo) — normal
-   for this account until the minutes reset.
+1. Ran `/continue WEB` on a fresh web session. `WEB` didn't match a
+   workspace/tag, so fell back to the global queue seeded last session.
+   Skipped the globally-top-priority task (T12, deploy pipeline) because the
+   prior handover flagged it as blocked-in-practice until GitHub Actions
+   minutes reset (2026-08-01); picked T2 instead.
+2. Claimed and dispatched **T2** (`lo-59ed`, Tracer Worker message protocol +
+   stub `Tracer`) to an isolated worktree worker. Landed as **PR #7**,
+   merged.
+3. Claimed and dispatched **T4** (`lo-38a1`, upload/drag-drop + client-side
+   decode). Landed as **PR #8**, merged.
+4. Claimed and dispatched **T5** (`lo-4058`, crop/resize/rotate editing,
+   flagged UI-design-sensitive — worker was pointed at the `frontend-design`
+   skill). T5 depends on T4; since T4 wasn't merged yet when T5 finished, its
+   worker stacked **PR #9** on T4's branch rather than reporting blocked.
+   After T4 (#8) merged, retargeted #9's base to `main` via
+   `update_pull_request`, then it merged too.
+5. **User directive**: tag tasks needing a CLI with installed tools
+   differently from tasks that work on a bare web session. Mapped this onto
+   the queue's existing `requires: ["surface:cli"]` capability mechanism
+   (already wired into `queue_batch.sh`/`detect_surface.sh`) rather than
+   inventing a new tag axis. Set it on:
+   - **T3** (`lo-d4f4`) — needs a `wasm-pack`/Rust WASM build toolchain not
+     installed in this web sandbox (`rustc`/`cargo` present, `wasm-pack` is
+     not).
+   - **T12** (`lo-d6ec`) — needs GitHub Pages repo-settings changes (no `gh`
+     CLI on web, no MCP tool for repo settings) plus a real Actions-driven
+     deploy to verify; already known-blocked by exhausted Actions minutes
+     regardless.
+   Verified with `queue_batch.sh` under this session's `surface:web` profile
+   that both are now correctly excluded from web dispatch.
+6. **Found and worked around a claude-arsenal bug**: `worker_postcheck.sh`
+   hardcodes `${ARSENAL_DEFAULT_BRANCH:-main}` — since this session's
+   designated branch was `claude/web-continuation-bv66s5` (not `main`), the
+   first run misread genuine worktree isolation as "unavailable" and force
+   git-reset the main tree onto `main`. No data was lost (already pushed),
+   but corrected the main tree back, hand-fixed the
+   `claude-arsenal/session/worktree_isolation` sentinel to `available`, and
+   exported `ARSENAL_DEFAULT_BRANCH` for the rest of the session so it didn't
+   recur (confirmed `ok` on the next `worker_postcheck.sh` run). **Filed
+   upstream**: nuncaeslupus/claude-arsenal#128.
+7. Landed a small standalone chore, **PR #6**: gitignore
+   `.claude/worktrees/` (subagent worktree dirs were showing as untracked
+   noise on the main tree) — merged.
+8. All four PRs opened this session (#6, #7, #8, #9) are merged. Queue
+   updated to the terminal `merged` status for T2/T4/T5 (`release.sh <id>
+   merged --pr <url>`, done by hand since `gh` isn't available here for
+   `reconcile_merged.sh` to run automatically).
 
 ## What remains
 
-- **GitHub Actions CI is unusable until 2026-08-01** (monthly minutes
-  exhausted, recurring pattern). Until then, **`make ci` (local) is the
-  gate-verification method** for every task's Evidence log row — do not wait
-  on or expect a green GitHub check. `gate_run.sh` already runs gates
-  locally regardless of CI, so this doesn't block `execution` work.
-- Start the worker loop against the seeded queue
-  (`T2: lo-59ed`, `T4: lo-38a1`, `T12: lo-d6ec` are immediately unblocked;
-  see dependency graph in `status/plan.md`) — nothing is blocking this now.
-- **T12 (deploy pipeline) specifically depends on Actions working** — its
-  gate (`deployed_site_status_code == 200`) can't be exercised until minutes
-  reset on 2026-08-01. Leave it queued but don't start it before then; T2-T11
-  have no such dependency and can proceed immediately.
-- User mentioned wanting to bring in **Claude Design** / discuss frontend
-  design tooling further — the `frontend-design` skill is available
-  automatically (part of the standard skill set, not a per-repo install) and
-  should be invoked when doing the UI-heavy tasks (T5 Edit, T6 Tweak panel,
-  T7 Preview). What "Claude Design" refers to wasn't clarified — worth
-  asking the user directly next session if it comes up again.
+- **T3 (`lo-d4f4`) and T12 (`lo-d6ec`) are CLI-only** (`requires:
+  ["surface:cli"]`) — only pick them up from a real Claude Code CLI session
+  with `wasm-pack` (T3) / `gh` + GitHub Pages access (T12) installed. Do not
+  try to dispatch them from a web session; `queue_batch.sh` will silently
+  skip them there (by design).
+- **T12 still can't be verified before 2026-08-01** (Actions minutes) even
+  from a CLI session — its gate needs a real Actions-driven deploy. Hold it
+  regardless of surface until then.
+- **T6 (`lo-e707`)** needs both T3 and T5. T5 is merged; T6 is blocked
+  purely on T3 now. Once T3 lands, T6 unblocks, and T7/T8/T10 unblock behind
+  T6, then T9 behind T8, then T11 behind T3+T7.
+- No web-eligible task remains open right now — `queue_batch.sh` returns
+  empty under `surface:web`. The next session on this repo needs either a
+  CLI surface (for T3/T12) or should wait for T3 to land from one.
+- claude-arsenal upstream issue #128 (worker_postcheck.sh branch-name bug)
+  is unresolved — the workaround (`export ARSENAL_DEFAULT_BRANCH=<branch>`
+  before any `worker_postcheck.sh`/`release.sh` call) needs to be repeated
+  by hand every session until it's fixed upstream, on any host session whose
+  designated branch isn't literally `main`.
 
 ## How to continue
 
 1. Read `claude-arsenal/AGENTS.md` for the worker loop algorithm.
-2. Do **not** gate dispatch on GitHub CI status — it's expected red until
-   2026-08-01 (see above). Use `make ci` locally instead.
+2. If this session's designated branch isn't `main`, `export
+   ARSENAL_DEFAULT_BRANCH=<that-branch>` before calling
+   `worker_postcheck.sh` or `release.sh` (see claude-arsenal#128).
 3. `export ARSENAL_QUEUE_DIR="$(claude-arsenal/bin/queue_branch.sh)"`, then
    `claude-arsenal/bin/queue_eval.sh` (or `/continue`) to get the next
-   unblocked task. Skip `lo-d6ec` (T12) until Actions minutes reset.
+   unblocked, surface-eligible task.
+4. On a CLI session: T3 and T12 are open and CLI-tagged; T3 is likely the
+   more useful of the two to start (T12 is still blocked by Actions minutes
+   until 2026-08-01 regardless of surface).
 
 ## Surface profile at handover
 
-Not captured this session (no `detect_surface.sh` hook run) — cloud/remote
-session (`claude-arsenal/AGENTS.md` "CLAUDE_CODE_REMOTE=true" surface).
+```json
+{
+  "surface": "web",
+  "capabilities": ["surface:web"],
+  "detected_at": "2026-07-17T20:56:09Z"
+}
+```
+
+`rustc`/`cargo` are present in this web sandbox; `wasm-pack` and `gh` are
+not.
 
 ## Queue snapshot at handover
 
 ```
-total=11  open=11  in_progress=0  done=0  merged=0  blocked=0  escalated=0
+total=11  open=8  in_progress=0  done=0  merged=3  blocked=0  escalated=0
 
-  lo-59ed  [open]  T2: Tracer Worker message protocol + stub Tracer implementation
-  lo-38a1  [open]  T4: Upload & input handling (file picker/drag-drop, client-side decode)
-  lo-d6ec  [open]  T12: Static hosting deploy pipeline (GitHub Actions -> GitHub Pages)
-  lo-d4f4  [open]  T3: Integrate VTracer WASM into Tracer Worker + param translation layer   unmet_deps=[lo-59ed]
-  lo-4058  [open]  T5: Basic image editing (crop/resize/rotate)   unmet_deps=[lo-38a1]
-  lo-e707  [open]  T6: Live tweak panel driving two-tier retrace/cheap-edit pipeline   unmet_deps=[lo-d4f4, lo-4058]
+  lo-59ed  [merged]  T2: Tracer Worker message protocol + stub Tracer implementation   pr=#7
+  lo-38a1  [merged]  T4: Upload & input handling (file picker/drag-drop, client-side decode)   pr=#8
+  lo-4058  [merged]  T5: Basic image editing (crop/resize/rotate)   pr=#9
+  lo-d6ec  [open]  T12: Static hosting deploy pipeline (GitHub Actions -> GitHub Pages)   requires=[surface:cli]
+  lo-d4f4  [open]  T3: Integrate VTracer WASM into Tracer Worker + param translation layer   requires=[surface:cli]
+  lo-e707  [open]  T6: Live tweak panel driving two-tier retrace/cheap-edit pipeline   unmet_deps=[lo-d4f4]
   lo-b7ec  [open]  T7: Preview/canvas with original-vs-traced compare toggle   unmet_deps=[lo-e707]
   lo-22c0  [open]  T8: Trace-result caching by (imageId, params)   unmet_deps=[lo-e707]
   lo-3e7c  [open]  T10: Local settings persistence (localStorage last-used tweak values)   unmet_deps=[lo-e707]
