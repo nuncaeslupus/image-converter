@@ -10,6 +10,15 @@ export interface Wizard {
   goTo: (step: WizardStep) => void;
   next: () => void;
   back: () => void;
+  /**
+   * The current working image, threaded across steps in-memory (see
+   * status/plan.md "Data flow" step 2: Upload decodes it, Edit optionally
+   * replaces it with a cropped/resized/rotated version, Trace consumes it).
+   * `null` until Upload's decode succeeds.
+   */
+  image: ImageBitmap | null;
+  /** Replaces the working image — e.g. after a successful decode (T4) or edit (T5). */
+  setImage: (image: ImageBitmap | null) => void;
 }
 
 /**
@@ -18,6 +27,7 @@ export interface Wizard {
  */
 export function useWizard(initial: WizardStep = "upload"): Wizard {
   const [step, setStep] = useState<WizardStep>(initial);
+  const [image, setImage] = useState<ImageBitmap | null>(null);
   const stepIndex = WIZARD_STEPS.indexOf(step);
 
   return {
@@ -26,5 +36,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     goTo: setStep,
     next: () => setStep(WIZARD_STEPS[Math.min(stepIndex + 1, WIZARD_STEPS.length - 1)]),
     back: () => setStep(WIZARD_STEPS[Math.max(stepIndex - 1, 0)]),
+    image,
+    setImage,
   };
 }
