@@ -129,7 +129,7 @@ The **Gate** column is required: a measurable acceptance condition `<metric> <op
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-☑ T1 · ☐ T2 · ☐ T3 · ☐ T4 · ☐ T5 · ☐ T6 · ☐ T7 · ☐ T8 · ☐ T9 · ☐ T10 · ☐ T11 · ☐ T12
+☑ T1 · ☑ T2 · ☐ T3 · ☑ T4 · ☑ T5 · ☐ T6 · ☐ T7 · ☐ T8 · ☐ T9 · ☐ T10 · ☐ T11 · ☐ T12
 
 **Merge order**: T1 first; then T2 and T4 in parallel; then T3 (needs T2) and T5 (needs T4) in parallel; then T6; then T7, T8, T10 in parallel; then T9 (needs T8); then T11. T12 can land any time after T1, in parallel with the rest.
 
@@ -142,6 +142,9 @@ The **Gate** column is required: a measurable acceptance condition `<metric> <op
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
 | T1 | `build_exit_code == 0` | `0` | `npm run test:build` (spawns `npm run build`, asserts `dist/index.html` exists) | `6618e37` | cloud (Claude Code remote session) | 2026-07-17 |
+| T2 | `trace_protocol_round_trip_success_rate == 1.0` | `1.0` | `npm run test` — `tests/worker/tracerProtocol.test.ts` (2/2 pass) | `370f7cd` | cloud (Claude Code remote session) | 2026-07-17 |
+| T4 | `supported_format_decode_success_rate == 1.0` | `1.0` | `npm run test` — `tests/lib/imageDecode.test.ts` (real fixtures, all 5 formats) | `34418ec` | cloud (Claude Code remote session) | 2026-07-17 |
+| T5 | `edit_roundtrip_pixel_diff_max == 0` | `0` | `npm run test` — `tests/lib/imageEdit.test.ts::test_editRoundtrip_rotateFourTimes_pixelDiffIsZero` | `fef0470` | cloud (Claude Code remote session) | 2026-07-17 |
 
 ### Dependency graph
 
