@@ -16,8 +16,10 @@
 **Goals (v1)**
 
 - Convert a raster image (PNG, JPEG, WebP, GIF, or BMP) into a clean, editable SVG entirely in the browser — no upload to any server, no account, no cost to the user.
-- Support two vectorization modes from the first release: **Silhouette** (single-color trace — logos, icons, line art) and **Multi-color** (posterized trace with a reduced palette — photos, illustrations).
-- Let the user tweak the result live before exporting: palette / number of colors, smoothness (straight edges vs. curves), level of detail (speckle/noise filtering), and background handling (transparent / solid / removed).
+- Support one tracer, one unified mode toggle: **Silhouette** is simply a palette of 1 color, **Multi-color** is the same tool with a larger palette — not two separate features. The UI offers quick shortcuts for common palette sizes (1, 2, 3, 4, 8, 16…) and can also choose a palette size automatically.
+- Let the user tweak the result live before exporting: palette / number of colors, smoothness (straight edges vs. curves), level of detail (speckle/noise filtering), contrast (which can also be used deliberately — e.g. raising contrast to trace through/skip a faint watermark), and background handling (transparent / solid / removed).
+- Let the user compare original vs. traced output before committing to a tweak — at minimum a "hold to see original" toggle over the preview; comparing two different traced versions side by side (e.g. two palette sizes) is a desirable stretch goal for v1, not a hard requirement.
+- Provide basic image editing before tracing: crop, resize, and rotate. These must be quickly accessible and instantly recognizable in the UI — standard tool placement, standard icons, standard keyboard shortcuts — not buried in a menu.
 - Make export flexible: download the `.svg` file, copy the raw markup, override the output size/viewBox, and see a size/path-count estimate before exporting.
 - Be fast and light enough to run comfortably on a typical phone or laptop, and to be hosted for $0.
 - Remember the user's last-used tweak settings across visits (on-device only).
@@ -25,9 +27,9 @@
 **Non-goals (v1 — explicitly deferred)**
 
 - Batch upload / processing multiple images at once.
-- Named, savable presets (beyond remembering the single last-used configuration).
+- Named, savable presets/profiles (beyond remembering the single last-used configuration) — a strong future-phase candidate, plausibly tied to a future account/premium tier.
 - Branding / product naming — left open for a later decision.
-- Any AI-assisted vectorization — a possible future **premium** feature, not part of this spec.
+- Any AI-assisted vectorization — a possible future **premium** feature (also where a future API/account layer would live), not part of this spec.
 - Conversion between other file formats (e.g. SVG→PNG, HEIC→JPEG) — this spec covers raster→SVG only; other conversions are a later phase, per the README's note that "other image format conversions could also be added."
 - Any monetization, ads, or accounts — v1 is a plain free tool.
 
@@ -40,7 +42,7 @@ People who need a quick vector (SVG) version of a logo, icon, or simple illustra
 - [ ] `network_requests_carrying_user_image_data == 0` — the uploaded image and the resulting SVG never leave the device at any point in the flow.
 - [ ] `time_to_first_traced_preview <= ~5s` for a typical camera/phone-sized photo on mid-range consumer hardware (first-pass target; to be confirmed with real-device benchmarking during design/implementation).
 - [ ] Adjusting a non-retrace tweak (background handling, output size/viewBox) updates the visible result with no perceptible delay (cheap SVG-only edit, never re-runs the tracer).
-- [ ] Adjusting a retrace tweak (palette/color count, smoothness, detail) updates the preview within a few seconds and never freezes the rest of the UI while it runs.
+- [ ] Adjusting a retrace tweak (palette/color count, smoothness, detail, contrast) updates the preview within a few seconds and never freezes the rest of the UI while it runs.
 - [ ] `signup_or_payment_steps_required_for_core_flow == 0` — upload, tweak, and export never require an account or payment.
 - [ ] The tool functions with the network disconnected after the initial page load (condition that can't be reduced to a single number — judged by manually testing the full upload→tweak→export flow offline).
 
@@ -49,40 +51,40 @@ People who need a quick vector (SVG) version of a logo, icon, or simple illustra
 | System | Type | Role | Needs changes? | Impact | Severity |
 |--------|------|------|----------------|--------|----------|
 | Upload & input handling | Primary | Accepts a raster image (PNG/JPEG/WebP/GIF/BMP) via file picker or drag-and-drop and decodes it client-side | Yes (new) | Entry point for every session | High |
-| Silhouette tracer | Primary | Produces a single-color vector trace of the image | Yes (new) | Core value for the logo/icon/line-art use case | High |
-| Multi-color tracer | Primary | Produces a posterized, reduced-palette vector trace | Yes (new) | Core value for the photo/illustration use case | High |
-| Live tweak panel | Primary | Exposes palette/color count, smoothness, detail, and background controls, and drives re-rendering | Yes (new) | Directly drives perceived quality and usability | High |
-| Preview / canvas | Dependent | Shows original vs. traced result so the user can judge a tweak before exporting | Yes (new) | The user's main feedback loop | High |
+| Vectorization tracer | Primary | One engine, driven by a palette-size parameter: size 1 is the "silhouette" case, larger sizes are the "multi-color/posterized" case | Yes (new) | Core value of the whole product | High |
+| Basic image editing | Primary | Crop, resize, and rotate the source image before tracing, with prominent, standard-shortcut controls | Yes (new) | Users routinely need to frame/orient an image before vectorizing it | Medium |
+| Live tweak panel | Primary | Exposes palette/color-count (with quick presets: 1, 2, 3, 4, 8, 16…), smoothness, detail, contrast, and background controls, and drives re-rendering | Yes (new) | Directly drives perceived quality and usability | High |
+| Preview / canvas | Dependent | Shows original vs. traced result (at minimum a hold-to-compare toggle; comparing two traced versions is a stretch goal) so the user can judge a tweak before exporting | Yes (new) | The user's main feedback loop | High |
 | Export | Primary | Produces the downloadable `.svg`, clipboard copy, size/viewBox override, and a size/path-count estimate | Yes (new) | The deliverable the user came for | High |
-| Local settings persistence | Dependent | Remembers the last-used tweak configuration on-device | Yes (new) | Convenience, not core function | Low |
+| Local settings persistence | Dependent | Remembers the last-used tweak configuration on-device; named save/load profiles deferred (see Non-goals) | Yes (new) | Convenience, not core function | Low |
 | Hosting / delivery | Infrastructure | Serves the static site at $0 backend cost | Out of scope for this spec — see Reference section | Determines the cost model | Medium |
 
 **Impact dimensions**: no persistent data is stored anywhere but the user's own browser (no data-loss/integrity risk); there is no API/backend to version; the main risk is client-side performance on large images or low-end devices; user-facing impact is the entire product; there is no deployment/operational surface beyond a static host; the risk of inaction is that this gap in free, private tooling simply continues.
 
 ## 3. Options
 
-### Option A: Silhouette first, Multi-color as a fast-follow (Conservative)
+### Option A: Palette locked to 1 first, unlock the slider later (Conservative)
 
-- **Description**: v1 launches with only single-color tracing (logos/icons/line art); the posterized multi-color mode ships as a follow-up release once the tweak-panel UX is validated.
-- **Scope**: Upload, one tracer mode, a smaller tweak panel (detail + smoothness + background — no palette control needed yet), preview, export.
+- **Description**: v1 ships the same single engine, but the palette-size control is locked to 1 (silhouette only) at launch; the palette slider/presets (2, 3, 4, 8, 16…) unlock in a follow-up release once the tweak-panel UX is validated.
+- **Scope**: Upload, the tracer engine with palette fixed at 1, a smaller tweak panel (detail + smoothness + contrast + background — no palette control shown yet), preview, export.
 - **Effort**: Small
-- **Tradeoffs**: Faster to ship and validate the core loop, but the "multiple colors" half of the stated goal is missing at launch, and palette UI has to be retrofitted later.
+- **Tradeoffs**: Faster to ship and validate the core loop, but the "multiple colors" half of the stated goal is missing at launch, and the palette control has to be un-hidden and tested later.
 - **Compatibility**: N/A (greenfield)
 
 ### Option B: Both modes together, one shared UI (Recommended)
 
-- **Description**: v1 launches with Silhouette and Multi-color as a single mode toggle inside one shared UI (upload, preview, export, and tweak panel are all shared); the palette control is simply inert or hidden in Silhouette mode.
-- **Scope**: Upload, both tracer modes, full tweak panel (palette, smoothness, detail, background), preview, export.
+- **Description**: there is no separate "Silhouette tracer" and "Multi-color tracer" — it is one tool where Silhouette is just the palette set to 1 color. The palette control offers quick-select shortcuts for common sizes (1, 2, 3, 4, 8, 16…) plus an automatic mode that picks a reasonable size for the image; everything else (upload, preview, export, tweak panel) is fully shared.
+- **Scope**: Upload, one tracer engine with a palette-size control (manual presets + automatic), full tweak panel (palette, smoothness, detail, contrast, background), preview, export.
 - **Effort**: Medium
 - **Tradeoffs**: More surface area to build and test before first launch, but delivers the full stated goal ("silhouettes or multiple colors") in one release and avoids a later UI retrofit or fork.
 - **Compatibility**: N/A (greenfield)
 
-### Option C: Two separate top-level tools
+### Option C: Two separate top-level entry points over the same engine
 
-- **Description**: Silhouette and Multi-color live as two distinct pages/routes, each with its own simpler, purpose-built UI rather than one shared tweak panel.
-- **Scope**: Upload, both tracer modes, two separate tweak panels, two preview/export flows.
+- **Description**: "Silhouette" and "Multi-color" live as two distinct pages/routes (same underlying tracer, palette size pre-set per page), each with its own simpler, purpose-built UI rather than one shared tweak panel.
+- **Scope**: Upload, the shared tracer engine, two separate tweak panels, two preview/export flows.
 - **Effort**: Medium-Large
-- **Tradeoffs**: Each UI can be more tailored and simpler on its own, but duplicates the upload/preview/export scaffolding, fragments the experience, and complicates any later "auto-detect best mode" feature.
+- **Tradeoffs**: Each UI can be more tailored and simpler on its own, but duplicates the upload/preview/export scaffolding, fragments the experience, and complicates the "just move the palette slider" mental model.
 - **Compatibility**: N/A (greenfield)
 
 ### Comparison
@@ -97,7 +99,7 @@ People who need a quick vector (SVG) version of a logo, icon, or simple illustra
 
 ## 4. Recommendation
 
-**Recommended option**: Option B — ship both modes together behind one shared UI. This matches the explicit product goal ("silhouettes or multiple colors") without deferring half the value to a later release, and keeps a single upload/preview/export/tweak-panel implementation rather than forking it (Option C) or retrofitting it (Option A) afterward.
+**Recommended option**: Option B — one tracer engine, one shared UI, with palette size (including a silhouette-equivalent size of 1) as just another live tweak. This matches the explicit product goal ("silhouettes or multiple colors") without deferring half the value to a later release, and keeps a single upload/preview/export/tweak-panel implementation rather than forking it (Option C) or retrofitting it (Option A) afterward.
 
 **Immediate next action**: Hand this spec to the `design` phase to define the concrete technical contracts — the tracer engine integration, the two-tier tweak pipeline (which knobs retrace vs. which are cheap SVG-only edits), the Web Worker boundary, the hosting target, and the frontend approach — building on the direction already recorded in `README.md`'s "Agreed technical direction."
 

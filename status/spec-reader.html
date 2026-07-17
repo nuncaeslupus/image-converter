@@ -153,9 +153,9 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-1">§1 Problem statement</a></li>
 <li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
 <li><a href="#s-spec-3">§3 Options</a></li>
-<li><a href="#s-spec-option-a-silhouette-first-multi">Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</a></li>
+<li><a href="#s-spec-option-a-palette-locked-to-1-fir">Option A: Palette locked to 1 first, unlock the slider later (Conservative)</a></li>
 <li><a href="#s-spec-option-b-both-modes-together-one">Option B: Both modes together, one shared UI (Recommended)</a></li>
-<li><a href="#s-spec-option-c-two-separate-top-level">Option C: Two separate top-level tools</a></li>
+<li><a href="#s-spec-option-c-two-separate-top-level">Option C: Two separate top-level entry points over the same engine</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
 <li><a href="#s-spec-future-phases-not-in-v1">Future Phases (Not in v1)</a></li>
@@ -182,8 +182,10 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <div class="sec-body"><p><strong>Goals (v1)</strong></p>
 <ul>
 <li>Convert a raster image (PNG, JPEG, WebP, GIF, or BMP) into a clean, editable SVG entirely in the browser — no upload to any server, no account, no cost to the user.</li>
-<li>Support two vectorization modes from the first release: <strong>Silhouette</strong> (single-color trace — logos, icons, line art) and <strong>Multi-color</strong> (posterized trace with a reduced palette — photos, illustrations).</li>
-<li>Let the user tweak the result live before exporting: palette / number of colors, smoothness (straight edges vs. curves), level of detail (speckle/noise filtering), and background handling (transparent / solid / removed).</li>
+<li>Support one tracer, one unified mode toggle: <strong>Silhouette</strong> is simply a palette of 1 color, <strong>Multi-color</strong> is the same tool with a larger palette — not two separate features. The UI offers quick shortcuts for common palette sizes (1, 2, 3, 4, 8, 16…) and can also choose a palette size automatically.</li>
+<li>Let the user tweak the result live before exporting: palette / number of colors, smoothness (straight edges vs. curves), level of detail (speckle/noise filtering), contrast (which can also be used deliberately — e.g. raising contrast to trace through/skip a faint watermark), and background handling (transparent / solid / removed).</li>
+<li>Let the user compare original vs. traced output before committing to a tweak — at minimum a "hold to see original" toggle over the preview; comparing two different traced versions side by side (e.g. two palette sizes) is a desirable stretch goal for v1, not a hard requirement.</li>
+<li>Provide basic image editing before tracing: crop, resize, and rotate. These must be quickly accessible and instantly recognizable in the UI — standard tool placement, standard icons, standard keyboard shortcuts — not buried in a menu.</li>
 <li>Make export flexible: download the <code>.svg</code> file, copy the raw markup, override the output size/viewBox, and see a size/path-count estimate before exporting.</li>
 <li>Be fast and light enough to run comfortably on a typical phone or laptop, and to be hosted for $0.</li>
 <li>Remember the user's last-used tweak settings across visits (on-device only).</li>
@@ -191,9 +193,9 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <p><strong>Non-goals (v1 — explicitly deferred)</strong></p>
 <ul>
 <li>Batch upload / processing multiple images at once.</li>
-<li>Named, savable presets (beyond remembering the single last-used configuration).</li>
+<li>Named, savable presets/profiles (beyond remembering the single last-used configuration) — a strong future-phase candidate, plausibly tied to a future account/premium tier.</li>
 <li>Branding / product naming — left open for a later decision.</li>
-<li>Any AI-assisted vectorization — a possible future <strong>premium</strong> feature, not part of this spec.</li>
+<li>Any AI-assisted vectorization — a possible future <strong>premium</strong> feature (also where a future API/account layer would live), not part of this spec.</li>
 <li>Conversion between other file formats (e.g. SVG→PNG, HEIC→JPEG) — this spec covers raster→SVG only; other conversions are a later phase, per the README's note that "other image format conversions could also be added."</li>
 <li>Any monetization, ads, or accounts — v1 is a plain free tool.</li>
 </ul></div>
@@ -207,7 +209,7 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <li>[ ] <code>network_requests_carrying_user_image_data == 0</code> — the uploaded image and the resulting SVG never leave the device at any point in the flow.</li>
 <li>[ ] <code>time_to_first_traced_preview &lt;= ~5s</code> for a typical camera/phone-sized photo on mid-range consumer hardware (first-pass target; to be confirmed with real-device benchmarking during design/implementation).</li>
 <li>[ ] Adjusting a non-retrace tweak (background handling, output size/viewBox) updates the visible result with no perceptible delay (cheap SVG-only edit, never re-runs the tracer).</li>
-<li>[ ] Adjusting a retrace tweak (palette/color count, smoothness, detail) updates the preview within a few seconds and never freezes the rest of the UI while it runs.</li>
+<li>[ ] Adjusting a retrace tweak (palette/color count, smoothness, detail, contrast) updates the preview within a few seconds and never freezes the rest of the UI while it runs.</li>
 <li>[ ] <code>signup_or_payment_steps_required_for_core_flow == 0</code> — upload, tweak, and export never require an account or payment.</li>
 <li>[ ] The tool functions with the network disconnected after the initial page load (condition that can't be reduced to a single number — judged by manually testing the full upload→tweak→export flow offline).</li>
 </ul></div>
@@ -236,25 +238,25 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <td>High</td>
 </tr>
 <tr>
-<td>Silhouette tracer</td>
+<td>Vectorization tracer</td>
 <td>Primary</td>
-<td>Produces a single-color vector trace of the image</td>
+<td>One engine, driven by a palette-size parameter: size 1 is the "silhouette" case, larger sizes are the "multi-color/posterized" case</td>
 <td>Yes (new)</td>
-<td>Core value for the logo/icon/line-art use case</td>
+<td>Core value of the whole product</td>
 <td>High</td>
 </tr>
 <tr>
-<td>Multi-color tracer</td>
+<td>Basic image editing</td>
 <td>Primary</td>
-<td>Produces a posterized, reduced-palette vector trace</td>
+<td>Crop, resize, and rotate the source image before tracing, with prominent, standard-shortcut controls</td>
 <td>Yes (new)</td>
-<td>Core value for the photo/illustration use case</td>
-<td>High</td>
+<td>Users routinely need to frame/orient an image before vectorizing it</td>
+<td>Medium</td>
 </tr>
 <tr>
 <td>Live tweak panel</td>
 <td>Primary</td>
-<td>Exposes palette/color count, smoothness, detail, and background controls, and drives re-rendering</td>
+<td>Exposes palette/color-count (with quick presets: 1, 2, 3, 4, 8, 16…), smoothness, detail, contrast, and background controls, and drives re-rendering</td>
 <td>Yes (new)</td>
 <td>Directly drives perceived quality and usability</td>
 <td>High</td>
@@ -262,7 +264,7 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <tr>
 <td>Preview / canvas</td>
 <td>Dependent</td>
-<td>Shows original vs. traced result so the user can judge a tweak before exporting</td>
+<td>Shows original vs. traced result (at minimum a hold-to-compare toggle; comparing two traced versions is a stretch goal) so the user can judge a tweak before exporting</td>
 <td>Yes (new)</td>
 <td>The user's main feedback loop</td>
 <td>High</td>
@@ -278,7 +280,7 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <tr>
 <td>Local settings persistence</td>
 <td>Dependent</td>
-<td>Remembers the last-used tweak configuration on-device</td>
+<td>Remembers the last-used tweak configuration on-device; named save/load profiles deferred (see Non-goals)</td>
 <td>Yes (new)</td>
 <td>Convenience, not core function</td>
 <td>Low</td>
@@ -301,22 +303,22 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <div class="sec-body"></div>
 <div class="note" data-for="s-spec-3"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></div><textarea class="note-ta" data-key="s-spec-3" data-label="§3 Options" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
-<article class="sec" id="s-spec-option-a-silhouette-first-multi">
-<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</span></h4>
+<article class="sec" id="s-spec-option-a-palette-locked-to-1-fir">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Palette locked to 1 first, unlock the slider later (Conservative)</span></h4>
 <div class="sec-body"><ul>
-<li><strong>Description</strong>: v1 launches with only single-color tracing (logos/icons/line art); the posterized multi-color mode ships as a follow-up release once the tweak-panel UX is validated.</li>
-<li><strong>Scope</strong>: Upload, one tracer mode, a smaller tweak panel (detail + smoothness + background — no palette control needed yet), preview, export.</li>
+<li><strong>Description</strong>: v1 ships the same single engine, but the palette-size control is locked to 1 (silhouette only) at launch; the palette slider/presets (2, 3, 4, 8, 16…) unlock in a follow-up release once the tweak-panel UX is validated.</li>
+<li><strong>Scope</strong>: Upload, the tracer engine with palette fixed at 1, a smaller tweak panel (detail + smoothness + contrast + background — no palette control shown yet), preview, export.</li>
 <li><strong>Effort</strong>: Small</li>
-<li><strong>Tradeoffs</strong>: Faster to ship and validate the core loop, but the "multiple colors" half of the stated goal is missing at launch, and palette UI has to be retrofitted later.</li>
+<li><strong>Tradeoffs</strong>: Faster to ship and validate the core loop, but the "multiple colors" half of the stated goal is missing at launch, and the palette control has to be un-hidden and tested later.</li>
 <li><strong>Compatibility</strong>: N/A (greenfield)</li>
 </ul></div>
-<div class="note" data-for="s-spec-option-a-silhouette-first-multi"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-silhouette-first-multi" data-label="Option A: Silhouette first, Multi-color as a fast-follow (Conservative)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+<div class="note" data-for="s-spec-option-a-palette-locked-to-1-fir"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Palette locked to 1 first, unlock the slider later (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-palette-locked-to-1-fir" data-label="Option A: Palette locked to 1 first, unlock the slider later (Conservative)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-option-b-both-modes-together-one">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Both modes together, one shared UI (Recommended)</span></h4>
 <div class="sec-body"><ul>
-<li><strong>Description</strong>: v1 launches with Silhouette and Multi-color as a single mode toggle inside one shared UI (upload, preview, export, and tweak panel are all shared); the palette control is simply inert or hidden in Silhouette mode.</li>
-<li><strong>Scope</strong>: Upload, both tracer modes, full tweak panel (palette, smoothness, detail, background), preview, export.</li>
+<li><strong>Description</strong>: there is no separate "Silhouette tracer" and "Multi-color tracer" — it is one tool where Silhouette is just the palette set to 1 color. The palette control offers quick-select shortcuts for common sizes (1, 2, 3, 4, 8, 16…) plus an automatic mode that picks a reasonable size for the image; everything else (upload, preview, export, tweak panel) is fully shared.</li>
+<li><strong>Scope</strong>: Upload, one tracer engine with a palette-size control (manual presets + automatic), full tweak panel (palette, smoothness, detail, contrast, background), preview, export.</li>
 <li><strong>Effort</strong>: Medium</li>
 <li><strong>Tradeoffs</strong>: More surface area to build and test before first launch, but delivers the full stated goal ("silhouettes or multiple colors") in one release and avoids a later UI retrofit or fork.</li>
 <li><strong>Compatibility</strong>: N/A (greenfield)</li>
@@ -324,15 +326,15 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 <div class="note" data-for="s-spec-option-b-both-modes-together-one"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Both modes together, one shared UI (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-both-modes-together-one" data-label="Option B: Both modes together, one shared UI (Recommended)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-option-c-two-separate-top-level">
-<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Two separate top-level tools</span></h4>
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Two separate top-level entry points over the same engine</span></h4>
 <div class="sec-body"><ul>
-<li><strong>Description</strong>: Silhouette and Multi-color live as two distinct pages/routes, each with its own simpler, purpose-built UI rather than one shared tweak panel.</li>
-<li><strong>Scope</strong>: Upload, both tracer modes, two separate tweak panels, two preview/export flows.</li>
+<li><strong>Description</strong>: "Silhouette" and "Multi-color" live as two distinct pages/routes (same underlying tracer, palette size pre-set per page), each with its own simpler, purpose-built UI rather than one shared tweak panel.</li>
+<li><strong>Scope</strong>: Upload, the shared tracer engine, two separate tweak panels, two preview/export flows.</li>
 <li><strong>Effort</strong>: Medium-Large</li>
-<li><strong>Tradeoffs</strong>: Each UI can be more tailored and simpler on its own, but duplicates the upload/preview/export scaffolding, fragments the experience, and complicates any later "auto-detect best mode" feature.</li>
+<li><strong>Tradeoffs</strong>: Each UI can be more tailored and simpler on its own, but duplicates the upload/preview/export scaffolding, fragments the experience, and complicates the "just move the palette slider" mental model.</li>
 <li><strong>Compatibility</strong>: N/A (greenfield)</li>
 </ul></div>
-<div class="note" data-for="s-spec-option-c-two-separate-top-level"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Two separate top-level tools</span></div><textarea class="note-ta" data-key="s-spec-option-c-two-separate-top-level" data-label="Option C: Two separate top-level tools" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+<div class="note" data-for="s-spec-option-c-two-separate-top-level"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Two separate top-level entry points over the same engine</span></div><textarea class="note-ta" data-key="s-spec-option-c-two-separate-top-level" data-label="Option C: Two separate top-level entry points over the same engine" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-comparison">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
@@ -382,7 +384,7 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
 </article>
 <article class="sec" id="s-spec-4">
 <h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
-<div class="sec-body"><p><strong>Recommended option</strong>: Option B — ship both modes together behind one shared UI. This matches the explicit product goal ("silhouettes or multiple colors") without deferring half the value to a later release, and keeps a single upload/preview/export/tweak-panel implementation rather than forking it (Option C) or retrofitting it (Option A) afterward.</p>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B — one tracer engine, one shared UI, with palette size (including a silhouette-equivalent size of 1) as just another live tweak. This matches the explicit product goal ("silhouettes or multiple colors") without deferring half the value to a later release, and keeps a single upload/preview/export/tweak-panel implementation rather than forking it (Option C) or retrofitting it (Option A) afterward.</p>
 <p><strong>Immediate next action</strong>: Hand this spec to the <code>design</code> phase to define the concrete technical contracts — the tracer engine integration, the two-tier tweak pipeline (which knobs retrace vs. which are cheap SVG-only edits), the Web Worker boundary, the hosting target, and the frontend approach — building on the direction already recorded in <code>README.md</code>'s "Agreed technical direction."</p>
 <p><strong>Open questions</strong>:
 - [ ] Exact performance targets (first-trace time, retrace time) need real-device benchmarking during design/implementation rather than being fixed here.
@@ -434,7 +436,7 @@ committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script>var SPEC_SEED_NOTES={};</script>
+<script>var SPEC_SEED_NOTES={"s-spec-goals-non-goals": "Vectorization and tweaking must be done with two images: original vs vectorized and vectorized 1 vs vectorized 2 (or three images, maybe, or \"hold to see original\" button).", "s-spec-2": "About local settings persistence, we can talk about last used or save/load profiles. About API, that could come with future AI/premium accounts. We should also add some basic image editing tools. For example, crop or resize. Always the best practices, usual tools style or keyboard shortcuts, etc. will be used. So a crop or rotate tool must be visually quickly accessible and easily recognizable.", "s-spec-option-b-both-modes-together-one": "This is the one: same tool, but silhouette has a palette of 1 color. It can have a shortcut (1, 2, multiple colors) but it's the same tool. The tool must be able to choose multiple palette sizes automatically: 1, 2, 3, 4, 8, 16... We'll see it later. Also, detail level and contrast is important. For example, a watermark can be skipped by increasing image interpretation contrast."};</script>
 <script>
 (function(){
   var NS = 'image-converter-spec-v1:';
