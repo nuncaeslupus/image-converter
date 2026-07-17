@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Image Converter — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#6b6862;--line:#e6e2da;
+  --card:#ffffff;--accent:#0f766e;--accent2:#b45309;--chip:#eef2f1;
+  --note:#fff8ec;--note-line:#f0cf94;--code:#f3f1ec;--link:#0f766e;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#e9e7e2;--muted:#a09c95;--line:#2e2c33;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#26313055;
+    --note:#251f10;--note-line:#6b531c;--code:#26242b;--link:#5eead4;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+a{color:var(--link)}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#b45309}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:22px 0 6px}
+.hero h1{font-size:25px;line-height:1.2;margin:.1em 0 .3em}
+.hero p{color:var(--muted);margin:.3em 0}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:26px 0}
+.part-title{font-size:21px;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 8px;position:sticky;top:54px;background:var(--bg);z-index:10}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+.sec{padding:6px 0 2px;border-bottom:1px solid var(--line);scroll-margin-top:100px}
+.sec:last-child{border-bottom:none}
+.sec-h{margin:10px 0 6px;line-height:1.3;position:sticky;top:94px;background:var(--bg);z-index:5;padding-top:6px}
+h3.sec-h{font-size:18.5px}
+h4.sec-h{font-size:16.5px;color:var(--fg)}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p{margin:.55em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent2);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body table{border-collapse:collapse;width:100%;font-size:13.5px;margin:.6em 0;display:block;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;
+  padding:8px 11px;margin:10px 0 16px}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-ico{color:var(--accent2);font-weight:800}
+.note-label{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:15.5px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:.8}
+.note.filled{box-shadow:0 0 0 2px var(--note-line) inset}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Image Converter — Specification<small>annotatable reader · 2026-07-17</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 12 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Image Converter specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Specification</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-goals-non-goals">Goals &amp; Non-Goals</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-silhouette-first-multi">Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</a></li>
+<li><a href="#s-spec-option-b-both-modes-together-one">Option B: Both modes together, one shared UI (Recommended)</a></li>
+<li><a href="#s-spec-option-c-two-separate-top-level">Option C: Two separate top-level tools</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-future-phases-not-in-v1">Future Phases (Not in v1)</a></li>
+<li><a href="#s-spec-reference-prior-technical-direct">Reference: Prior Technical Direction (already agreed, out of scope for this spec)</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Specification</h2>
+<article class="sec" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><blockquote>
+<p>Seed for <code>status/specification.md</code>. <code>specify</code> owns sections 1–4 below.
+<code>design</code> later appends sections 5–6 (contracts, risks) — see
+<code>template-specification-tail.md</code> in the design skill. Keep the file
+committed; per-task scratch belongs in <code>tmp/</code>, never here.</p>
+</blockquote>
+<p><strong>Date</strong>: 2026-07-17
+<strong>Ticket / PR</strong>: N/A — greenfield project
+<strong>Author</strong>: nuncaeslupus</p></div>
+<div class="note" data-for="s-spec-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></div><textarea class="note-ta" data-key="s-spec-intro" data-label="Preamble &amp; scope" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-goals-non-goals">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Goals &amp; Non-Goals</span></h3>
+<div class="sec-body"><p><strong>Goals (v1)</strong></p>
+<ul>
+<li>Convert a raster image (PNG, JPEG, WebP, GIF, or BMP) into a clean, editable SVG entirely in the browser — no upload to any server, no account, no cost to the user.</li>
+<li>Support two vectorization modes from the first release: <strong>Silhouette</strong> (single-color trace — logos, icons, line art) and <strong>Multi-color</strong> (posterized trace with a reduced palette — photos, illustrations).</li>
+<li>Let the user tweak the result live before exporting: palette / number of colors, smoothness (straight edges vs. curves), level of detail (speckle/noise filtering), and background handling (transparent / solid / removed).</li>
+<li>Make export flexible: download the <code>.svg</code> file, copy the raw markup, override the output size/viewBox, and see a size/path-count estimate before exporting.</li>
+<li>Be fast and light enough to run comfortably on a typical phone or laptop, and to be hosted for $0.</li>
+<li>Remember the user's last-used tweak settings across visits (on-device only).</li>
+</ul>
+<p><strong>Non-goals (v1 — explicitly deferred)</strong></p>
+<ul>
+<li>Batch upload / processing multiple images at once.</li>
+<li>Named, savable presets (beyond remembering the single last-used configuration).</li>
+<li>Branding / product naming — left open for a later decision.</li>
+<li>Any AI-assisted vectorization — a possible future <strong>premium</strong> feature, not part of this spec.</li>
+<li>Conversion between other file formats (e.g. SVG→PNG, HEIC→JPEG) — this spec covers raster→SVG only; other conversions are a later phase, per the README's note that "other image format conversions could also be added."</li>
+<li>Any monetization, ads, or accounts — v1 is a plain free tool.</li>
+</ul></div>
+<div class="note" data-for="s-spec-goals-non-goals"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Goals &amp; Non-Goals</span></div><textarea class="note-ta" data-key="s-spec-goals-non-goals" data-label="Goals &amp; Non-Goals" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>People who need a quick vector (SVG) version of a logo, icon, or simple illustration are generally forced onto paid or account-gated web tools, or heavyweight desktop software, just to trace one image — and in doing so they hand their (sometimes private) image to a third-party server. There is no free, no-account, privacy-preserving tool that runs entirely on the user's own device, lets them see the traced result immediately, and gives them simple, live control over the trade-off between fidelity and simplicity (palette, smoothness, detail) before they export. This matters because the lack of such a tool pushes casual and budget-conscious users (hobbyists, small businesses, students) toward paid services for a task that modern browsers are fully capable of doing locally.</p>
+<p><strong>Success criteria (measurable)</strong></p>
+<ul>
+<li>[ ] <code>network_requests_carrying_user_image_data == 0</code> — the uploaded image and the resulting SVG never leave the device at any point in the flow.</li>
+<li>[ ] <code>time_to_first_traced_preview &lt;= ~5s</code> for a typical camera/phone-sized photo on mid-range consumer hardware (first-pass target; to be confirmed with real-device benchmarking during design/implementation).</li>
+<li>[ ] Adjusting a non-retrace tweak (background handling, output size/viewBox) updates the visible result with no perceptible delay (cheap SVG-only edit, never re-runs the tracer).</li>
+<li>[ ] Adjusting a retrace tweak (palette/color count, smoothness, detail) updates the preview within a few seconds and never freezes the rest of the UI while it runs.</li>
+<li>[ ] <code>signup_or_payment_steps_required_for_core_flow == 0</code> — upload, tweak, and export never require an account or payment.</li>
+<li>[ ] The tool functions with the network disconnected after the initial page load (condition that can't be reduced to a single number — judged by manually testing the full upload→tweak→export flow offline).</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upload &amp; input handling</td>
+<td>Primary</td>
+<td>Accepts a raster image (PNG/JPEG/WebP/GIF/BMP) via file picker or drag-and-drop and decodes it client-side</td>
+<td>Yes (new)</td>
+<td>Entry point for every session</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Silhouette tracer</td>
+<td>Primary</td>
+<td>Produces a single-color vector trace of the image</td>
+<td>Yes (new)</td>
+<td>Core value for the logo/icon/line-art use case</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Multi-color tracer</td>
+<td>Primary</td>
+<td>Produces a posterized, reduced-palette vector trace</td>
+<td>Yes (new)</td>
+<td>Core value for the photo/illustration use case</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Live tweak panel</td>
+<td>Primary</td>
+<td>Exposes palette/color count, smoothness, detail, and background controls, and drives re-rendering</td>
+<td>Yes (new)</td>
+<td>Directly drives perceived quality and usability</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Preview / canvas</td>
+<td>Dependent</td>
+<td>Shows original vs. traced result so the user can judge a tweak before exporting</td>
+<td>Yes (new)</td>
+<td>The user's main feedback loop</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Export</td>
+<td>Primary</td>
+<td>Produces the downloadable <code>.svg</code>, clipboard copy, size/viewBox override, and a size/path-count estimate</td>
+<td>Yes (new)</td>
+<td>The deliverable the user came for</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Local settings persistence</td>
+<td>Dependent</td>
+<td>Remembers the last-used tweak configuration on-device</td>
+<td>Yes (new)</td>
+<td>Convenience, not core function</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Hosting / delivery</td>
+<td>Infrastructure</td>
+<td>Serves the static site at $0 backend cost</td>
+<td>Out of scope for this spec — see Reference section</td>
+<td>Determines the cost model</td>
+<td>Medium</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact dimensions</strong>: no persistent data is stored anywhere but the user's own browser (no data-loss/integrity risk); there is no API/backend to version; the main risk is client-side performance on large images or low-end devices; user-facing impact is the entire product; there is no deployment/operational surface beyond a static host; the risk of inaction is that this gap in free, private tooling simply continues.</p></div>
+<div class="note" data-for="s-spec-2"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></div><textarea class="note-ta" data-key="s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="sec-body"></div>
+<div class="note" data-for="s-spec-3"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></div><textarea class="note-ta" data-key="s-spec-3" data-label="§3 Options" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-a-silhouette-first-multi">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: v1 launches with only single-color tracing (logos/icons/line art); the posterized multi-color mode ships as a follow-up release once the tweak-panel UX is validated.</li>
+<li><strong>Scope</strong>: Upload, one tracer mode, a smaller tweak panel (detail + smoothness + background — no palette control needed yet), preview, export.</li>
+<li><strong>Effort</strong>: Small</li>
+<li><strong>Tradeoffs</strong>: Faster to ship and validate the core loop, but the "multiple colors" half of the stated goal is missing at launch, and palette UI has to be retrofitted later.</li>
+<li><strong>Compatibility</strong>: N/A (greenfield)</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-silhouette-first-multi"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Silhouette first, Multi-color as a fast-follow (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-silhouette-first-multi" data-label="Option A: Silhouette first, Multi-color as a fast-follow (Conservative)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-b-both-modes-together-one">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Both modes together, one shared UI (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: v1 launches with Silhouette and Multi-color as a single mode toggle inside one shared UI (upload, preview, export, and tweak panel are all shared); the palette control is simply inert or hidden in Silhouette mode.</li>
+<li><strong>Scope</strong>: Upload, both tracer modes, full tweak panel (palette, smoothness, detail, background), preview, export.</li>
+<li><strong>Effort</strong>: Medium</li>
+<li><strong>Tradeoffs</strong>: More surface area to build and test before first launch, but delivers the full stated goal ("silhouettes or multiple colors") in one release and avoids a later UI retrofit or fork.</li>
+<li><strong>Compatibility</strong>: N/A (greenfield)</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-both-modes-together-one"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Both modes together, one shared UI (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-both-modes-together-one" data-label="Option B: Both modes together, one shared UI (Recommended)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-c-two-separate-top-level">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Two separate top-level tools</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Silhouette and Multi-color live as two distinct pages/routes, each with its own simpler, purpose-built UI rather than one shared tweak panel.</li>
+<li><strong>Scope</strong>: Upload, both tracer modes, two separate tweak panels, two preview/export flows.</li>
+<li><strong>Effort</strong>: Medium-Large</li>
+<li><strong>Tradeoffs</strong>: Each UI can be more tailored and simpler on its own, but duplicates the upload/preview/export scaffolding, fragments the experience, and complicates any later "auto-detect best mode" feature.</li>
+<li><strong>Compatibility</strong>: N/A (greenfield)</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-two-separate-top-level"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Two separate top-level tools</span></div><textarea class="note-ta" data-key="s-spec-option-c-two-separate-top-level" data-label="Option C: Two separate top-level tools" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Medium</td>
+<td>Medium-Large</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Low</td>
+<td>Low-Medium</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Partial at launch</td>
+<td>Full</td>
+<td>Full</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>N/A</td>
+<td>N/A</td>
+<td>N/A</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Low now, retrofit later</td>
+<td>Low, single code path</td>
+<td>Higher, two code paths</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></div><textarea class="note-ta" data-key="s-spec-comparison" data-label="Comparison" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B — ship both modes together behind one shared UI. This matches the explicit product goal ("silhouettes or multiple colors") without deferring half the value to a later release, and keeps a single upload/preview/export/tweak-panel implementation rather than forking it (Option C) or retrofitting it (Option A) afterward.</p>
+<p><strong>Immediate next action</strong>: Hand this spec to the <code>design</code> phase to define the concrete technical contracts — the tracer engine integration, the two-tier tweak pipeline (which knobs retrace vs. which are cheap SVG-only edits), the Web Worker boundary, the hosting target, and the frontend approach — building on the direction already recorded in <code>README.md</code>'s "Agreed technical direction."</p>
+<p><strong>Open questions</strong>:
+- [ ] Exact performance targets (first-trace time, retrace time) need real-device benchmarking during design/implementation rather than being fixed here.
+- [ ] Product name/branding — deliberately left open for now.
+- [ ] Project license (open source, and which license) — not yet decided.
+- [ ] Whether "detail/speckle filtering" and "smoothness" end up as one combined control or two separate sliders is a design-phase concern, not a product-spec one.</p></div>
+<div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-future-phases-not-in-v1">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Future Phases (Not in v1)</span></h3>
+<div class="sec-body"><ul>
+<li>Batch upload/processing of multiple images with shared settings.</li>
+<li>Named, savable presets and/or conversion history.</li>
+<li>AI-assisted vectorization, potentially as a premium feature.</li>
+<li>Additional file-format conversions beyond raster→SVG.</li>
+<li>Branding, domain, and monetization-model decisions.</li>
+</ul></div>
+<div class="note" data-for="s-spec-future-phases-not-in-v1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Future Phases (Not in v1)</span></div><textarea class="note-ta" data-key="s-spec-future-phases-not-in-v1" data-label="Future Phases (Not in v1)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-reference-prior-technical-direct">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Reference: Prior Technical Direction (already agreed, out of scope for this spec)</span></h3>
+<div class="sec-body"><p>Recorded in <code>README.md</code> → "Status": VTracer (Rust → WASM) as the primary tracer with optional Potrace for clean black-and-white output; 100% static hosting; a two-tier tweak pipeline (cheap SVG-only edits vs. tracer re-runs, cached by parameter set); tracing in a Web Worker with a downscaled preview for responsiveness; and a <code>bitmap → SVG</code> interface left open for a future AI tracer. This spec deliberately stayed technology-free per the product owner's request — the <code>design</code> phase should reconcile these existing decisions with the product requirements above.</p>
+<blockquote>
+<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-reference-prior-technical-direct"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Reference: Prior Technical Direction (already agreed, out of scope for this spec)</span></div><textarea class="note-ta" data-key="s-spec-reference-prior-technical-direct" data-label="Reference: Prior Technical Direction (already agreed, out of scope for this spec)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'image-converter-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      if(t.value.trim()===''){localStorage.removeItem(k);}else{localStorage.setItem(k,t.value);}
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    try{var v=localStorage.getItem(NS+t.dataset.key);
+        if(v!=null){t.value=v;}else if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){t.value=SEED[t.dataset.key];}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var name='spec-notes-'+today()+'.md';
+    download(name,r.text);openModal(r.text);
+    if(navigator.clipboard){navigator.clipboard.writeText(r.text).then(function(){},function(){});}
+    dirty=false;setState('✓ Backup saved '+nowStamp(),'ok');
+    toast('Exported '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    modalTa.select();var ok=false;try{ok=document.execCommand('copy');}catch(e){}
+    if(navigator.clipboard){navigator.clipboard.writeText(modalTa.value).then(function(){},function(){});ok=true;}
+    toast(ok?'Copied to clipboard':'Select the text and copy');
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download('spec-notes-'+today()+'.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  function applyData(obj){
+    var applied=0;
+    tas.forEach(function(t){
+      if(Object.prototype.hasOwnProperty.call(obj,t.dataset.key)){t.value=obj[t.dataset.key];save(t);autoGrow(t);setFilled(t);applied++;}
+    });
+    updateCount();return applied;
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      var m=txt.lastIndexOf('SPEC-NOTES-DATA');
+      try{
+        if(m>=0){var after=txt.slice(m+15);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var k=applyData(obj);toast('Imported '+k+' note'+(k===1?'':'s'));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
