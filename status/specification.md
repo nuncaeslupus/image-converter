@@ -123,4 +123,103 @@ People who need a quick vector (SVG) version of a logo, icon, or simple illustra
 
 Recorded in `README.md` → "Status": VTracer (Rust → WASM) as the primary tracer with optional Potrace for clean black-and-white output; 100% static hosting; a two-tier tweak pipeline (cheap SVG-only edits vs. tracer re-runs, cached by parameter set); tracing in a Web Worker with a downscaled preview for responsiveness; and a `bitmap → SVG` interface left open for a future AI tracer. This spec deliberately stayed technology-free per the product owner's request — the `design` phase should reconcile these existing decisions with the product requirements above.
 
+## 5. Contracts
+
+This is a client-only, static-hosted app — there is no HTTP API and no backend
+database. The load-bearing "contracts" here are (a) the message protocol across
+the Web Worker boundary that keeps tracing off the main thread, (b) the
+`bitmap → SVG` tracer abstraction the README already commits to (so a future AI
+tracer can be swapped in behind it), and (c) the local-storage schema for
+remembered settings.
+
+### Worker message contract (tracer boundary)
+
+All tracing (VTracer WASM) runs inside a dedicated `tracer.worker.ts`. The main
+thread never blocks on a trace.
+
+**Request** (main → worker):
+```json
+{
+  "type": "trace",
+  "requestId": "uuid",
+  "image": { "bitmap": "ImageBitmap (transferred)", "width": 0, "height": 0 },
+  "params": {
+    "paletteSize": "1-64 | \"auto\"",
+    "smoothness": "0-100",
+    "detail": "0-100",
+    "contrast": "-100-100"
+  }
+}
+```
+
+**Response — success**:
+```json
+{
+  "type": "trace-result",
+  "requestId": "uuid",
+  "svg": "<svg ...>...</svg>",
+  "pathCount": 0,
+  "durationMs": 0
+}
+```
+
+**Response — error**:
+```json
+{ "type": "trace-error", "requestId": "uuid", "message": "string" }
+```
+
+- **Backwards compatible**: N/A (greenfield, single consumer of its own protocol).
+- Every request carries a fresh `requestId`; a superseded in-flight request's
+  response is discarded by the main thread (last-tweak-wins), which is what
+  makes rapid slider drags safe without an explicit cancel message.
+- `params` is the exact boundary between "cheap SVG-only edit" (never sent
+  here — applied directly to the last `svg` string) and "retrace" (always sent
+  here). Background handling and output size/viewBox never appear in `params`.
+
+### Bitmap → SVG interface
+
+```ts
+interface Tracer {
+  trace(bitmap: ImageBitmap, params: TraceParams): Promise<{ svg: string; pathCount: number }>;
+}
+```
+
+VTracer-via-WASM is the v1 implementation of this interface, run inside the
+worker. Keeping the worker protocol shaped around this interface (not around
+VTracer's native parameter names) is what leaves room for a future AI tracer
+implementation, per the README's stated direction — swapping the
+implementation never touches the tweak panel or export code.
+
+### Local storage contract
+
+| Key | Shape | Written | Read |
+|-----|-------|---------|------|
+| `image-converter:last-settings:v1` | `{ paletteSize, smoothness, detail, contrast, background }` (tweak values only — never image data) | Debounced on any tweak change | On app load, to seed the tweak panel |
+
+The `:v1` suffix is deliberate: a future shape change ships as `:v2` and falls
+back to defaults on a missing/unparseable key, rather than migrating stored
+data in place.
+
+### Database migrations
+
+| Service | Database | Change | Reversible | Forward-compatible |
+|---------|----------|--------|------------|---------------------|
+| N/A | N/A | No database in v1 — client-only, static hosting, `localStorage` only | N/A | N/A |
+
+## 6. Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| VTracer WASM bundle size/load time hurts the "fast and light" goal | Medium | Medium | Lazy-load the WASM module on first trace (not on initial page load); compress with `wasm-opt`; code-split it out of the main bundle | perf (bundle-size budget + load-time measurement) |
+| Large images freeze the tab on low-end/mobile devices | Medium | High | Trace runs only in the Worker (never main thread); downscale to a preview resolution before tracing, full-resolution pass only on export; hard cap max input dimension | perf, manual (real low-end/mobile device) |
+| Older/mobile browsers lack `OffscreenCanvas`, Worker-side WASM, or the Clipboard API | Low-Medium | Medium | Feature-detect and degrade gracefully (main-thread trace fallback with a spinner; download-only export when clipboard write is unavailable) | manual (cross-browser matrix) |
+| VTracer's native parameters (e.g. `filter_speckle`, `corner_threshold`, `color_precision`) don't map intuitively to the product's "smoothness / detail / contrast" mental model | Medium | Medium | Build and unit-test an explicit translation layer between the product params and VTracer's native params, tuned by manual comparison against sample images | unit, manual |
+| Automatic palette-size heuristic picks a poor size for some images (esp. photos) | Medium | Low | Ship it as a starting point the user can always override manually; iterate the heuristic post-launch against a sample corpus | manual (varied sample corpus) |
+| Cache/debounce bug leaves the preview stale after a tweak (doesn't visibly update) | Low | Medium | Cache key is a hash of `(imageId, params)`; invalidated whenever the source image changes; regression-tested | unit |
+| `localStorage` cleared or unavailable (private browsing, quota) loses remembered settings | Medium | Low | Fail silently to in-code defaults — never block or error the core flow | unit |
+
+**Rollback plan**: the whole app is a single static bundle behind one hosting
+target with no server state and no data migrations — "rollback" is redeploying
+the previous build artifact. No risk above requires a data rollback plan.
+
 > Sections 5–6 (contracts, risks) are appended by `design`.
