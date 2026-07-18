@@ -1,0 +1,1 @@
+{"id": "lo-9704", "title": "T15: Offline/PWA \u2014 service worker precache (spec \u00a71)", "status": "merged", "priority": 5, "requires": [], "deps": [], "assignee": null, "payload": "lo-9704.md", "max_attempts": 3, "attempts": 0, "workspace": "WEB", "tags": ["WEB"], "pr": "https://github.com/nuncaeslupus/image-converter/pull/25"}
