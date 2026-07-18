@@ -17,12 +17,3 @@
     )
     50% / 16px 16px;
 }
-
-.previewSvg {
-  display: flex;
-}
-
-.previewSvg :global(svg) {
-  max-width: 100%;
-  height: auto;
-}

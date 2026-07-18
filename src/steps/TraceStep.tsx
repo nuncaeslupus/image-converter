@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
 import { TweakPanel } from "../components/TweakPanel/TweakPanel";
+import { Preview } from "../components/Preview/Preview";
 import {
   createTweakPipeline,
   applyBackground,
@@ -129,8 +130,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         <div className={styles.preview}>
           {error && <p role="alert">{error}</p>}
           {tracedSvg ? (
-            // svg is our own worker's trace output, not user-supplied markup.
-            <div className={styles.previewSvg} dangerouslySetInnerHTML={{ __html: tracedSvg }} />
+            <Preview originalImage={image} tracedSvg={tracedSvg} />
           ) : (
             <p role="status">Tracing…</p>
           )}
