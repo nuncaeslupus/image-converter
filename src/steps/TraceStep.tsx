@@ -15,6 +15,7 @@ import {
   isTraceResponse,
   type TraceParams,
 } from "../lib/traceProtocol";
+import { downscaleForPreview } from "../lib/previewDownscale";
 import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
@@ -73,7 +74,10 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
       // A fresh copy per retrace: the worker transfers (and closes) the
       // bitmap it receives, so the wizard's own working image must never be
       // transferred directly, or every later retrace would find it detached.
-      const bitmapCopy = await createImageBitmap(workingImage);
+      // Downscaled to a bounded preview resolution before tracing (T11) —
+      // tracing at full source resolution can blow the ~5s preview budget by
+      // an order of magnitude on typical camera/phone photos.
+      const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage));
       const request = createTraceRequest(
         { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
         params,
