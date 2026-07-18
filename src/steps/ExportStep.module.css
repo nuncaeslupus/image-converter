@@ -1,0 +1,28 @@
+.layout {
+  display: flex;
+  gap: 22px;
+  height: 100%;
+  min-height: 0;
+}
+
+.previewCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.controls {
+  flex: 0 0 340px;
+  width: 340px;
+  overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    flex-direction: column;
+  }
+  .controls {
+    flex: none;
+    width: auto;
+  }
+}

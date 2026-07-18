@@ -1,19 +1,121 @@
-:root {
-  color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+@import url("https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+/*
+ * Halftone theme tokens (see design_handoff README "Design Tokens").
+ * Light default is the `blueWhite` variant; dark is a single palette.
+ * Applied via [data-theme] on <html> (set in App.tsx).
+ */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #e2e7ef;
+  --bg: #f2f5fa;
+  --surface: #ffffff;
+  --surface-2: #fbfcfe;
+  --border: #dde3ec;
+  --border-strong: #c4cddb;
+  --fg: #20262f;
+  --fg-2: #5a6472;
+  --fg-3: #8891a0;
+  --accent: #0e8f86;
+  --accent-soft: #e2f4f2;
+  --accent-fg: #0a6b64;
+  --accent-shadow: rgba(14, 143, 134, 0.5);
+  --ok: #2f7d55;
+  --ok-bg: #eaf5ee;
+  --ok-border: #cfe7d8;
+  --shadow: rgba(30, 45, 70, 0.32);
+  --track: #e0e6ef;
+  --check-a: #ebeff6;
+  --check-b: #ffffff;
+  --trace-a: #d8efec;
+  --trace-b: #eaf7f5;
+  --trace-line: #a9d9d3;
+  --trace-fg: #3f9b93;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #101417;
+  --bg: #161b1f;
+  --surface: #1d242a;
+  --surface-2: #1a2126;
+  --border: #2b343b;
+  --border-strong: #3a454d;
+  --fg: #e9eef1;
+  --fg-2: #a3adb4;
+  --fg-3: #77828a;
+  --accent: #34c9bb;
+  --accent-soft: #123330;
+  --accent-fg: #7fe0d5;
+  --accent-shadow: rgba(0, 0, 0, 0.6);
+  --ok: #8fd0a8;
+  --ok-bg: #16281f;
+  --ok-border: #2c4536;
+  --shadow: rgba(0, 0, 0, 0.7);
+  --track: #2b343b;
+  --check-a: #1a2024;
+  --check-b: #20272c;
+  --trace-a: #123634;
+  --trace-b: #16302e;
+  --trace-line: #2f6b64;
+  --trace-fg: #58c2b8;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
+  font-family: "Onest", system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--page);
 }
 
-main {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1.5rem;
+.mono {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* Range slider — matches the design's ::-webkit / ::-moz rules. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--track);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--track);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+}
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
 }

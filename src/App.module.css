@@ -1,0 +1,246 @@
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+/* The shell height is pinned to the viewport (independent of step content),
+   with a floor for short screens — so the card footprint is identical on
+   every step. `min-height` wins when the viewport is shorter than the floor,
+   and the page then scrolls. */
+.shell {
+  width: 100%;
+  max-width: 1080px;
+  height: calc(100dvh - 48px);
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Constant footprint: fills the shell height below the top bar and clips —
+   inner content shrinks to fit (via the min-height:0 chain) rather than
+   stretching the card. */
+.card {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 26px;
+  box-shadow: 0 24px 60px -34px var(--shadow);
+}
+
+/* Step content area — grows to fill the card between the stepper and footer,
+   so each step lays out inside a constant-size box. */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Each step's root <section> grows to fill the constant-height body. */
+.body > section {
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- top bar (sits above the card, on the page) ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 0 6px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.wordmark {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+  border-radius: 99px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.themeToggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-2);
+}
+.themeToggle:hover {
+  filter: brightness(0.97);
+}
+
+/* ---- stepper ---- */
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 26px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 76px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+}
+.step:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Completed steps recede: a muted, grayed checkmark so they don't compete
+   with the active step for attention. */
+.dotDone {
+  background: var(--surface-2);
+  border: 2px solid var(--border);
+  color: var(--fg-3);
+}
+/* The active step is the solid, filled node with a soft halo — the clear
+   focal point of the stepper. */
+.dotCurrent {
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  color: #fff;
+}
+.dotCurrent svg {
+  stroke-width: 2.4px;
+}
+.dotUpcoming {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  color: var(--fg-3);
+}
+
+.stepLabel {
+  font-size: 12.5px;
+}
+.labelCurrent {
+  color: var(--fg);
+  font-weight: 600;
+}
+.labelDone {
+  color: var(--fg-2);
+}
+.labelUpcoming {
+  color: var(--fg-3);
+}
+
+.connector {
+  flex: 1;
+  height: 2px;
+  margin-top: 21px;
+  border-radius: 2px;
+}
+.connectorOn {
+  background: var(--accent);
+}
+.connectorOff {
+  background: var(--border);
+}
+
+/* ---- footer ---- */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.btnBack {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 11px 22px;
+  cursor: pointer;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.btnBack:hover {
+  filter: brightness(0.97);
+}
+.btnBack:disabled {
+  color: var(--fg-3);
+  background: transparent;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnPrimary {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 11px 28px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  box-shadow: 0 8px 18px -8px var(--accent-shadow);
+}
+.btnPrimary:hover {
+  filter: brightness(0.97);
+}
+.btnPrimary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}

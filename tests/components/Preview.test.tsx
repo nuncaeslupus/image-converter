@@ -16,7 +16,7 @@ async function makeOriginalImage(): Promise<ImageBitmap> {
 describe("Preview", () => {
   it("test_previewCompare_holdPressed_showsOriginal", async () => {
     const originalImage = await makeOriginalImage();
-    render(<Preview originalImage={originalImage} tracedSvg={TRACED_SVG} />);
+    render(<Preview title="Trace & Tweak" originalImage={originalImage} tracedSvg={TRACED_SVG} />);
 
     const button = screen.getByRole("button", { name: /hold to see original/i });
     fireEvent.pointerDown(button);
@@ -29,7 +29,7 @@ describe("Preview", () => {
 
   it("test_previewCompare_released_showsTracedResult", async () => {
     const originalImage = await makeOriginalImage();
-    render(<Preview originalImage={originalImage} tracedSvg={TRACED_SVG} />);
+    render(<Preview title="Trace & Tweak" originalImage={originalImage} tracedSvg={TRACED_SVG} />);
 
     const button = screen.getByRole("button", { name: /hold to see original/i });
     fireEvent.pointerDown(button);

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { useState } from "preact/hooks";
 import { render, screen } from "@testing-library/preact";
-import userEvent from "@testing-library/user-event";
 import { bitmapFromPixels } from "../lib/imageEdit";
 import { WIZARD_STEPS, type Wizard, type WizardStep } from "../lib/wizard";
 import { EditStep } from "./EditStep";
@@ -46,30 +45,8 @@ function Harness({ image }: { image: ImageBitmap }) {
 }
 
 describe("EditStep", () => {
-  it("test_editStep_backButton_returnsToUpload", async () => {
-    const user = userEvent.setup();
-    const image = await makeFixtureBitmap();
-    render(<Harness image={image} />);
-
-    await user.click(screen.getByRole("button", { name: "Back" }));
-
-    expect(screen.getByText("current step: upload")).toBeInTheDocument();
-  });
-
-  it("test_editStep_nextWithNoEdits_advancesWithOriginalImagePassedThroughUnchanged", async () => {
-    const user = userEvent.setup();
-    const image = await makeFixtureBitmap();
-    render(<Harness image={image} />);
-
-    expect(screen.getByText("image dims: 3x2")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Next" }));
-
-    expect(screen.getByText("current step: trace")).toBeInTheDocument();
-    // Skippable by design: no tool was touched, so the original bitmap's
-    // dimensions carry through unchanged.
-    expect(screen.getByText("image dims: 3x2")).toBeInTheDocument();
-  });
+  // Back/Next nav lives in the App shell footer now (not the step), so the
+  // step-level nav tests moved to App.test.tsx.
 
   it("test_editStep_rendersToolbarWithStandardTools", async () => {
     const image = await makeFixtureBitmap();
@@ -79,6 +56,9 @@ describe("EditStep", () => {
     expect(screen.getByRole("button", { name: /crop/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rotate left/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rotate right/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /resize/i })).toBeInTheDocument();
+    // Resize was removed (SVG output is resized at Export); undo/redo/reset added.
+    expect(screen.getByRole("button", { name: /undo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /redo/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /reset/i })).toBeInTheDocument();
   });
 });

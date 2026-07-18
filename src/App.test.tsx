@@ -17,7 +17,7 @@ describe("App wizard shell", () => {
   it("test_app_initialRender_showsUploadStep", () => {
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "1. Upload" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Add an image to vectorize" })).toBeInTheDocument();
   });
 
   it("test_app_uploadValidImage_advancesToEditStep", async () => {
@@ -27,8 +27,10 @@ describe("App wizard shell", () => {
     const input = screen.getByLabelText("Choose file", { selector: "input" });
     await user.upload(input, loadFixture("sample.png", "image/png"));
 
+    // Edit step is identified by the image-editing toolbar (the shell owns the
+    // per-step headings/nav now, so there's no "2. Edit" heading).
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "2. Edit" })).toBeInTheDocument(),
+      expect(screen.getByRole("toolbar", { name: "Image editing tools" })).toBeInTheDocument(),
     );
   });
 });

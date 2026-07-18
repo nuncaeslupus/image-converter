@@ -165,6 +165,63 @@ export async function rotateImage(bitmap: ImageBitmap, degrees: number): Promise
   return pixelsToBitmap(pixels);
 }
 
+/**
+ * Minimal uniform scale so a `w`×`h` image rotated by `rad` fully covers a
+ * `w`×`h` frame (no empty corners) — used by the "fit to frame" rotation mode
+ * and its live CSS preview, so both agree on the zoom factor.
+ */
+export function fitToFrameScale(w: number, h: number, rad: number): number {
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  return Math.max(cos + (h / w) * sin, cos + (w / h) * sin);
+}
+
+/**
+ * Rotates `bitmap` by an arbitrary angle (degrees) via a canvas transform.
+ * Unlike the exact 90°-increment {@link rotateImage}, off-axis angles must
+ * resample, so this is not pixel-exact.
+ *
+ * The image is never scaled down, so its size stays constant:
+ * - `fitToFrame` `false` (default): the image rotates at scale 1 and the
+ *   canvas grows to the rotated bounding box — the whole (tilted) image stays
+ *   visible, the freed corners are transparent.
+ * - `fitToFrame` `true`: the canvas keeps the source width/height and the
+ *   image is scaled up just enough to keep covering that rectangle, so it
+ *   never leaves it (the overhang is cropped).
+ */
+export async function rotateImageArbitrary(
+  bitmap: ImageBitmap,
+  degrees: number,
+  fitToFrame = false,
+): Promise<ImageBitmap> {
+  const rad = (degrees * Math.PI) / 180;
+  const w = bitmap.width;
+  const h = bitmap.height;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+
+  let outW: number;
+  let outH: number;
+  let scale: number;
+  if (fitToFrame) {
+    outW = w;
+    outH = h;
+    scale = fitToFrameScale(w, h, rad);
+  } else {
+    outW = Math.max(1, Math.round(w * cos + h * sin));
+    outH = Math.max(1, Math.round(w * sin + h * cos));
+    scale = 1;
+  }
+
+  const ctx = getContext2D(outW, outH);
+  ctx.imageSmoothingQuality = "high";
+  ctx.translate(outW / 2, outH / 2);
+  ctx.rotate(rad);
+  ctx.scale(scale, scale);
+  ctx.drawImage(bitmap, -w / 2, -h / 2);
+  return createImageBitmap(ctx.canvas);
+}
+
 /** Resizes `bitmap` to exactly `targetWidth` x `targetHeight` (nearest-neighbor). */
 export async function resizeImage(
   bitmap: ImageBitmap,
