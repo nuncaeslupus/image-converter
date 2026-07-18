@@ -19,6 +19,14 @@ export interface Wizard {
   image: ImageBitmap | null;
   /** Replaces the working image — e.g. after a successful decode (T4) or edit (T5). */
   setImage: (image: ImageBitmap | null) => void;
+  /**
+   * The current traced SVG markup (T6/T8), threaded to Export (T9) — see
+   * status/plan.md "Data flow" step 8. `null` until Trace & Tweak produces a
+   * first result.
+   */
+  svg: string | null;
+  /** Replaces the current traced SVG — called on every trace result / cheap edit. */
+  setSvg: (svg: string | null) => void;
 }
 
 /**
@@ -28,6 +36,7 @@ export interface Wizard {
 export function useWizard(initial: WizardStep = "upload"): Wizard {
   const [step, setStep] = useState<WizardStep>(initial);
   const [image, setImage] = useState<ImageBitmap | null>(null);
+  const [svg, setSvg] = useState<string | null>(null);
   const stepIndex = WIZARD_STEPS.indexOf(step);
 
   return {
@@ -38,5 +47,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     back: () => setStep(WIZARD_STEPS[Math.max(stepIndex - 1, 0)]),
     image,
     setImage,
+    svg,
+    setSvg,
   };
 }
