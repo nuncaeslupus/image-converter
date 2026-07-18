@@ -4,66 +4,68 @@
 
 ## Last task
 
-- **ID**: `lo-f1d0`
-- **Title**: T11: Performance pass (downscaled preview, max-dim cap, first-trace budget)
-- **Status at handover**: `merged` — PR #23. **All 11 original plan tasks (T1–T12) are now merged.**
+- **ID**: `lo-9704`
+- **Title**: T15: Offline/PWA — service worker precache (spec §1)
+- **Status at handover**: `merged` — PR #25.
 
 ## Headline
 
-The whole T1–T12 plan is complete and the app works end-to-end. This CLI session
-took the queue from 4 merged / 7 open to **11 merged / 0 open**, unblocked by
-making the repo public.
+Spec §1 **offline capability** is now shipped and merged (was a manual-validation
+gap last session). The app loads and runs fully offline after first visit via a
+service-worker precache of the app shell + WASM tracer. Verified end-to-end.
 
 ## What was done this session
 
-1. **Made the repo PUBLIC** (explicit user consent; secret-scanned clean first).
-   Public repos get free unlimited Actions minutes → permanently removed the
-   "2000-min exhausted, hold until 2026-08-01" blocker. **CI now runs for real**
-   (it was previously green-by-not-running — rejected in ~4s, 0 billable time).
-2. **T12 deploy** (#14): `deploy.yml` + Vite `base:/image-converter/` + Pages
-   enabled. **Live + verified**: https://nuncaeslupus.github.io/image-converter/ → 200.
-3. **CI hygiene** (#15): fixed pre-existing prettier drift CI never caught; added
-   `.githooks/pre-push` (format:check+lint via `core.hooksPath`, set by a
-   `prepare` script) and `.nvmrc` (node 22) read by ci.yml+deploy.yml. With the
-   committed lockfile + `npm ci`, CI and local resolve identical toolchains.
-   **Trap learned: always format with the pinned binary (`npm run format`),
-   never `npx prettier` (pulls a different version).**
-4. **WEB chain, all merged**: T6 tweak panel+pipeline (#17), T8 trace cache (#18),
-   T10 settings persistence (#19), T7 preview+hold-to-compare (#20), T9 SVG
-   export (#21), T11 perf pass (#23). Plus wiring fix #22 (TraceStep publishes
-   the traced SVG to `wizard.setSvg` so Export receives it).
-5. **T11 CI retune**: the perf test failed CI at 5622ms > 5000ms (real
-   downscale+trace at the 768px cap on ~1.8× slower CI hardware). Lowered
-   `PREVIEW_MAX_DIMENSION` 768→512 (~975ms local, ~1950ms projected CI) — a real
-   low-end-device improvement, not a relaxed test.
-6. **End-to-end browser verification**: uploaded a test image, drove
-   Upload→Edit→Trace(WASM)→Tweak→Preview→Export. Trace produced a valid SVG;
-   Export showed "Estimated size: 831 B · 2 paths" (SVG present, setSvg wiring
-   confirmed). No console errors at any step.
+1. **Offline/PWA (T15, #25)**: added `vite-plugin-pwa` to `vite.config.ts`
+   (`registerType: "autoUpdate"`, `workbox.globPatterns` extended to include
+   `wasm` — not in workbox's default glob, so the tracer would break offline
+   without it; minimal manifest). No app code change — `injectRegister: "auto"`
+   injects `registerSW.js` at build.
+2. **Verified offline for real**: built → served `dist/` under the
+   `/image-converter/` base with a plain static server (mirrors GitHub Pages) →
+   SW registered + controlling, 7 precache entries incl. the 133 KB WASM + tracer
+   worker → **killed the server, reloaded → app rendered fully from cache**.
+3. **Lockfile fix (#25, 2nd commit)**: CI's `npm ci` first failed — the lockfile
+   was missing cross-platform optional transitive deps (`@emnapi/*`) that the
+   workbox tree pulls in; my Linux-only `npm install` had omitted them.
+   Regenerated from a clean install; verified `npm ci` + full CI gate pass locally.
+4. **Gemini review**: asked for *installability* (`display`/`start_url`/`icons`).
+   Declined inline as out-of-scope — that's a separate feature from offline and
+   needs real icon PNG assets to do anything. Left as a possible follow-up.
+
+## Trap learned
+
+`npm run dev` and `npm run preview` **mis-serve `sw.js`/`registerSW.js` as
+`text/html`** (vite 8's SPA fallback is too broad) → the SW won't register there.
+Offline can only be verified against a plain static host (`python3 -m http.server`
+from `dist/`), which is also the real deploy target (GitHub Pages). Not a bug.
+
+Also: `npm install` on one platform can omit cross-platform optional deps from the
+lockfile → `npm ci` fails in CI. Regenerate with a clean `rm -rf node_modules
+package-lock.json && npm install` and confirm `npm ci` locally before pushing.
 
 ## Live + local
 
-- **Live**: https://nuncaeslupus.github.io/image-converter/ (auto-deploys on push to main)
-- **Local dev**: `npm run dev` → currently on http://localhost:5174/ (5173 was taken).
+- **Live**: https://nuncaeslupus.github.io/image-converter/ (auto-deploys on push to main; now offline-capable after first load)
+- **Local dev**: `npm run dev` (SW won't register locally — see trap above).
 
 ## What remains — 2 seeded follow-ups (queue has these OPEN)
 
-Both modules were built + unit-tested by their tasks but were never wired into
-the app (their gates only covered the module, not integration):
+Both modules were built + unit-tested by their tasks but never wired into the app:
 - **T13 (`lo-50a8`, WEB)**: wire `traceCache.ts` into the trace path. Blocked on
-  there being no stable `imageId` in `wizard.ts` — add one, then wrap the worker
-  call in `TraceStep.runRetrace` with `withTraceCache`.
+  no stable `imageId` in `wizard.ts` — add one, then wrap the worker call in
+  `TraceStep.runRetrace` with `withTraceCache`.
 - **T14 (`lo-8913`, WEB)**: wire `settingsStore.ts` — seed initial tweak values
   from `load()` on mount, `save()` on change, in `TraceStep.tsx`.
-- Offline capability (spec §1) is a manual-validation item, not gated — verify
-  by hand once (load the deployed site, go offline, confirm a trace still works).
+- Optional: PWA **installability** (icons + `display`/`start_url`/`background_color`)
+  — not seeded; separate from offline. Seed if "install to home screen" is wanted.
 
 ## PR audit
 
-All session PRs merged, CI green: #14, #15, #17, #18, #19, #20, #21, #22, #23
-(+ handover #16). No open PRs, no escalated tasks. CI + Deploy workflows green on main.
+- **#25** (T15 offline/PWA): **MERGED**, CI green (`ci` ✓, GitGuardian ✓), squash-merged, branch deleted.
+- No open PRs, no `in_progress` tasks with a PR, no escalated tasks.
 
 ## Note
 
-`init.py` again tried to downgrade the arsenal bundle 0.20.5 → 0.20.2 at session
-start; reverted. Plugin source still appears behind the vendored bundle.
+Retrospective scan surfaced only noise (generic exit-code spikes, false-positive
+"wrong" matches on skill boilerplate) — no skill-update proposals this session.
