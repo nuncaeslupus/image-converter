@@ -18,6 +18,15 @@ export interface TweakValues extends TraceParams {
   background: BackgroundMode;
 }
 
+/** The tweak panel's initial/fallback values (see `settingsStore.ts` for persisted overrides). */
+export const DEFAULT_TWEAK_VALUES: TweakValues = {
+  paletteSize: "auto",
+  smoothness: 50,
+  detail: 50,
+  contrast: 0,
+  background: "transparent",
+};
+
 const RETRACE_KEYS = ["paletteSize", "smoothness", "detail", "contrast"] as const;
 
 function retraceParamsChanged(a: TweakValues, b: TweakValues): boolean {
