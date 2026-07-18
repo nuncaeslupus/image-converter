@@ -46,7 +46,10 @@ export const VTRACER_RANGES = {
 } as const;
 
 function clampRound(value: number, [min, max]: readonly [number, number]): number {
-  return Math.min(max, Math.max(min, Math.round(value)));
+  const rounded = Math.round(value);
+  // A malformed/NaN slider value must not reach the WASM module; fall back to
+  // the range floor rather than propagating NaN.
+  return Number.isNaN(rounded) ? min : Math.min(max, Math.max(min, rounded));
 }
 
 /** Maps the four product sliders to a fully-valid native VTracer config. */

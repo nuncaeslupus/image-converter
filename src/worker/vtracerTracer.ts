@@ -22,7 +22,14 @@ let initPromise: Promise<unknown> | null = null;
  */
 export function initVtracer(input?: InitInput): Promise<unknown> {
   if (!initPromise) {
-    initPromise = input === undefined ? initWasm() : initWasm({ module_or_path: input });
+    // Clear the cache on failure so a transient init error (e.g. a failed wasm
+    // fetch) can be retried rather than poisoning every later call.
+    initPromise = (input === undefined ? initWasm() : initWasm({ module_or_path: input })).catch(
+      (err) => {
+        initPromise = null;
+        throw err;
+      },
+    );
   }
   return initPromise;
 }
@@ -70,6 +77,9 @@ function bitmapToRgba(bitmap: ImageBitmap): {
   height: number;
 } {
   const { width, height } = bitmap;
+  if (width === 0 || height === 0) {
+    throw new Error("Cannot extract pixels from an empty ImageBitmap (zero width or height).");
+  }
   const canvas = new OffscreenCanvas(width, height);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
@@ -87,8 +97,14 @@ function bitmapToRgba(bitmap: ImageBitmap): {
 export function createVtracerTracer(): Tracer {
   return {
     trace(bitmap, params) {
-      const { rgba, width, height } = bitmapToRgba(bitmap);
-      return traceRgba(rgba, width, height, params);
+      try {
+        const { rgba, width, height } = bitmapToRgba(bitmap);
+        return traceRgba(rgba, width, height, params);
+      } finally {
+        // ImageBitmap holds GPU-backed resources; release it as soon as the
+        // pixels are read out so rapid slider drags don't leak textures.
+        bitmap.close();
+      }
     },
   };
 }
