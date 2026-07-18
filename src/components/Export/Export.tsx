@@ -19,21 +19,38 @@ export interface ExportProps {
 }
 
 /**
+ * Reads the SVG's intrinsic width/height/viewBox for the size fields. Parses
+ * the markup with `DOMParser` (robust to quoting/whitespace) and falls back to
+ * the viewBox extents when width/height are absent.
+ */
+function intrinsicSize(svg: string): { width: string; height: string; viewBox: string } {
+  try {
+    const svgEl = new DOMParser().parseFromString(svg, "image/svg+xml").querySelector("svg");
+    if (!svgEl) return { width: "", height: "", viewBox: "—" };
+    const viewBox = svgEl.getAttribute("viewBox") ?? "";
+    let width = svgEl.getAttribute("width")?.match(/[\d.]+/)?.[0] ?? "";
+    let height = svgEl.getAttribute("height")?.match(/[\d.]+/)?.[0] ?? "";
+    if ((!width || !height) && viewBox) {
+      const [, , w, h] = viewBox.split(/[\s,]+/);
+      if (!width && w) width = w;
+      if (!height && h) height = h;
+    }
+    return {
+      width,
+      height,
+      viewBox: viewBox || (width && height ? `0 0 ${width} ${height}` : "—"),
+    };
+  } catch {
+    return { width: "", height: "", viewBox: "—" };
+  }
+}
+
+/**
  * Export controls (T9): download `.svg`, copy raw markup, override output
  * width/height, and a size/path-count estimate. The override is a pure string
  * rewrite (`applyViewBoxOverride`) applied on every render — never a tracer
  * call — so it's reflected instantly in the estimate, download, and copy.
  */
-/** Reads the SVG's intrinsic width/height/viewBox off its root tag for the size fields. */
-function intrinsicSize(svg: string): { width: string; height: string; viewBox: string } {
-  const tag = /<svg[^>]*>/.exec(svg)?.[0] ?? "";
-  const width = /\bwidth="([\d.]+)/.exec(tag)?.[1] ?? "";
-  const height = /\bheight="([\d.]+)/.exec(tag)?.[1] ?? "";
-  const viewBox =
-    /viewBox="([^"]+)"/.exec(tag)?.[1] ?? (width && height ? `0 0 ${width} ${height}` : "—");
-  return { width, height, viewBox };
-}
-
 export function Export({ svg }: ExportProps) {
   const intrinsic = intrinsicSize(svg);
   // Pre-fill the override fields with the SVG's own dimensions so the user sees

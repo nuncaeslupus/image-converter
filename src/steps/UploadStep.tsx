@@ -45,14 +45,18 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
     [wizard],
   );
 
-  // Draw the loaded image into the thumbnail canvas whenever it changes.
+  // Draw the loaded image into the thumbnail canvas whenever it changes. The
+  // canvas backing store is capped (a full-res draw of a 24MP photo would
+  // allocate ~100MB just to show a small CSS-scaled preview).
   useEffect(() => {
     if (!image) return;
     const canvas = thumbRef.current;
     if (!canvas) return;
-    canvas.width = image.width;
-    canvas.height = image.height;
-    canvas.getContext("2d")?.drawImage(image, 0, 0);
+    const MAX = 400;
+    const scale = Math.min(1, MAX / Math.max(image.width, image.height));
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
   }, [image]);
 
   const handleInputChange = (event: JSX.TargetedEvent<HTMLInputElement>) => {

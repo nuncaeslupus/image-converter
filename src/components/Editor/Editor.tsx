@@ -141,6 +141,21 @@ export function Editor({ image, onChange }: EditorProps) {
   } | null>(null);
   const shiftRef = useRef(false);
   const ctrlRef = useRef(false);
+  const historyRef = useRef(history);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+  // Free the GPU backing store of every inactive history bitmap on unmount —
+  // the active one (index) is still `wizard.image`, consumed downstream.
+  useEffect(
+    () => () => {
+      const { stack, index } = historyRef.current;
+      stack.forEach((bmp, i) => {
+        if (i !== index) bmp.close();
+      });
+    },
+    [],
+  );
 
   // Latest values for the window keydown handler (registered once).
   const actionsRef = useRef<{
@@ -184,6 +199,8 @@ export function Editor({ image, onChange }: EditorProps) {
 
   function pushEdit(next: ImageBitmap) {
     setHistory((h) => {
+      // A new edit discards any redo-future bitmaps — close them to free memory.
+      for (const bmp of h.stack.slice(h.index + 1)) bmp.close();
       const stack = h.stack.slice(0, h.index + 1);
       stack.push(next);
       return { stack, index: stack.length - 1 };
@@ -312,7 +329,9 @@ export function Editor({ image, onChange }: EditorProps) {
       startClientY: event.clientY,
       scale,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handlePointerMoveOnHandle(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
@@ -361,7 +380,9 @@ export function Editor({ image, onChange }: EditorProps) {
       startY: event.clientY,
       startPan: pan,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handleStagePointerMove(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
@@ -501,6 +522,7 @@ export function Editor({ image, onChange }: EditorProps) {
         onPointerDown={handleStagePointerDown}
         onPointerMove={handleStagePointerMove}
         onPointerUp={handleStagePointerUp}
+        onPointerCancel={handleStagePointerUp}
       >
         <div
           className={`${styles.frame} ${rotating && fitToFrame ? styles.frameClip : ""}`}
@@ -538,6 +560,7 @@ export function Editor({ image, onChange }: EditorProps) {
                     onPointerDown={(event) => handlePointerDownOnHandle(handle, event)}
                     onPointerMove={handlePointerMoveOnHandle}
                     onPointerUp={handlePointerUpOnHandle}
+                    onPointerCancel={handlePointerUpOnHandle}
                     onKeyDown={(event) => handleHandleKeyDown(handle, event)}
                   />
                 ))}
