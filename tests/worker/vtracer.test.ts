@@ -97,7 +97,10 @@ describe("vtracer worker engine", () => {
             for (const field of numericFields) {
               const [min, max] = VTRACER_RANGES[field];
               const value = cfg[field];
-              expect(value, `${field} below min for ${JSON.stringify({ paletteSize, smoothness, detail, contrast })}`).toBeGreaterThanOrEqual(min);
+              expect(
+                value,
+                `${field} below min for ${JSON.stringify({ paletteSize, smoothness, detail, contrast })}`,
+              ).toBeGreaterThanOrEqual(min);
               expect(value, `${field} above max`).toBeLessThanOrEqual(max);
               expect(Number.isFinite(value)).toBe(true);
             }
