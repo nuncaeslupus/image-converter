@@ -1,0 +1,12 @@
+#!/bin/sh
+# Enforce formatting + lint before every push. Bypass (emergencies only): git push --no-verify
+# Enabled repo-wide by the "prepare" npm script (git config core.hooksPath .githooks).
+
+if [ ! -d node_modules ]; then
+  echo "pre-push: node_modules missing — run 'npm ci' first (skipping checks)." >&2
+  exit 0
+fi
+
+echo "pre-push: format:check + lint..."
+npm run format:check || { echo "pre-push: formatting failed — run 'npm run format' and commit." >&2; exit 1; }
+npm run lint         || { echo "pre-push: lint failed — fix the errors above." >&2; exit 1; }
