@@ -16,6 +16,7 @@ import {
   type TraceParams,
 } from "../lib/traceProtocol";
 import { downscaleForPreview } from "../lib/previewDownscale";
+import { estimateSvg } from "../lib/svgExport";
 import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
@@ -121,42 +122,52 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   if (!image) {
     return (
       <section>
-        <h2>3. Trace &amp; Tweak</h2>
         <p role="alert">No image to trace yet — go back and choose one first.</p>
-        <button type="button" onClick={wizard.back}>
-          Back
-        </button>
       </section>
     );
   }
 
-  return (
-    <section>
-      <h2>3. Trace &amp; Tweak</h2>
-      <p>Adjust the palette, smoothness, detail, contrast, and background live.</p>
+  const paletteLabel = values.paletteSize === "auto" ? "Auto" : String(values.paletteSize);
+  const caption = tracedSvg
+    ? (() => {
+        const { bytes, pathCount } = estimateSvg(tracedSvg);
+        const size = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+        return `${pathCount.toLocaleString()} paths · ~${size} · palette: ${paletteLabel}`;
+      })()
+    : `palette: ${paletteLabel}`;
 
+  return (
+    <section className={styles.root}>
       <div className={styles.layout}>
-        <div className={styles.preview}>
-          {error && <p role="alert">{error}</p>}
+        <div className={styles.previewCol}>
           {tracedSvg ? (
-            <Preview originalImage={image} tracedSvg={tracedSvg} />
+            <Preview
+              title="Trace & Tweak"
+              tracedSvg={tracedSvg}
+              originalImage={image}
+              caption={caption}
+            />
           ) : (
-            <p role="status">Tracing…</p>
+            <div className={styles.loading} role="status">
+              {error ? <span className={styles.error}>{error}</span> : "Tracing…"}
+            </div>
           )}
-          {busy && <p role="status">Retracing…</p>}
         </div>
 
-        <TweakPanel values={values} onChange={handleChange} busy={busy} />
+        <div className={styles.controls}>
+          <TweakPanel values={values} onChange={handleChange} busy={busy} />
+        </div>
       </div>
-
-      <div>
-        <button type="button" onClick={wizard.back}>
-          Back
-        </button>
-        <button type="button" onClick={wizard.next} disabled={!tracedSvg}>
-          Next
-        </button>
-      </div>
+      {tracedSvg && busy && (
+        <p className={styles.retracing} role="status">
+          Retracing…
+        </p>
+      )}
+      {tracedSvg && error && (
+        <p className={styles.error} role="alert">
+          {error}
+        </p>
+      )}
     </section>
   );
 }

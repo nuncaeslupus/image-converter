@@ -14,9 +14,18 @@ export const SUPPORTED_IMAGE_MIME_TYPES = [
   "image/webp",
   "image/gif",
   "image/bmp",
+  "image/avif",
 ] as const;
 
 export type SupportedImageMimeType = (typeof SUPPORTED_IMAGE_MIME_TYPES)[number];
+
+/**
+ * Hard cap on the source file size, matching the "up to 25 MB" the upload UI
+ * advertises. 25 MB of compressed image is a sane ceiling for in-browser
+ * decode + trace; larger files risk OOM on the full-resolution decode before
+ * the preview downscale ever runs.
+ */
+export const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 
 /** Some platforms report BMP drag-drop with this legacy MIME type instead. */
 const BMP_MIME_ALIASES = new Set(["image/x-ms-bmp", "image/x-bmp"]);
@@ -62,9 +71,23 @@ const MAGIC_BYTE_SNIFFERS: Array<{
       b[10] === 0x42 &&
       b[11] === 0x50,
   },
+  {
+    // ISO-BMFF box: bytes 4-7 = "ftyp", brand at 8-11 = "avif" (still) or "avis" (sequence).
+    type: "image/avif",
+    test: (b) =>
+      b.length >= 12 &&
+      b[4] === 0x66 &&
+      b[5] === 0x74 &&
+      b[6] === 0x79 &&
+      b[7] === 0x70 &&
+      b[8] === 0x61 &&
+      b[9] === 0x76 &&
+      b[10] === 0x69 &&
+      (b[11] === 0x66 || b[11] === 0x73),
+  },
 ];
 
-export type ImageDecodeErrorCode = "unsupported-format" | "decode-failed";
+export type ImageDecodeErrorCode = "unsupported-format" | "decode-failed" | "file-too-large";
 
 /**
  * Typed/structured decode error so the UI layer can distinguish "this file
@@ -123,16 +146,24 @@ async function resolveSupportedMimeType(file: Blob): Promise<SupportedImageMimeT
  * Decodes a `File`/`Blob` into an `ImageBitmap` entirely client-side.
  *
  * Rejects with a typed {@link ImageDecodeError}:
- * - `"unsupported-format"` — the file isn't one of PNG/JPEG/WebP/GIF/BMP.
+ * - `"file-too-large"` — the file exceeds {@link MAX_IMAGE_BYTES} (25 MB).
+ * - `"unsupported-format"` — the file isn't one of PNG/JPEG/WebP/GIF/BMP/AVIF.
  * - `"decode-failed"` — the format looked supported but the browser's
  *   decoder rejected the bytes (corrupt/truncated file).
  */
 export async function decodeImage(file: File | Blob): Promise<ImageBitmap> {
+  if (file.size > MAX_IMAGE_BYTES) {
+    throw new ImageDecodeError(
+      "file-too-large",
+      "That image is larger than 25 MB. Please choose a smaller file.",
+    );
+  }
+
   const mimeType = await resolveSupportedMimeType(file);
   if (!mimeType) {
     throw new ImageDecodeError(
       "unsupported-format",
-      "Unsupported file type. Please choose a PNG, JPEG, WebP, GIF, or BMP image.",
+      "Unsupported file type. Please choose a PNG, JPEG, WebP, GIF, BMP, or AVIF image.",
     );
   }
 

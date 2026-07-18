@@ -1,14 +1,43 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
-import { cropImage, resizeImage, rotateImage, type CropBox } from "../../lib/imageEdit";
-import { CropIcon, ResetIcon, ResizeIcon, RotateLeftIcon, RotateRightIcon } from "./icons";
+import {
+  cropImage,
+  fitToFrameScale,
+  rotateImage,
+  rotateImageArbitrary,
+  type CropBox,
+} from "../../lib/imageEdit";
+import {
+  CropIcon,
+  RedoIcon,
+  ResetIcon,
+  RotateLeftIcon,
+  RotateRightIcon,
+  UndoIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from "./icons";
 import styles from "./Editor.module.css";
 
-type Tool = "crop" | "resize" | null;
 type Handle = "nw" | "ne" | "sw" | "se";
 
 const HANDLES: Handle[] = ["nw", "ne", "sw", "se"];
 const MIN_CROP_SIZE = 8;
+const ZOOM_MIN = 1;
+const ZOOM_MAX = 8;
+const ZOOM_STEP = 1.25;
+// Rotation slider marks (every 45°), all numbered. Default drag has a small
+// snap zone around each mark; Shift snaps hard to the nearest 45°; Ctrl/Cmd
+// disables snapping entirely.
+const ANGLE_MARKS = [-180, -135, -90, -45, 0, 45, 90, 135, 180];
+const SNAP_STEP = 45;
+const SNAP_ZONE = 2;
+const STAGE_PAD = 12;
+
+interface History {
+  stack: ImageBitmap[];
+  index: number;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
@@ -16,6 +45,13 @@ function clamp(value: number, min: number, max: number): number {
 
 function fullBoxFor(image: { width: number; height: number }): CropBox {
   return { x: 0, y: 0, width: image.width, height: image.height };
+}
+
+function snapAngle(value: number, shift: boolean, ctrl: boolean): number {
+  if (ctrl) return value;
+  const nearest = Math.round(value / SNAP_STEP) * SNAP_STEP;
+  if (shift) return nearest;
+  return Math.abs(value - nearest) <= SNAP_ZONE ? nearest : value;
 }
 
 /** Moves one corner of `box` by `(dx, dy)`, keeping the opposite corner fixed and staying in bounds. */
@@ -48,28 +84,47 @@ function moveCorner(
 export interface EditorProps {
   /** The current working image. */
   image: ImageBitmap;
-  /** The untouched, originally-decoded image — restored by "Reset". */
+  /** The untouched, originally-decoded image (kept for API compatibility). */
   originalImage: ImageBitmap;
-  /** Called with the replacement image whenever an edit is applied. */
+  /** Called with the replacement image whenever an edit is applied/undone/redone. */
   onChange: (image: ImageBitmap) => void;
 }
 
 /**
- * Crop / rotate / resize editor (T5). A visible toolbar (never a buried
- * menu) with standard icons: crop, rotate left/right, resize, reset.
- * Keyboard shortcuts: `R` rotates clockwise, `Shift+R` counter-clockwise,
- * `C` toggles the crop tool, `Escape` cancels the active tool. While the
- * crop tool is active, its corner handles support arrow-key nudging (1px,
- * 10px with Shift) in addition to dragging.
+ * Crop / rotate editor (T5). The stage is a constant size and fills unused
+ * space with a neutral colour — the image is never stretched to fit. Zoom
+ * −/+ scales the view (− bottoms out at "fit"; when zoomed in, drag to pan);
+ * the rotation slider keeps the image size constant (transparent corners) or,
+ * with "fit to frame", zooms so the image never leaves its rectangle.
+ *
+ * Keyboard: `R`/`Shift+R` rotate ±90°, hold `Shift` while dragging the slider
+ * to snap to 45° marks, `Escape` cancels a pending rotation, `Ctrl/Cmd+Z`
+ * undo, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` redo. Crop handles nudge with arrows.
  */
-export function Editor({ image, originalImage, onChange }: EditorProps) {
+export function Editor({ image, onChange }: EditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [tool, setTool] = useState<Tool>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const [cropBox, setCropBox] = useState<CropBox>(() => fullBoxFor(image));
-  const [resizeWidth, setResizeWidth] = useState(image.width);
-  const [resizeHeight, setResizeHeight] = useState(image.height);
-  const [lockAspect, setLockAspect] = useState(true);
+  const [angle, setAngle] = useState(0);
+  const [fitToFrame, setFitToFrame] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [busy, setBusy] = useState(false);
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  // In-session edit history: index 0 is the image this Edit visit started from.
+  const [history, setHistory] = useState<History>(() => ({ stack: [image], index: 0 }));
+
+  const canUndo = history.index > 0;
+  const canRedo = history.index < history.stack.length - 1;
+  const isEdited = history.index > 0;
+  const isCropped =
+    cropBox.x !== 0 ||
+    cropBox.y !== 0 ||
+    cropBox.width !== image.width ||
+    cropBox.height !== image.height;
+  const rotating = angle !== 0;
+  const panning = zoom > 1;
+
   const dragRef = useRef<{
     handle: Handle;
     pointerId: number;
@@ -78,114 +133,193 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
     startClientY: number;
     scale: number;
   } | null>(null);
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPan: { x: number; y: number };
+  } | null>(null);
+  const shiftRef = useRef(false);
+  const ctrlRef = useRef(false);
+  const historyRef = useRef(history);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+  // Free the GPU backing store of every inactive history bitmap on unmount —
+  // the active one (index) is still `wizard.image`, consumed downstream.
+  useEffect(
+    () => () => {
+      const { stack, index } = historyRef.current;
+      stack.forEach((bmp, i) => {
+        if (i !== index) bmp.close();
+      });
+    },
+    [],
+  );
 
-  // Render the working bitmap into the preview canvas at its natural pixel
-  // size (CSS scales it down for display) whenever it changes.
+  // Latest values for the window keydown handler (registered once).
+  const actionsRef = useRef<{
+    rotate90: (d: 90 | -90) => void;
+    undo: () => void;
+    redo: () => void;
+  }>({ rotate90: () => {}, undo: () => {}, redo: () => {} });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.width = image.width;
     canvas.height = image.height;
-    const ctx = canvas.getContext("2d");
-    ctx?.drawImage(image, 0, 0);
+    canvas.getContext("2d")?.drawImage(image, 0, 0);
   }, [image]);
 
-  // Reset tool-specific pending state whenever the working image changes
-  // (e.g. after an edit is applied, or a fresh image is passed in).
+  // A new working image resets the pending crop box and the view.
   useEffect(() => {
     setCropBox(fullBoxFor(image));
-    setResizeWidth(image.width);
-    setResizeHeight(image.height);
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   }, [image]);
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      const isTypingTarget =
-        target &&
-        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+  // Measure the stage so the image can be sized to a true "contain" fit
+  // (never stretched). Layout effect + ResizeObserver keeps it exact.
+  useLayoutEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const measure = () =>
+      setStageSize((prev) => {
+        const w = el.clientWidth;
+        const h = el.clientHeight;
+        return prev.w === w && prev.h === h ? prev : { w, h };
+      });
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-      if (event.key === "Escape") {
-        setTool(null);
-        return;
-      }
-      if (isTypingTarget) return;
+  function pushEdit(next: ImageBitmap) {
+    setHistory((h) => {
+      // A new edit discards any redo-future bitmaps — close them to free memory.
+      for (const bmp of h.stack.slice(h.index + 1)) bmp.close();
+      const stack = h.stack.slice(0, h.index + 1);
+      stack.push(next);
+      return { stack, index: stack.length - 1 };
+    });
+    onChange(next);
+  }
 
-      if (event.key === "r" || event.key === "R") {
-        event.preventDefault();
-        void handleRotate(event.shiftKey ? -90 : 90);
-      } else if (event.key === "c" || event.key === "C") {
-        event.preventDefault();
-        setTool((current) => (current === "crop" ? null : "crop"));
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [image, busy]);
+  function goToHistory(index: number) {
+    setHistory((h) => ({ ...h, index }));
+    onChange(history.stack[index]);
+  }
 
-  async function handleRotate(degrees: 90 | -90) {
+  async function rotate90(degrees: 90 | -90) {
     if (busy) return;
     setBusy(true);
     try {
-      const rotated = await rotateImage(image, degrees);
-      onChange(rotated);
+      pushEdit(await rotateImage(image, degrees));
+      setAngle(0);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyAngle() {
+    if (busy || angle === 0) return;
+    setBusy(true);
+    try {
+      pushEdit(await rotateImageArbitrary(image, angle, fitToFrame));
+      setAngle(0);
     } finally {
       setBusy(false);
     }
   }
 
   async function applyCrop() {
-    if (busy) return;
+    if (busy || !isCropped) return;
     setBusy(true);
     try {
-      const cropped = await cropImage(image, cropBox);
-      onChange(cropped);
-      setTool(null);
+      pushEdit(await cropImage(image, cropBox));
     } finally {
       setBusy(false);
     }
   }
 
-  async function applyResize() {
-    if (busy) return;
-    setBusy(true);
-    try {
-      const resized = await resizeImage(image, resizeWidth, resizeHeight);
-      onChange(resized);
-      setTool(null);
-    } finally {
-      setBusy(false);
-    }
+  function undo() {
+    if (canUndo) goToHistory(history.index - 1);
+  }
+  function redo() {
+    if (canRedo) goToHistory(history.index + 1);
+  }
+  function reset() {
+    setAngle(0);
+    if (isEdited) goToHistory(0);
   }
 
-  function handleReset() {
-    setTool(null);
-    onChange(originalImage);
+  function zoomBy(factor: number) {
+    setZoom((z) => {
+      const next = clamp(z * factor, ZOOM_MIN, ZOOM_MAX);
+      if (next === 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
   }
 
-  function handleWidthInput(event: JSX.TargetedEvent<HTMLInputElement>) {
-    const next = Math.max(1, Math.round(Number(event.currentTarget.value) || 0));
-    setResizeWidth(next);
-    if (lockAspect) {
-      setResizeHeight(Math.max(1, Math.round((next * image.height) / image.width)));
-    }
-  }
+  actionsRef.current = { rotate90: (d) => void rotate90(d), undo, redo };
 
-  function handleHeightInput(event: JSX.TargetedEvent<HTMLInputElement>) {
-    const next = Math.max(1, Math.round(Number(event.currentTarget.value) || 0));
-    setResizeHeight(next);
-    if (lockAspect) {
-      setResizeWidth(Math.max(1, Math.round((next * image.width) / image.height)));
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      shiftRef.current = event.shiftKey;
+      ctrlRef.current = event.ctrlKey || event.metaKey;
+
+      const target = event.target as HTMLElement | null;
+      const isTypingTarget =
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+
+      const mod = event.ctrlKey || event.metaKey;
+      if (mod && (event.key === "z" || event.key === "Z")) {
+        event.preventDefault();
+        if (event.shiftKey) actionsRef.current.redo();
+        else actionsRef.current.undo();
+        return;
+      }
+      if (mod && (event.key === "y" || event.key === "Y")) {
+        event.preventDefault();
+        actionsRef.current.redo();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        setAngle(0);
+        return;
+      }
+      if (isTypingTarget) return;
+
+      if (event.key === "r" || event.key === "R") {
+        event.preventDefault();
+        actionsRef.current.rotate90(event.shiftKey ? -90 : 90);
+      }
     }
-  }
+    function onKeyUp(event: KeyboardEvent) {
+      shiftRef.current = event.shiftKey;
+      ctrlRef.current = event.ctrlKey || event.metaKey;
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, []);
 
   function handlePointerDownOnHandle(
     handle: Handle,
     event: JSX.TargetedPointerEvent<HTMLDivElement>,
   ) {
-    const stage = canvasRef.current?.parentElement;
-    if (!stage) return;
-    const rect = stage.getBoundingClientRect();
+    event.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
     const scale = rect.width > 0 ? image.width / rect.width : 1;
     dragRef.current = {
       handle,
@@ -195,7 +329,9 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
       startClientY: event.clientY,
       scale,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
   }
 
   function handlePointerMoveOnHandle(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
@@ -236,7 +372,63 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
     setCropBox((current) => moveCorner(current, handle, dx, dy, image));
   }
 
-  const isEdited = image !== originalImage;
+  function handleStagePointerDown(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    if (!panning) return;
+    panRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startPan: pan,
+    };
+    if (typeof event.currentTarget.setPointerCapture === "function") {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+  }
+
+  function handleStagePointerMove(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    const drag = panRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const rect = stageRef.current?.getBoundingClientRect();
+    const maxX = rect ? (rect.width * (zoom - 1)) / 2 : Infinity;
+    const maxY = rect ? (rect.height * (zoom - 1)) / 2 : Infinity;
+    setPan({
+      x: clamp(drag.startPan.x + (event.clientX - drag.startX), -maxX, maxX),
+      y: clamp(drag.startPan.y + (event.clientY - drag.startY), -maxY, maxY),
+    });
+  }
+
+  function handleStagePointerUp(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    if (panRef.current?.pointerId === event.pointerId) {
+      panRef.current = null;
+    }
+  }
+
+  // Pan + zoom always transform the frame (screen space). Rotation targets
+  // differ: fit-to-frame rotates the image *inside* a fixed axis-aligned
+  // rectangle (clipped); otherwise the whole rectangle tilts at constant size.
+  const viewParts: string[] = [];
+  if (pan.x || pan.y) viewParts.push(`translate(${pan.x}px, ${pan.y}px)`);
+  if (zoom !== 1) viewParts.push(`scale(${zoom})`);
+
+  let canvasStyle: JSX.CSSProperties | undefined;
+  if (rotating && fitToFrame) {
+    const cover = fitToFrameScale(image.width, image.height, (angle * Math.PI) / 180);
+    canvasStyle = { transform: `rotate(${angle}deg) scale(${cover})`, transformOrigin: "center" };
+  } else if (rotating) {
+    viewParts.push(`rotate(${angle}deg)`);
+  }
+
+  // Size the image rectangle to a true contain-fit of the measured stage — the
+  // image is never stretched; leftover space stays the neutral stage colour.
+  const availW = Math.max(0, stageSize.w - STAGE_PAD * 2);
+  const availH = Math.max(0, stageSize.h - STAGE_PAD * 2);
+  const fit = availW && availH ? Math.min(availW / image.width, availH / image.height) : 0;
+  const frameStyle: JSX.CSSProperties = {};
+  if (fit > 0) {
+    frameStyle.width = `${image.width * fit}px`;
+    frameStyle.height = `${image.height * fit}px`;
+  }
+  if (viewParts.length) frameStyle.transform = viewParts.join(" ");
 
   return (
     <div className={styles.editor}>
@@ -244,20 +436,9 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
         <button
           type="button"
           className={styles.toolButton}
-          aria-pressed={tool === "crop"}
           disabled={busy}
-          onClick={() => setTool((current) => (current === "crop" ? null : "crop"))}
-          title="Crop (C)"
-        >
-          <CropIcon />
-          <span className={styles.toolButtonLabel}>Crop</span>
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          disabled={busy}
-          onClick={() => void handleRotate(-90)}
-          title="Rotate left (Shift+R)"
+          onClick={() => void rotate90(-90)}
+          title="Rotate left 90° (Shift+R)"
         >
           <RotateLeftIcon />
           <span className={styles.toolButtonLabel}>Rotate left</span>
@@ -266,29 +447,68 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
           type="button"
           className={styles.toolButton}
           disabled={busy}
-          onClick={() => void handleRotate(90)}
-          title="Rotate right (R)"
+          onClick={() => void rotate90(90)}
+          title="Rotate right 90° (R)"
         >
           <RotateRightIcon />
           <span className={styles.toolButtonLabel}>Rotate right</span>
         </button>
+
+        <span className={styles.spacer} />
+
+        <div className={styles.zoomGroup}>
+          <button
+            type="button"
+            className={styles.zoomButton}
+            disabled={busy || zoom <= ZOOM_MIN}
+            onClick={() => zoomBy(1 / ZOOM_STEP)}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <ZoomOutIcon />
+          </button>
+          <span className={`${styles.zoomLabel} mono`}>
+            {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+          </span>
+          <button
+            type="button"
+            className={styles.zoomButton}
+            disabled={busy || zoom >= ZOOM_MAX}
+            onClick={() => zoomBy(ZOOM_STEP)}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <ZoomInIcon />
+          </button>
+        </div>
+
+        <span className={styles.spacer} />
+
         <button
           type="button"
           className={styles.toolButton}
-          aria-pressed={tool === "resize"}
-          disabled={busy}
-          onClick={() => setTool((current) => (current === "resize" ? null : "resize"))}
-          title="Resize"
+          disabled={busy || !canUndo}
+          onClick={undo}
+          title="Undo (Ctrl/Cmd+Z)"
         >
-          <ResizeIcon />
-          <span className={styles.toolButtonLabel}>Resize</span>
+          <UndoIcon />
+          <span className={styles.toolButtonLabel}>Undo</span>
         </button>
-        <span className={styles.spacer} />
+        <button
+          type="button"
+          className={styles.toolButton}
+          disabled={busy || !canRedo}
+          onClick={redo}
+          title="Redo (Ctrl/Cmd+Shift+Z)"
+        >
+          <RedoIcon />
+          <span className={styles.toolButtonLabel}>Redo</span>
+        </button>
         <button
           type="button"
           className={styles.toolButton}
           disabled={busy || !isEdited}
-          onClick={handleReset}
+          onClick={reset}
           title="Reset to original"
         >
           <ResetIcon />
@@ -296,160 +516,128 @@ export function Editor({ image, originalImage, onChange }: EditorProps) {
         </button>
       </div>
 
-      <div className={styles.stage}>
-        <canvas ref={canvasRef} className={styles.canvas} data-testid="editor-canvas" />
-        {tool === "crop" && (
-          <div className={styles.cropOverlay} aria-hidden={false}>
-            <div
-              className={styles.cropRect}
-              style={{
-                left: `${(cropBox.x / image.width) * 100}%`,
-                top: `${(cropBox.y / image.height) * 100}%`,
-                width: `${(cropBox.width / image.width) * 100}%`,
-                height: `${(cropBox.height / image.height) * 100}%`,
-              }}
-            >
-              {HANDLES.map((handle) => (
-                <div
-                  key={handle}
-                  className={styles.cropHandle}
-                  style={{
-                    left: handle.includes("w") ? "0%" : "100%",
-                    top: handle.includes("n") ? "0%" : "100%",
-                  }}
-                  role="slider"
-                  tabIndex={0}
-                  aria-label={`Crop handle: ${handle}`}
-                  aria-valuetext={`x ${Math.round(cropBox.x)}, y ${Math.round(cropBox.y)}, width ${Math.round(cropBox.width)}, height ${Math.round(cropBox.height)}`}
-                  onPointerDown={(event) => handlePointerDownOnHandle(handle, event)}
-                  onPointerMove={handlePointerMoveOnHandle}
-                  onPointerUp={handlePointerUpOnHandle}
-                  onKeyDown={(event) => handleHandleKeyDown(handle, event)}
-                />
-              ))}
+      <div
+        ref={stageRef}
+        className={`${styles.stage} ${panning ? styles.stagePannable : ""}`}
+        onPointerDown={handleStagePointerDown}
+        onPointerMove={handleStagePointerMove}
+        onPointerUp={handleStagePointerUp}
+        onPointerCancel={handleStagePointerUp}
+      >
+        <div
+          className={`${styles.frame} ${rotating && fitToFrame ? styles.frameClip : ""}`}
+          style={frameStyle}
+        >
+          <canvas
+            ref={canvasRef}
+            className={styles.canvas}
+            style={canvasStyle}
+            data-testid="editor-canvas"
+          />
+          {!rotating && (
+            <div className={styles.cropOverlay}>
+              <div
+                className={`${styles.cropRect} ${isCropped ? styles.cropRectScrim : ""}`}
+                style={{
+                  left: `${(cropBox.x / image.width) * 100}%`,
+                  top: `${(cropBox.y / image.height) * 100}%`,
+                  width: `${(cropBox.width / image.width) * 100}%`,
+                  height: `${(cropBox.height / image.height) * 100}%`,
+                }}
+              >
+                {HANDLES.map((handle) => (
+                  <div
+                    key={handle}
+                    className={styles.cropHandle}
+                    style={{
+                      left: handle.includes("w") ? "0%" : "100%",
+                      top: handle.includes("n") ? "0%" : "100%",
+                    }}
+                    role="slider"
+                    tabIndex={0}
+                    aria-label={`Crop handle: ${handle}`}
+                    aria-valuetext={`x ${Math.round(cropBox.x)}, y ${Math.round(cropBox.y)}, width ${Math.round(cropBox.width)}, height ${Math.round(cropBox.height)}`}
+                    onPointerDown={(event) => handlePointerDownOnHandle(handle, event)}
+                    onPointerMove={handlePointerMoveOnHandle}
+                    onPointerUp={handlePointerUpOnHandle}
+                    onPointerCancel={handlePointerUpOnHandle}
+                    onKeyDown={(event) => handleHandleKeyDown(handle, event)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {tool === "crop" && (
-        <div className={styles.panel}>
-          <label className={styles.field}>
-            X
-            <input
-              type="number"
-              min={0}
-              max={image.width - MIN_CROP_SIZE}
-              value={Math.round(cropBox.x)}
-              onInput={(event) =>
-                setCropBox((current) =>
-                  moveCorner(
-                    current,
-                    "nw",
-                    Number(event.currentTarget.value) - current.x,
-                    0,
-                    image,
-                  ),
-                )
-              }
-            />
-          </label>
-          <label className={styles.field}>
-            Y
-            <input
-              type="number"
-              min={0}
-              max={image.height - MIN_CROP_SIZE}
-              value={Math.round(cropBox.y)}
-              onInput={(event) =>
-                setCropBox((current) =>
-                  moveCorner(
-                    current,
-                    "nw",
-                    0,
-                    Number(event.currentTarget.value) - current.y,
-                    image,
-                  ),
-                )
-              }
-            />
-          </label>
-          <label className={styles.field}>
-            Width
-            <input
-              type="number"
-              min={MIN_CROP_SIZE}
-              max={image.width}
-              value={Math.round(cropBox.width)}
-              onInput={(event) =>
-                setCropBox((current) =>
-                  moveCorner(
-                    current,
-                    "se",
-                    Number(event.currentTarget.value) - current.width,
-                    0,
-                    image,
-                  ),
-                )
-              }
-            />
-          </label>
-          <label className={styles.field}>
-            Height
-            <input
-              type="number"
-              min={MIN_CROP_SIZE}
-              max={image.height}
-              value={Math.round(cropBox.height)}
-              onInput={(event) =>
-                setCropBox((current) =>
-                  moveCorner(
-                    current,
-                    "se",
-                    0,
-                    Number(event.currentTarget.value) - current.height,
-                    image,
-                  ),
-                )
-              }
-            />
-          </label>
-          <button type="button" onClick={() => void applyCrop()} disabled={busy}>
-            Apply crop
-          </button>
-          <button type="button" onClick={() => setTool(null)} disabled={busy}>
-            Cancel
-          </button>
-          <p className={styles.hint}>Drag a handle, use arrow keys, or type exact values.</p>
+      <div className={styles.controls}>
+        <div className={styles.rotateHead}>
+          <span className={styles.groupLabel}>
+            <CropIcon /> Crop &amp; rotate
+          </span>
+          <span className={`${styles.cropDims} mono`}>
+            {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
+          </span>
         </div>
-      )}
 
-      {tool === "resize" && (
-        <div className={styles.panel}>
-          <label className={styles.field}>
-            Width
-            <input type="number" min={1} value={resizeWidth} onInput={handleWidthInput} />
-          </label>
-          <label className={styles.field}>
-            Height
-            <input type="number" min={1} value={resizeHeight} onInput={handleHeightInput} />
-          </label>
+        <div className={styles.sliderWrap}>
+          <input
+            type="range"
+            min={-180}
+            max={180}
+            step={1}
+            value={angle}
+            disabled={busy}
+            aria-label="Rotation angle"
+            onInput={(event) =>
+              setAngle(
+                snapAngle(Number(event.currentTarget.value), shiftRef.current, ctrlRef.current),
+              )
+            }
+          />
+          <div className={styles.ticks} aria-hidden="true">
+            {ANGLE_MARKS.map((t) => (
+              <div
+                key={t}
+                className={styles.tickWrap}
+                style={{ left: `${((t + 180) / 360) * 100}%` }}
+              >
+                <span className={styles.tick} data-major={t % 90 === 0 || undefined} />
+                <span className={`${styles.tickLabel} mono`}>{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className={styles.actions}>
           <label className={styles.checkboxField}>
             <input
               type="checkbox"
-              checked={lockAspect}
-              onChange={(event) => setLockAspect(event.currentTarget.checked)}
+              checked={fitToFrame}
+              onChange={(event) => setFitToFrame(event.currentTarget.checked)}
             />
-            Lock aspect ratio
+            Fit to frame
           </label>
-          <button type="button" onClick={() => void applyResize()} disabled={busy}>
-            Apply resize
+          <span className={`${styles.angleValue} mono`}>{angle}°</span>
+          <span className={styles.spacer} />
+          <button
+            type="button"
+            className={styles.ghostButton}
+            onClick={() => void applyCrop()}
+            disabled={busy || !isCropped}
+          >
+            Apply crop
           </button>
-          <button type="button" onClick={() => setTool(null)} disabled={busy}>
-            Cancel
+          <button
+            type="button"
+            className={styles.primaryButton}
+            onClick={() => void applyAngle()}
+            disabled={busy || !rotating}
+          >
+            Apply rotation
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

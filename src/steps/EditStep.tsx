@@ -1,6 +1,7 @@
 import { useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
 import { Editor } from "../components/Editor/Editor";
+import styles from "./EditStep.module.css";
 
 /**
  * Wizard step 2 — optional crop/resize/rotate editing (T5).
@@ -20,11 +21,7 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
   if (!original) {
     return (
       <section>
-        <h2>2. Edit</h2>
         <p role="alert">No image to edit yet — go back and choose one first.</p>
-        <button type="button" onClick={wizard.back}>
-          Back
-        </button>
       </section>
     );
   }
@@ -32,20 +29,8 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
   const current = wizard.image ?? original;
 
   return (
-    <section>
-      <h2>2. Edit</h2>
-      <p>Crop, resize, or rotate the image. This step is optional — Next continues as-is.</p>
-
+    <section className={styles.root}>
       <Editor image={current} originalImage={original} onChange={wizard.setImage} />
-
-      <div>
-        <button type="button" onClick={wizard.back}>
-          Back
-        </button>
-        <button type="button" onClick={wizard.next}>
-          Next
-        </button>
-      </div>
     </section>
   );
 }
