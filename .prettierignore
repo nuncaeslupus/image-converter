@@ -1,6 +1,9 @@
 dist
 node_modules
 
+# Vendored wasm-pack build output (generated, not hand-formatted).
+src/wasm
+
 # Vendored / hand-authored docs — not part of the app's own source tree.
 .claude
 claude-arsenal
