@@ -4,73 +4,63 @@
 
 ## Last task
 
-- **ID**: `lo-d4f4`
-- **Title**: T3: Integrate VTracer WASM into Tracer Worker + param translation layer
-- **Status at handover**: `done` — PR #12 open (not yet merged; CI red is the
-  known Actions-minutes blocker, see below).
+- **ID**: `lo-d6ec`
+- **Title**: T12: Static hosting deploy pipeline (GitHub Actions -> GitHub Pages)
+- **Status at handover**: `merged` — PR #14 merged, **site is LIVE and verified**.
 
 ## What was done this session
 
-CLI session (`/continue CLI`). "CLI" = tasks needing an installed toolchain
-absent from Claude Code Web; user asked to tag all tasks CLI/WEB and pick up the
-CLI ones (the ones blocking WEB development).
+CLI session (`/continue`, global scope). T12 was the only CLI-runnable open task,
+but its payload said "hold until 2026-08-01" (Actions-minutes exhaustion on the
+private repo). Root-caused and unblocked it the real way.
 
-1. **Session-start fixes**:
-   - `init.py` tried to "upgrade" the arsenal bundle 0.20.5 → **0.20.2** (a
-     downgrade clobbering the newer vendored files). Reverted. User has since
-     corrected the plugin to 0.20.5, so it won't recur.
-   - **Project-identity stamp mismatch**: `arsenal-queue`'s `.project-id` was
-     stamped `local_proxy@127.0.0.1/.../image-converter` (a web-proxy remote
-     from the prior web session), tripping `queue_branch.sh`'s guard against
-     the CLI's `github.com/...` origin. Same project — re-stamped to
-     `github.com/nuncaeslupus/image-converter` and pushed. CLI sessions now
-     pass the guard; a future *web* session may need a re-stamp the other way.
-2. **Tagged all 11 tasks CLI/WEB** by toolchain requirement (`tags` axis,
-   complementary to the existing `requires:["surface:cli"]` capability filter).
-   Only **T3** is CLI (Rust→WASM build); all others WEB. Pushed to
-   `arsenal-queue`. `/continue CLI` now resolves to T3.
-3. **Installed the one-time CLI toolchain** (global, `~/.cargo`, `--no-modify-path`):
-   rustup + `wasm32-unknown-unknown` target + `wasm-pack 0.13.1`, alongside the
-   pre-existing apt `rustc`/`cargo` 1.88. **Note for future CLI sessions**:
-   `~/.cargo/bin` is NOT on the default PATH — `export PATH="$HOME/.cargo/bin:$PATH"`
-   before any rust/cargo/wasm-pack use.
-4. **Claimed + dispatched T3** to an isolated-worktree worker. Outcome `done`,
-   **PR #12**. Gate PASS: `trace_success_rate_on_sample_corpus = 5/5 = 1.0`.
-   Built VTracer **from source** (vtracer `=0.6.5`, visioncortex `=0.8.10`) via
-   `wasm-pack build --target web` — user explicitly chose build-from-source over
-   the prebuilt `vtracer-wasm` npm package (supply-chain trust). New: `vtracer-wasm/`
-   Rust crate, `src/wasm/` (committed 133KB `.wasm` + glue), `src/lib/paramTranslation.ts`,
-   `src/worker/vtracerTracer.ts`, wired `src/worker/tracer.worker.ts`,
-   `tests/worker/vtracer.test.ts`. Local gates all green (typecheck, lint,
-   21/21 tests, `npm run build`). `worker_postcheck.sh` → `ok` (real worktree);
-   recorded `release.sh lo-d4f4 done --pr #12`.
+1. **Made the repo PUBLIC** (with explicit user consent; secret-scanned first —
+   clean: no sensitive files, no secret patterns in tree or full history).
+   Public repos get **free, unlimited** GitHub-hosted Actions minutes, so this
+   permanently removes the "2000-min/month exhausted" blocker — no more waiting
+   for 2026-08-01. CI now runs **for real** (it was previously green-by-not-running:
+   every run since T1 was rejected in ~4s with 0 billable time).
+
+2. **Fixed pre-existing format drift CI never caught** (folded into PR #15).
+   `tests/worker/vtracer.test.ts` failed `format:check` under the **pinned**
+   prettier 3.9.5 (landed via T3 while CI wasn't executing). Note the trap:
+   `UploadStep.tsx` looked broken only when formatted by a *newer* stray
+   `npx prettier` — under pinned 3.9.5 it was already correct. **Always format
+   with the pinned binary (`npm run format`), never `npx prettier`.**
+
+3. **Enforced format+lint pre-push + pinned node** (PR #15, merged): added
+   `.githooks/pre-push` (runs `format:check` + `lint`), enabled repo-wide via a
+   `prepare` npm script setting `core.hooksPath .githooks`; added `.nvmrc` (22)
+   and pointed `ci.yml` + `deploy.yml` at `node-version-file: .nvmrc`. Combined
+   with the committed `package-lock.json` (`npm ci`), CI and local now resolve
+   identical toolchains — the user's explicit ask.
+
+4. **T12 deploy pipeline** (PR #14, merged): worker added `deploy.yml` (build →
+   upload-pages-artifact → deploy-pages on push to main) and set Vite
+   `base: "/image-converter/"` for the build so assets resolve under the project
+   Pages path. Enabled Pages (source: GitHub Actions) via `gh api`. Merged →
+   deploy ran green → **gate verified**: `curl https://nuncaeslupus.github.io/image-converter/`
+   → **200**, and the referenced JS asset under `/image-converter/assets/` → 200.
+   Recorded `release.sh done --pr #14`; `reconcile_merged.sh` → `merged`.
+
+## Live site
+
+**https://nuncaeslupus.github.io/image-converter/** (auto-deploys on push to main).
 
 ## What remains
 
-- **PR #12 (T3) needs merging.** `mergeable: MERGEABLE`, GitGuardian pass. Its
-  `ci` check is **FAILURE at ~4s with no steps run** — the documented repo-wide
-  **Actions-minutes exhaustion** (private repo, resets **2026-08-01**), identical
-  to every PR since T1 (T4/#8, T5/#9 merged in this state). Not a code failure.
-  Merge when ready (as prior PRs were).
-- **T3 landing unblocks the WEB chain**: T6 (`lo-e707`) is now open (its dep T3
-  is done); T6 → T7/T8/T10, then T9 behind T8, T11 behind T3+T7. All are WEB —
-  do them from a Claude Code Web session.
-- **T12 (`lo-d6ec`, deploy)** — tagged WEB (writing the workflow YAML is
-  web-doable) but its gate needs a real Actions deploy, so **hold until
-  2026-08-01** regardless of surface (same minutes blocker).
-- **No CLI tasks remain open.** T3 was the only one; the CLI-scoped queue is
-  exhausted.
+- **6 open tasks, all WEB-tagged**: T6 (`lo-e707`, unblocked — deps T3+T5 merged)
+  → gates T7 (`lo-b7ec`) / T8 (`lo-22c0`) / T10 (`lo-3e7c`); then T9 (`lo-1e92`,
+  behind T6+T8) and T11 (`lo-f1d0`, behind T3+T7). These are frontend TS with no
+  CLI-only toolchain, so they're runnable from either surface now — the WEB tag
+  is the user's CLI/WEB division-of-labor, not a hard requirement. Original plan:
+  do them from a Claude Code Web session. **Open question for next session:** run
+  the WEB chain from CLI now that public+CI works, or keep them for web.
+- **Bundle downgrade recurs**: `init.py` again tried to "upgrade" the arsenal
+  bundle 0.20.5 → 0.20.2 (a downgrade). Reverted at session start. The plugin
+  source is apparently still behind the vendored bundle (0.20.5).
 
-## How to continue
+## PR audit
 
-1. `export ARSENAL_QUEUE_DIR="$(claude-arsenal/bin/queue_branch.sh)"` → sets and
-   captures the worktree path (`../image-converter-arsenal-queue-wt`); a bare
-   invocation would not propagate the var to the shell. Guard passes now (re-stamped).
-2. Merge PR #12 when ready; `reconcile_merged.sh` will then flip T3 `done`→`merged`.
-3. WEB frontend work (T6+) is unblocked — run it from Claude Code Web.
-4. If ever back on CLI: `export PATH="$HOME/.cargo/bin:$PATH"` for wasm-pack.
-
-## Surface profile at handover
-
-CLI session. `rustc`/`cargo` 1.88, `wasm-pack 0.13.1`, `gh 2.46`, `node 24`,
-`npm 11` all present. `~/.cargo/bin` not on default PATH.
+- **#12** (T3), **#14** (T12), **#15** (format+hook+node-pin): all **merged**, CI green.
+- No open PRs. No escalated tasks. CI + Deploy workflows both green on main.
