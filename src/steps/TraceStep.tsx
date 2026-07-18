@@ -40,6 +40,11 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
 
   const image = wizard.image;
 
+  // Publish the current traced SVG up to the wizard so ExportStep (T9) reads it.
+  useEffect(() => {
+    wizard.setSvg(tracedSvg);
+  }, [tracedSvg]);
+
   useEffect(() => {
     if (!image) return;
     const workingImage = image;
