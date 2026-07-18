@@ -4,6 +4,7 @@ import { TweakPanel } from "../components/TweakPanel/TweakPanel";
 import {
   createTweakPipeline,
   applyBackground,
+  DEFAULT_TWEAK_VALUES,
   type TweakPipeline,
   type TweakValues,
 } from "../lib/tweakPipeline";
@@ -15,13 +16,7 @@ import {
 } from "../lib/traceProtocol";
 import styles from "./TraceStep.module.css";
 
-const DEFAULT_VALUES: TweakValues = {
-  paletteSize: "auto",
-  smoothness: 50,
-  detail: 50,
-  contrast: 0,
-  background: "transparent",
-};
+const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
 
 /**
  * Wizard step 3 — the live tweak panel driving the two-tier retrace/
