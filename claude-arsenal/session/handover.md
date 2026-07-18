@@ -63,8 +63,9 @@ CLI ones (the ones blocking WEB development).
 
 ## How to continue
 
-1. `claude-arsenal/bin/queue_branch.sh` → sets `ARSENAL_QUEUE_DIR` (worktree at
-   `../image-converter-arsenal-queue-wt`). Guard passes now (re-stamped).
+1. `export ARSENAL_QUEUE_DIR="$(claude-arsenal/bin/queue_branch.sh)"` → sets and
+   captures the worktree path (`../image-converter-arsenal-queue-wt`); a bare
+   invocation would not propagate the var to the shell. Guard passes now (re-stamped).
 2. Merge PR #12 when ready; `reconcile_merged.sh` will then flip T3 `done`→`merged`.
 3. WEB frontend work (T6+) is unblocked — run it from Claude Code Web.
 4. If ever back on CLI: `export PATH="$HOME/.cargo/bin:$PATH"` for wasm-pack.
