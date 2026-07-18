@@ -22,6 +22,7 @@ async function makeFixtureBitmap(): Promise<ImageBitmap> {
 function Harness({ image }: { image: ImageBitmap }) {
   const [step, setStep] = useState<WizardStep>("edit");
   const [wizardImage, setWizardImage] = useState<ImageBitmap | null>(image);
+  const [svg, setSvg] = useState<string | null>(null);
 
   const wizard: Wizard = {
     step,
@@ -31,6 +32,8 @@ function Harness({ image }: { image: ImageBitmap }) {
     back: () => setStep(WIZARD_STEPS[Math.max(WIZARD_STEPS.indexOf(step) - 1, 0)]),
     image: wizardImage,
     setImage: setWizardImage,
+    svg,
+    setSvg,
   };
 
   return (
