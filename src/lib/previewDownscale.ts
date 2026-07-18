@@ -11,10 +11,14 @@
  */
 import { resizeImage } from "./imageEdit";
 
-/** Long-edge cap for the trace pass, in pixels. Benchmarked to trace in well
- * under 1s even on dense/noisy content, leaving comfortable margin under the
- * 5s budget for decode + worker round-trip overhead. */
-export const PREVIEW_MAX_DIMENSION = 768;
+/** Long-edge cap for the trace pass, in pixels. Benchmarked against the real
+ * VTracer WASM engine (`tests/perf/previewBudget.test.ts`) to trace in under
+ * 1s even on dense/noisy content — comfortable margin under the 5s budget
+ * once CI-hardware slowdown and decode/worker round-trip overhead are added.
+ * (768 measured ~2x too close to budget on CI; 512 roughly halves the traced
+ * pixel count and restores real headroom — also directly narrows the §6 risk
+ * of large images freezing the tab on low-end/mobile devices.) */
+export const PREVIEW_MAX_DIMENSION = 512;
 
 /** Computes the aspect-ratio-preserving size for `width`x`height` capped to
  * `maxDimension` on its longest edge. No-op (returns the input unchanged)
