@@ -20,6 +20,11 @@ dist-ssr/
 .vite/
 *.tsbuildinfo
 
+# Rust / wasm build artifacts. The crate source lives in vtracer-wasm/ and its
+# built output is vendored (committed) into src/wasm/; these are throwaway.
+vtracer-wasm/target/
+vtracer-wasm/pkg/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

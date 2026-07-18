@@ -3,20 +3,22 @@
  * to a `Tracer` implementation, keeping tracing off the main thread (see
  * status/specification.md §5 "Worker message contract").
  *
- * T2 ships a stub Tracer that echoes back a minimal valid SVG so the protocol
- * can be exercised end-to-end. T3 swaps this for the real VTracer WASM engine
- * behind the same `Tracer` interface — the message shapes here don't change.
+ * T3 wires the real VTracer WASM engine (`createVtracerTracer`, see
+ * ./vtracerTracer) behind the `Tracer` interface — the message shapes here
+ * don't change. `stubTracer` is retained as a lightweight test double for the
+ * protocol tests, which must not depend on the WASM module.
  *
- * The protocol logic (`handleTraceMessage`, `stubTracer`) is exported as plain,
- * testable functions decoupled from the raw `Worker`/`postMessage` globals, so
- * it can be unit-tested under jsdom without a real worker runtime. Only the
- * bottom of this file performs the actual `self.onmessage` wiring, guarded so
- * it's a no-op outside an actual dedicated-worker global scope (e.g. when this
- * module is imported from a test).
+ * The protocol logic (`handleTraceMessage`) is exported as a plain, testable
+ * function decoupled from the raw `Worker`/`postMessage` globals, so it can be
+ * unit-tested under jsdom without a real worker runtime. Only the bottom of
+ * this file performs the actual `self.onmessage` wiring, guarded so it's a
+ * no-op outside an actual dedicated-worker global scope (e.g. when this module
+ * is imported from a test).
  */
 import type { Tracer, TraceRequest, TraceResponse } from "../lib/traceProtocol";
+import { createVtracerTracer } from "./vtracerTracer";
 
-/** Stub Tracer: returns a minimal valid SVG sized to the bitmap. Real VTracer integration lands in T3. */
+/** Minimal deterministic Tracer double for protocol tests (no WASM). */
 export const stubTracer: Tracer = {
   trace(bitmap, _params) {
     void _params;
@@ -69,8 +71,9 @@ const workerScope: WorkerScope | undefined =
     : undefined;
 
 if (workerScope) {
+  const tracer = createVtracerTracer();
   workerScope.onmessage = (event: MessageEvent<TraceRequest>) => {
-    void handleTraceMessage(event.data, stubTracer).then((response) =>
+    void handleTraceMessage(event.data, tracer).then((response) =>
       workerScope.postMessage(response),
     );
   };
