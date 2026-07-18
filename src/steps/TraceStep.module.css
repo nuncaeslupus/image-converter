@@ -1,0 +1,28 @@
+.layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.preview {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+  border: 1px solid light-dark(#d0d0d0, #444);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  background: repeating-conic-gradient(
+      light-dark(#eee, #2a2a2a) 0% 25%,
+      light-dark(#fff, #1a1a1a) 0% 50%
+    )
+    50% / 16px 16px;
+}
+
+.previewSvg {
+  display: flex;
+}
+
+.previewSvg :global(svg) {
+  max-width: 100%;
+  height: auto;
+}

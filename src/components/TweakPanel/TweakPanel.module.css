@@ -1,0 +1,74 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  border: 1px solid light-dark(#d0d0d0, #444);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.group legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.group:disabled {
+  opacity: 0.6;
+}
+
+.presetRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.presetButton {
+  font: inherit;
+  font-size: 0.85rem;
+  color: inherit;
+  background: transparent;
+  border: 1px solid light-dark(#d0d0d0, #444);
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+}
+
+.presetButton:hover:not(:disabled) {
+  background: light-dark(#e8e8e8, #2c2c2c);
+}
+
+.presetButton:focus-visible {
+  outline: 2px solid light-dark(#1a73e8, #8ab4f8);
+  outline-offset: 1px;
+}
+
+.presetButton[aria-pressed="true"],
+.presetButton[aria-checked="true"] {
+  background: light-dark(#dbe9ff, #274266);
+  border-color: light-dark(#1a73e8, #8ab4f8);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.field input[type="number"] {
+  width: 6rem;
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+}
+
+.field input[type="range"] {
+  width: 100%;
+}
