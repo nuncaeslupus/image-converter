@@ -1,11 +1,23 @@
 /**
- * Median-cut color quantization — reduces an RGBA image to a literal palette of
- * N colors. VTracer has no "exactly N colors" knob (its `colorPrecision` is
- * bits-per-channel, a coarse richness scale), so the "Colors" control enforces
- * an exact count by pre-quantizing the pixels here, before the trace. The
- * worker snaps pixels with {@link quantizeRgba}; the tweak panel draws each
- * palette row's swatches with {@link medianCutPalette}. Both share one core so
- * the previewed colors match the traced result.
+ * Color reduction for the "Colors" control — reduces an RGBA image to a literal
+ * palette of N colors (or to black & white for N=1). VTracer has no "exactly N
+ * colors" knob, so the count is enforced here, before the trace: the worker
+ * snaps pixels with {@link quantizeRgba} / {@link binarizeToBlack}, and the
+ * tweak panel draws each palette row's swatches with {@link medianCutPalette}.
+ * One shared core, so the previewed colors match the traced result.
+ *
+ * Two deliberate choices, both driven by what a legible *vector* wants and by
+ * how the palette reads to a user:
+ *
+ *  - **Population-independent clustering.** Classic median cut splits at the
+ *    pixel-count median, so a large flat background devours the palette budget
+ *    and small salient accents (a logo dot) don't get their own color until N
+ *    is large. We cluster over *distinct* colors instead, so a small-but-
+ *    distinct accent claims a slot early — "3 colors" on a mostly-white banner
+ *    with a green dot yields black / green / gray, not three near-whites.
+ *  - **Dominant real color per cluster, not the mean.** The mean of a cluster
+ *    is a desaturated in-between color that may not exist in the image; we pick
+ *    each cluster's most common actual color, so swatches stay punchy.
  *
  * Hard nearest-color snap, no dithering: dithering scatters near-color noise
  * that VTracer would trace as speckle paths, the opposite of the flat,
@@ -14,80 +26,112 @@
 
 export type Rgb = [number, number, number];
 
-interface Box {
-  /** Indices into the opaque-pixel color list this box covers. */
-  colors: Rgb[];
+/**
+ * Coarse color bucket: near-identical colors (e.g. an antialiased gradient's
+ * many intermediate shades) collapse to one bucket so noise can't out-vote real
+ * colors when clustering. `sum*`/`count` recover the bucket's average color and
+ * weight.
+ */
+interface Bucket {
+  sumR: number;
+  sumG: number;
+  sumB: number;
+  count: number;
 }
 
-function widestChannel(colors: Rgb[]): { channel: 0 | 1 | 2; range: number } {
-  let rMin = 255,
-    gMin = 255,
-    bMin = 255,
-    rMax = 0,
-    gMax = 0,
-    bMax = 0;
-  for (const [r, g, b] of colors) {
-    if (r < rMin) rMin = r;
-    if (r > rMax) rMax = r;
-    if (g < gMin) gMin = g;
-    if (g > gMax) gMax = g;
-    if (b < bMin) bMin = b;
-    if (b > bMax) bMax = b;
-  }
-  const ranges: [number, number] = [rMax - rMin, gMax - gMin];
-  const bRange = bMax - bMin;
-  // Pick the channel with the largest spread; ties resolve R > G > B for
-  // determinism (the acceptance gate needs a fixed output for a fixed input).
-  if (ranges[0] >= ranges[1] && ranges[0] >= bRange) return { channel: 0, range: ranges[0] };
-  if (ranges[1] >= bRange) return { channel: 1, range: ranges[1] };
-  return { channel: 2, range: bRange };
+/** Bits kept per channel when bucketing (5 → 32 levels/channel). Coarse enough
+ * to merge antialiasing noise, fine enough to keep a distinct accent apart. */
+const BUCKET_BITS = 5;
+const BUCKET_SHIFT = 8 - BUCKET_BITS;
+
+function bucketAverage(b: Bucket): Rgb {
+  return [Math.round(b.sumR / b.count), Math.round(b.sumG / b.count), Math.round(b.sumB / b.count)];
 }
 
-function meanColor(colors: Rgb[]): Rgb {
-  let r = 0,
-    g = 0,
-    b = 0;
-  for (const c of colors) {
-    r += c[0];
-    g += c[1];
-    b += c[2];
-  }
-  const n = colors.length;
-  return [Math.round(r / n), Math.round(g / n), Math.round(b / n)];
-}
-
-/** Collects every opaque pixel's RGB (alpha === 0 excluded — transparent
- * pixels have no meaningful color and would bias the palette toward black). */
-function opaqueColors(rgba: Uint8Array): Rgb[] {
-  const colors: Rgb[] = [];
+/** Buckets every opaque pixel by coarse color, accumulating a real average and
+ * a pixel count per bucket. Transparent pixels (`a === 0`) are excluded — they
+ * carry no color and would bias the palette toward black. */
+function buildBuckets(rgba: Uint8Array): Bucket[] {
+  const map = new Map<number, Bucket>();
   for (let i = 0; i < rgba.length; i += 4) {
     if (rgba[i + 3] === 0) continue;
-    colors.push([rgba[i], rgba[i + 1], rgba[i + 2]]);
+    const r = rgba[i];
+    const g = rgba[i + 1];
+    const b = rgba[i + 2];
+    const key =
+      ((r >> BUCKET_SHIFT) << (BUCKET_BITS * 2)) |
+      ((g >> BUCKET_SHIFT) << BUCKET_BITS) |
+      (b >> BUCKET_SHIFT);
+    const existing = map.get(key);
+    if (existing) {
+      existing.sumR += r;
+      existing.sumG += g;
+      existing.sumB += b;
+      existing.count += 1;
+    } else {
+      map.set(key, { sumR: r, sumG: g, sumB: b, count: 1 });
+    }
   }
-  return colors;
+  return [...map.values()];
+}
+
+function channelRange(buckets: Bucket[], channel: 0 | 1 | 2): number {
+  let min = 255;
+  let max = 0;
+  for (const bucket of buckets) {
+    const v = bucketAverage(bucket)[channel];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return max - min;
+}
+
+function widestChannel(buckets: Bucket[]): { channel: 0 | 1 | 2; range: number } {
+  const r = channelRange(buckets, 0);
+  const g = channelRange(buckets, 1);
+  const b = channelRange(buckets, 2);
+  // Ties resolve R > G > B for a deterministic split (the gate needs a fixed
+  // output for a fixed input).
+  if (r >= g && r >= b) return { channel: 0, range: r };
+  if (g >= b) return { channel: 1, range: g };
+  return { channel: 2, range: b };
+}
+
+/** Each box's representative is its most-populous bucket's average — a real
+ * dominant color from the image, not the whole box's washed-out mean. */
+function dominantColor(buckets: Bucket[]): Rgb {
+  let best = buckets[0];
+  for (const bucket of buckets) {
+    if (bucket.count > best.count) best = bucket;
+  }
+  return bucketAverage(best);
+}
+
+function luminance([r, g, b]: Rgb): number {
+  return 0.299 * r + 0.587 * g + 0.114 * b;
 }
 
 /**
- * Returns up to N representative colors via median cut: start with one box over
- * all opaque colors, repeatedly split the box whose widest channel has the
- * largest spread at that channel's median, until N boxes (or no box can split
- * further), then take each box's mean color. Fewer than N unique colors in the
- * image yields fewer than N palette entries.
+ * Up to N representative colors via population-independent median cut: cluster
+ * the distinct color buckets by repeatedly splitting the box with the widest
+ * color spread at its *bucket* median (each bucket counted once, so area
+ * doesn't dominate), then take each box's dominant real color. Fewer distinct
+ * colors than N yields fewer entries. Sorted dark→light for a tidy swatch ramp.
  */
 export function medianCutPalette(rgba: Uint8Array, n: number): Rgb[] {
-  const colors = opaqueColors(rgba);
-  if (colors.length === 0) return [];
+  const buckets = buildBuckets(rgba);
+  if (buckets.length === 0) return [];
   const target = Math.max(1, Math.floor(n));
-  let boxes: Box[] = [{ colors }];
+  let boxes: Bucket[][] = [buckets];
 
   while (boxes.length < target) {
-    // Split the box with the largest single-channel spread; if none can split
-    // (all boxes are a single color), stop early.
+    // Split the box with the largest single-channel spread; stop if none can
+    // split further (every box is a single bucket).
     let best = -1;
     let bestRange = 0;
     for (let i = 0; i < boxes.length; i++) {
-      if (boxes[i].colors.length < 2) continue;
-      const { range } = widestChannel(boxes[i].colors);
+      if (boxes[i].length < 2) continue;
+      const { range } = widestChannel(boxes[i]);
       if (range > bestRange) {
         bestRange = range;
         best = i;
@@ -96,18 +140,18 @@ export function medianCutPalette(rgba: Uint8Array, n: number): Rgb[] {
     if (best === -1 || bestRange === 0) break;
 
     const box = boxes[best];
-    const { channel } = widestChannel(box.colors);
-    const sorted = [...box.colors].sort((a, b) => a[channel] - b[channel]);
+    const { channel } = widestChannel(box);
+    const sorted = [...box].sort((a, b) => bucketAverage(a)[channel] - bucketAverage(b)[channel]);
     const mid = sorted.length >> 1;
     boxes = [
       ...boxes.slice(0, best),
-      { colors: sorted.slice(0, mid) },
-      { colors: sorted.slice(mid) },
+      sorted.slice(0, mid),
+      sorted.slice(mid),
       ...boxes.slice(best + 1),
     ];
   }
 
-  return boxes.map((box) => meanColor(box.colors));
+  return boxes.map(dominantColor).sort((a, b) => luminance(a) - luminance(b));
 }
 
 function nearest(palette: Rgb[], r: number, g: number, b: number): Rgb {
@@ -141,6 +185,76 @@ export function quantizeRgba(rgba: Uint8Array, n: number): Uint8Array {
     out[i] = r;
     out[i + 1] = g;
     out[i + 2] = b;
+  }
+  return out;
+}
+
+/**
+ * Otsu's method: the luminance threshold that best separates the histogram into
+ * two classes (maximizes between-class variance). Adapts to the image, unlike a
+ * fixed 128 — a mostly-white image with light-gray text puts the threshold
+ * between the white background peak and the text, so the text survives.
+ */
+function otsuThreshold(histogram: number[], total: number): number {
+  let sumAll = 0;
+  for (let t = 0; t < 256; t++) sumAll += t * histogram[t];
+
+  let sumBackground = 0;
+  let weightBackground = 0;
+  let maxVariance = -1;
+  let threshold = 127;
+  for (let t = 0; t < 256; t++) {
+    weightBackground += histogram[t];
+    if (weightBackground === 0) continue;
+    const weightForeground = total - weightBackground;
+    if (weightForeground === 0) break;
+    sumBackground += t * histogram[t];
+    const meanBackground = sumBackground / weightBackground;
+    const meanForeground = (sumAll - sumBackground) / weightForeground;
+    const between = weightBackground * weightForeground * (meanBackground - meanForeground) ** 2;
+    if (between > maxVariance) {
+      maxVariance = between;
+      threshold = t;
+    }
+  }
+  return threshold;
+}
+
+/**
+ * Black & white (N=1): split opaque pixels into two luminance classes at an
+ * Otsu threshold, paint the darker class solid black and drop the lighter class
+ * to transparent. Dark-on-light line art / logos come out as a clean black
+ * silhouette on transparent that keeps every shape — including faint ones a
+ * fixed threshold would merge into the background. Returns a new buffer; the
+ * input is not mutated.
+ *
+ * ponytail: assumes the subject is the darker class (the dark-on-light case).
+ * A light subject on a dark background would invert; add an invert toggle if
+ * that case ever matters.
+ */
+export function binarizeToBlack(rgba: Uint8Array): Uint8Array {
+  const histogram = new Array(256).fill(0);
+  let total = 0;
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] === 0) continue;
+    const lum = Math.round(luminance([rgba[i], rgba[i + 1], rgba[i + 2]]));
+    histogram[lum] += 1;
+    total += 1;
+  }
+  const out = new Uint8Array(rgba);
+  if (total === 0) return out;
+  const threshold = otsuThreshold(histogram, total);
+  for (let i = 0; i < out.length; i += 4) {
+    if (out[i + 3] === 0) continue;
+    const lum = luminance([out[i], out[i + 1], out[i + 2]]);
+    if (lum <= threshold) {
+      out[i] = 0;
+      out[i + 1] = 0;
+      out[i + 2] = 0;
+      out[i + 3] = 255;
+    } else {
+      out[i + 3] = 0;
+    }
   }
   return out;
 }

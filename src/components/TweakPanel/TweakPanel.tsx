@@ -41,6 +41,12 @@ export interface TweakPanelProps {
    * before the sample is computed (or under jsdom, which has no canvas).
    */
   palettePreviews?: Record<string, string[]>;
+  /**
+   * How many colors the current Auto trace actually produced, shown on the
+   * Auto row. Only known while Auto is the active selection (counted from the
+   * result); `undefined` otherwise, in which case the row shows nothing.
+   */
+  autoColorCount?: number;
 }
 
 /**
@@ -49,7 +55,13 @@ export interface TweakPanelProps {
  * `TweakValues` snapshot — routing to a debounced worker retrace vs. an
  * immediate cheap edit is `tweakPipeline.ts`'s job, not this component's.
  */
-export function TweakPanel({ values, onChange, busy = false, palettePreviews }: TweakPanelProps) {
+export function TweakPanel({
+  values,
+  onChange,
+  busy = false,
+  palettePreviews,
+  autoColorCount,
+}: TweakPanelProps) {
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
   }
@@ -110,7 +122,9 @@ export function TweakPanel({ values, onChange, busy = false, palettePreviews }: 
               >
                 <span className={styles.paletteName}>{paletteLabel(preset)}</span>
                 {preset === "auto" ? (
-                  <span className={styles.paletteAuto}>VTracer picks</span>
+                  <span className={styles.paletteAuto}>
+                    {autoColorCount ? `${autoColorCount} colors` : ""}
+                  </span>
                 ) : (
                   <span className={styles.swatches} aria-hidden="true">
                     {swatches.map((color, i) => (

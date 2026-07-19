@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { medianCutPalette, quantizeRgba, rgbToHex, type Rgb } from "../../src/lib/quantize";
+import {
+  binarizeToBlack,
+  medianCutPalette,
+  quantizeRgba,
+  rgbToHex,
+  type Rgb,
+} from "../../src/lib/quantize";
 
 /** Builds an RGBA buffer from a flat list of opaque colors (alpha 255). */
 function rgba(colors: Rgb[], alphas?: number[]): Uint8Array {
@@ -30,7 +36,7 @@ describe("quantize", () => {
   const YELLOW: Rgb = [200, 200, 10];
   const FIXTURE: Rgb[] = [RED, RED, GREEN, GREEN, BLUE, BLUE, YELLOW, YELLOW];
 
-  it("medianCutPalette returns exactly N colors for a rich-enough image", () => {
+  it("medianCutPalette returns up to N colors for a rich-enough image", () => {
     expect(medianCutPalette(rgba(FIXTURE), 4)).toHaveLength(4);
     expect(medianCutPalette(rgba(FIXTURE), 2)).toHaveLength(2);
     expect(medianCutPalette(rgba(FIXTURE), 1)).toHaveLength(1);
@@ -43,9 +49,21 @@ describe("quantize", () => {
   });
 
   it("medianCutPalette never exceeds the image's own distinct colors", () => {
-    // Only two unique colors present — asking for 4 can yield at most 2.
+    // Only two distinct colors present — asking for 4 yields at most 2.
     const palette = medianCutPalette(rgba([RED, RED, BLUE, BLUE]), 4);
     expect(palette.length).toBeLessThanOrEqual(2);
+  });
+
+  it("medianCutPalette keeps a small distinct accent (area-independent)", () => {
+    // A mostly-white image (100 px) with a single green accent pixel: classic
+    // area-weighted median cut would merge the accent away, but ours must give
+    // green its own slot at N=2. (Green here is far from white in color space.)
+    const pixels: Rgb[] = Array.from({ length: 100 }, () => [250, 250, 250] as Rgb);
+    pixels[50] = [20, 200, 20];
+    const palette = medianCutPalette(rgba(pixels), 2);
+    // One of the two palette entries should be clearly greenish, not white.
+    const hasGreen = palette.some(([r, g, b]) => g > 120 && r < 120 && b < 120);
+    expect(hasGreen).toBe(true);
   });
 
   it("quantizeRgba reduces to at most N distinct colors", () => {
@@ -56,7 +74,6 @@ describe("quantize", () => {
   it("quantizeRgba preserves alpha and skips transparent pixels", () => {
     const alphas = [255, 0, 128, 255, 255, 255, 255, 255];
     const out = quantizeRgba(rgba(FIXTURE, alphas), 3);
-    // Alpha channel untouched.
     for (let i = 0; i < alphas.length; i++) {
       expect(out[i * 4 + 3]).toBe(alphas[i]);
     }
@@ -75,5 +92,35 @@ describe("quantize", () => {
     expect(rgbToHex([0, 0, 0])).toBe("#000000");
     expect(rgbToHex([255, 255, 255])).toBe("#ffffff");
     expect(rgbToHex([16, 32, 48])).toBe("#102030");
+  });
+});
+
+describe("binarizeToBlack", () => {
+  const DARK: Rgb = [20, 20, 20];
+  const LIGHT: Rgb = [240, 240, 240];
+
+  it("paints the darker class black and drops the lighter class to transparent", () => {
+    const buf = binarizeToBlack(rgba([DARK, DARK, LIGHT, LIGHT]));
+    expect([buf[0], buf[1], buf[2], buf[3]]).toEqual([0, 0, 0, 255]);
+    expect(buf[4 + 3]).toBe(255);
+    expect(buf[8 + 3]).toBe(0); // light → transparent
+    expect(buf[12 + 3]).toBe(0);
+  });
+
+  it("keeps faint mid-gray content against a dominant near-white background", () => {
+    // Mirrors the real bug: a mostly-white image with light-gray "text". A
+    // fixed 128 threshold would drop the gray; Otsu adapts and keeps it black.
+    const pixels: Rgb[] = Array.from({ length: 100 }, () => [250, 250, 250] as Rgb);
+    for (let i = 0; i < 15; i++) pixels[i] = [150, 150, 150];
+    const buf = binarizeToBlack(rgba(pixels));
+    // A gray "text" pixel is kept as opaque black.
+    expect([buf[0], buf[1], buf[2], buf[3]]).toEqual([0, 0, 0, 255]);
+    // A white background pixel is dropped.
+    expect(buf[99 * 4 + 3]).toBe(0);
+  });
+
+  it("leaves already-transparent pixels transparent", () => {
+    const buf = binarizeToBlack(rgba([DARK, LIGHT], [0, 255]));
+    expect(buf[3]).toBe(0);
   });
 });

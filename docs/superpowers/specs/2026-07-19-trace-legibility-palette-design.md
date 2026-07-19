@@ -37,15 +37,22 @@ Colors
  ( ) Auto         (VTracer picks)
 ```
 
-- **B & W (N=1)** → VTracer `binary` mode: one thresholded silhouette, the
-  sharpest result. Direct fix for issue (1). Row swatch: a single black chip.
+- **B & W (N=1)** → the image is split into two luminance classes at an **Otsu
+  adaptive threshold** and the darker class is painted solid black on a
+  transparent background (see `binarizeToBlack`), then traced. Otsu adapts to
+  the image's own histogram, so faint dark-on-light content (light-gray text on
+  a near-white background) stays black instead of being merged into the
+  background the way VTracer's fixed threshold does. Direct fix for issue (1).
+  Row swatch: a single black chip.
 - **N=2..16** → the image is reduced to exactly N colors *before* tracing
   (see quantization below), then traced in `color` mode. Flat N-color input →
   ~N clean fills out, no fringe layers. **Selecting a row re-traces so the
   rendered image shows only those N colors** (the pre-quantization is what
   guarantees this, not a post-filter).
 - **Auto** → unchanged: no pre-quantization, VTracer's own clustering at
-  `colorPrecision` 6. No swatches (label reads "VTracer picks").
+  `colorPrecision` 6. The row shows the actual color count of the current Auto
+  result (e.g. "21 colors", counted from the traced SVG's distinct fills via
+  `countSvgColors`) while Auto is selected, and nothing otherwise.
 
 Row swatches come from `medianCutPalette` (below) run per N on a small sample
 of the baked image — cheap because it computes only the palette, never a
@@ -68,29 +75,31 @@ New pure module `src/lib/quantize.ts`:
 ```ts
 medianCutPalette(rgba: Uint8Array, n: number): Array<[number, number, number]>
 quantizeRgba(rgba: Uint8Array, n: number): Uint8Array
+binarizeToBlack(rgba: Uint8Array): Uint8Array
 rgbToHex([r, g, b]): string
 ```
 
-- `medianCutPalette` — the shared core. Build a color box over all **opaque**
-  pixels (skip `a === 0`), recursively split the box with the widest RGB range
-  at its median until there are `n` boxes, return each box's mean color. This
-  is what both the worker (to snap pixels) and the UI (to draw row swatches)
-  call.
+- `medianCutPalette` — the shared core. Bucket opaque pixels (skip `a === 0`)
+  by coarse color to merge antialiasing noise, then cluster the **distinct
+  buckets** by repeatedly splitting the box with the widest color spread at its
+  bucket median — **population-independent**, so a large flat background can't
+  devour the budget and a small distinct accent (a logo dot) claims a slot at
+  low N. Each cluster's color is its **most-populous bucket's average** (a real
+  dominant color), not the whole box's washed-out mean. Both the worker (to snap
+  pixels) and the UI (row swatches) call this, so previews match the result.
 - `quantizeRgba` — computes the palette, then snaps every opaque pixel to its
   nearest palette color (hard, **no dithering** — dithering adds speckle noise
   VTracer traces as paths). Alpha preserved per pixel; transparent pixels
   untouched; returns a new buffer (never mutates the input).
-- Deterministic → unit-testable with a fixed fixture (the acceptance gate).
+- `binarizeToBlack` — the N=1 path: Otsu threshold on luminance, darker class →
+  opaque black, lighter class → transparent. New buffer, input untouched.
+- Deterministic → unit-testable with fixed fixtures (the acceptance gate).
 
-Wired into `traceRgba` (the tested pure core): when
-`typeof paletteSize === "number" && paletteSize >= 2`, quantize the RGBA
-before `convert_rgba`. `paletteSize === 1` skips quantization (binary mode
-thresholds itself). `translateParams` sets:
-
-- `paletteSize === 1` → `colorMode: "binary"`.
-- `paletteSize >= 2` → `colorMode: "color"`, `colorPrecision: 8` (max, so
-  VTracer preserves the already-reduced palette instead of merging it).
-- `"auto"` → `colorMode: "color"`, `colorPrecision: 6` (today's behavior).
+Wired into `traceRgba` (the tested pure core), which reduces the RGBA before
+`convert_rgba`: `paletteSize === 1` → `binarizeToBlack`; a number `>= 2` →
+`quantizeRgba`; `"auto"` → no reduction. VTracer therefore always runs in
+`color` mode; `translateParams` only sets `colorPrecision` — `8` for a reduced
+palette (so VTracer preserves it instead of merging), `6` for `"auto"`.
 
 ### 3. Per-row swatches (main thread, cheap)
 
@@ -120,12 +129,15 @@ A `.hint` line under each control:
 
 ## Acceptance gate
 
-- `medianCutPalette` returns exactly N colors for a multi-color fixture and is
-  deterministic (unit test).
-- `quantizeRgba` reduces a known multi-color fixture to ≤ N distinct colors,
-  preserves alpha, and leaves the input buffer untouched (unit test).
-- `translateParams`: `paletteSize 1` → `binary`; `>= 2` → `color` +
-  `colorPrecision 8`; `"auto"` → `color` + `colorPrecision 6` (unit test).
+- `medianCutPalette` returns up to N colors, is deterministic, and keeps a
+  small distinct accent (area-independent) at low N (unit test).
+- `quantizeRgba` reduces to ≤ N distinct colors, preserves alpha, and leaves
+  the input buffer untouched (unit test).
+- `binarizeToBlack` paints the darker class black / drops the lighter to
+  transparent, and keeps faint mid-gray content against a near-white
+  background via Otsu (unit test).
+- `translateParams` always `color`; `colorPrecision` 8 for a reduced palette,
+  6 for `"auto"` (existing range test still passes).
 - Full suite green; `npm run lint` clean.
 ```
 

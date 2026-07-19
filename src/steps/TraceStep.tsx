@@ -19,7 +19,7 @@ import {
 import { downscaleForPreview } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
 import { medianCutPalette, rgbToHex } from "../lib/quantize";
-import { estimateSvg, countPaths } from "../lib/svgExport";
+import { estimateSvg, countPaths, countSvgColors } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
 
@@ -267,6 +267,9 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
             onChange={handleChange}
             busy={busy}
             palettePreviews={palettePreviews}
+            autoColorCount={
+              values.paletteSize === "auto" && tracedSvg ? countSvgColors(tracedSvg) : undefined
+            }
           />
         </div>
       </div>
