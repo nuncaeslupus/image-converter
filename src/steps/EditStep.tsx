@@ -1,4 +1,3 @@
-import { useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
 import { Editor } from "../components/Editor/Editor";
 import styles from "./EditStep.module.css";
@@ -13,12 +12,7 @@ import styles from "./EditStep.module.css";
  * to Trace & Tweak completely unchanged.
  */
 export function EditStep({ wizard }: { wizard: Wizard }) {
-  // Captured once on mount so "Reset" always has the untouched decode
-  // result to restore, even after `wizard.image` has been replaced by an
-  // applied edit.
-  const [original] = useState(() => wizard.image);
-
-  if (!original) {
+  if (!wizard.image) {
     return (
       <section>
         <p role="alert">No image to edit yet — go back and choose one first.</p>
@@ -26,11 +20,9 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
     );
   }
 
-  const current = wizard.image ?? original;
-
   return (
     <section className={styles.root}>
-      <Editor image={current} onChange={wizard.setImage} />
+      <Editor image={wizard.image} onChange={wizard.setImage} />
     </section>
   );
 }
