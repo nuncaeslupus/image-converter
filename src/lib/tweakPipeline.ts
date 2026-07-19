@@ -18,7 +18,7 @@ export interface TweakValues extends TraceParams {
   background: BackgroundMode;
 }
 
-/** The tweak panel's initial/fallback values (see `settingsStore.ts` for persisted overrides). */
+/** The tweak panel's initial/fallback values. */
 export const DEFAULT_TWEAK_VALUES: TweakValues = {
   paletteSize: "auto",
   smoothness: 50,
@@ -111,7 +111,7 @@ const BACKGROUND_RECT_REGEX = new RegExp(`<rect[^>]*${BACKGROUND_RECT_MARKER}[^>
  * Cheap SVG-only background edit — mutates the already-traced SVG string
  * directly, never re-runs the tracer.
  *
- * ponytail: "transparent" and "removed" both render as no background rect —
+ * NOTE: "transparent" and "removed" both render as no background rect —
  * a real "detected background removed" mode needs pixel-level background
  * detection in the tracer itself (out of scope here); upgrade this to a
  * distinct code path if/when that heuristic lands.

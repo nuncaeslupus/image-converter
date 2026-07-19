@@ -1,4 +1,3 @@
-import { useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
 import { Editor } from "../components/Editor/Editor";
 import styles from "./EditStep.module.css";
@@ -13,20 +12,13 @@ import styles from "./EditStep.module.css";
  * to Trace & Tweak completely unchanged.
  */
 export function EditStep({ wizard }: { wizard: Wizard }) {
-  // Captured once on mount so "Reset" always has the untouched decode
-  // result to restore, even after `wizard.image` has been replaced by an
-  // applied edit.
-  const [original] = useState(() => wizard.image);
-
-  if (!original) {
+  if (!wizard.image) {
     return (
       <section>
         <p role="alert">No image to edit yet — go back and choose one first.</p>
       </section>
     );
   }
-
-  const current = wizard.image ?? original;
 
   // A crop/rotate/undo/redo replaces the working image, which invalidates any
   // previously traced SVG still sitting in `wizard.svg` — otherwise the stale
@@ -39,7 +31,7 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
 
   return (
     <section className={styles.root}>
-      <Editor image={current} originalImage={original} onChange={handleChange} />
+      <Editor image={wizard.image} onChange={handleChange} />
     </section>
   );
 }
