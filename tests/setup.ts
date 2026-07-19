@@ -53,24 +53,32 @@ const FAKE_BITMAP_PIXELS = new WeakMap<
 >();
 
 if (typeof globalThis.createImageBitmap !== "function") {
-  globalThis.createImageBitmap = (async (source: Blob | ImageData): Promise<ImageBitmap> => {
-    // `src/lib/imageEdit.ts` builds edited bitmaps from an `ImageData` it
-    // computed itself — no format decode involved, so handle that source
-    // distinctly from the `src/lib/imageDecode.ts` Blob-decode path below.
+  globalThis.createImageBitmap = (async (
+    source: Blob | ImageData | ImageBitmap,
+  ): Promise<ImageBitmap> => {
+    // Two non-Blob sources share this branch: a plain `ImageData`
+    // (`src/lib/imageEdit.ts` building an edited bitmap from pixels it
+    // computed itself — no format decode involved), and an existing
+    // shim-created `ImageBitmap` being *cloned* into a second, independently
+    // closable bitmap (e.g. `src/lib/wizard.ts`/`Editor.tsx` keeping the
+    // pristine original and the working image as two distinct owners — see
+    // the memory/export-robustness fixes). `FAKE_BITMAP_PIXELS` already
+    // records real pixel data for any bitmap this shim has produced, so a
+    // clone just copies that recorded data into a fresh bitmap object
+    // instead of aliasing it.
     if (!(source instanceof Blob)) {
-      const imageData = source;
+      const recorded = FAKE_BITMAP_PIXELS.get(source as object);
+      const width = recorded ? recorded.width : (source as ImageData).width;
+      const height = recorded ? recorded.height : (source as ImageData).height;
+      const data = recorded ? recorded.data : (source as ImageData).data;
       const bitmap = {
-        width: imageData.width,
-        height: imageData.height,
+        width,
+        height,
         close() {
           /* no-op: test-environment shim holds no real GPU/bitmap resource */
         },
       } as ImageBitmap;
-      FAKE_BITMAP_PIXELS.set(bitmap, {
-        width: imageData.width,
-        height: imageData.height,
-        data: new Uint8ClampedArray(imageData.data),
-      });
+      FAKE_BITMAP_PIXELS.set(bitmap, { width, height, data: new Uint8ClampedArray(data) });
       return bitmap;
     }
 

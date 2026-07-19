@@ -35,10 +35,25 @@ const SNAP_STEP = 45;
 const SNAP_ZONE = 2;
 const STAGE_PAD = 12;
 
+interface HistoryEntry {
+  bitmap: ImageBitmap;
+  /** Whether `bitmap` is known pixel-identical to the wizard's `originalImage` — set on Reset, cleared on any crop/rotate. */
+  isOriginal: boolean;
+}
+
 interface History {
-  stack: ImageBitmap[];
+  stack: HistoryEntry[];
   index: number;
 }
+
+/**
+ * Cap on the linear undo history: index 0 (this visit's starting image,
+ * kept for {@link goToHistory} bookkeeping) plus the most recent
+ * `HISTORY_CAP - 1` applied edits. A full-res 24MP bitmap is ~96MB, so an
+ * uncapped history on a long edit session can pin close to a gigabyte;
+ * evicted entries are `close()`d as they fall off (see {@link pushEntry}).
+ */
+const HISTORY_CAP = 10;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
@@ -85,8 +100,18 @@ function moveCorner(
 export interface EditorProps {
   /** The current working image. */
   image: ImageBitmap;
-  /** Called with the replacement image whenever an edit is applied/undone/redone. */
-  onChange: (image: ImageBitmap) => void;
+  /**
+   * The pristine decode this image ultimately derives from (`wizard.originalImage`)
+   * — never mutated, and never inserted into this Editor's own undo history
+   * (see `pushEntry`/`reset` below). Reset restores a fresh copy of this,
+   * not just this visit's starting image, so it reaches the true original
+   * even after a Back-to-Upload-and-return round trip.
+   */
+  originalImage: ImageBitmap;
+  /** Whether `image` is currently known to be pixel-identical to `originalImage` — seeds this visit's history entry 0. */
+  imageIsOriginal: boolean;
+  /** Called with the replacement image and whether it's (now) identical to the original, whenever an edit is applied/undone/redone/reset. */
+  onChange: (image: ImageBitmap, isOriginal: boolean) => void;
 }
 
 /**
@@ -100,7 +125,7 @@ export interface EditorProps {
  * to snap to 45° marks, `Escape` cancels a pending rotation, `Ctrl/Cmd+Z`
  * undo, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` redo. Crop handles nudge with arrows.
  */
-export function Editor({ image, onChange }: EditorProps) {
+export function Editor({ image, originalImage, imageIsOriginal, onChange }: EditorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [cropBox, setCropBox] = useState<CropBox>(() => fullBoxFor(image));
@@ -118,11 +143,14 @@ export function Editor({ image, onChange }: EditorProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarActiveIndex, setToolbarActiveIndex] = useState(0);
   // In-session edit history: index 0 is the image this Edit visit started from.
-  const [history, setHistory] = useState<History>(() => ({ stack: [image], index: 0 }));
+  const [history, setHistory] = useState<History>(() => ({
+    stack: [{ bitmap: image, isOriginal: imageIsOriginal }],
+    index: 0,
+  }));
 
   const canUndo = history.index > 0;
   const canRedo = history.index < history.stack.length - 1;
-  const isEdited = history.index > 0;
+  const isOriginal = history.stack[history.index].isOriginal;
   const isCropped =
     cropBox.x !== 0 ||
     cropBox.y !== 0 ||
@@ -156,8 +184,8 @@ export function Editor({ image, onChange }: EditorProps) {
   useEffect(
     () => () => {
       const { stack, index } = historyRef.current;
-      stack.forEach((bmp, i) => {
-        if (i !== index) bmp.close();
+      stack.forEach((entry, i) => {
+        if (i !== index) entry.bitmap.close();
       });
     },
     [],
@@ -203,20 +231,39 @@ export function Editor({ image, onChange }: EditorProps) {
     return () => ro.disconnect();
   }, []);
 
-  function pushEdit(next: ImageBitmap) {
+  function pushEntry(entry: HistoryEntry) {
     setHistory((h) => {
-      // A new edit discards any redo-future bitmaps — close them to free memory.
-      for (const bmp of h.stack.slice(h.index + 1)) bmp.close();
-      const stack = h.stack.slice(0, h.index + 1);
-      stack.push(next);
+      // A new edit discards any redo-future entries — close them to free memory.
+      for (const e of h.stack.slice(h.index + 1)) e.bitmap.close();
+      let stack = h.stack.slice(0, h.index + 1);
+      stack.push(entry);
+      // Cap the linear history: keep index 0 (this visit's starting image)
+      // plus the most recent HISTORY_CAP - 1 entries, closing whatever falls
+      // off the front so a long edit session can't pin unbounded memory.
+      if (stack.length > HISTORY_CAP) {
+        const overflow = stack.length - HISTORY_CAP;
+        const evicted = stack.slice(1, 1 + overflow);
+        for (const e of evicted) {
+          // Guard against ever closing the entry just pushed (it's always
+          // the newest, so it can never actually be among the evicted —
+          // this just makes the invariant explicit rather than assumed).
+          if (e.bitmap !== entry.bitmap) e.bitmap.close();
+        }
+        stack = [stack[0], ...stack.slice(1 + overflow)];
+      }
       return { stack, index: stack.length - 1 };
     });
-    onChange(next);
+    onChange(entry.bitmap, entry.isOriginal);
+  }
+
+  function pushEdit(next: ImageBitmap) {
+    pushEntry({ bitmap: next, isOriginal: false });
   }
 
   function goToHistory(index: number) {
     setHistory((h) => ({ ...h, index }));
-    onChange(history.stack[index]);
+    const entry = history.stack[index];
+    onChange(entry.bitmap, entry.isOriginal);
   }
 
   async function rotate90(degrees: 90 | -90) {
@@ -257,9 +304,24 @@ export function Editor({ image, onChange }: EditorProps) {
   function redo() {
     if (canRedo) goToHistory(history.index + 1);
   }
-  function reset() {
+  /**
+   * Restores a fresh copy of `originalImage` — the pristine decode — rather
+   * than just this visit's starting image (`history.stack[0]`), so it
+   * reaches the true original even if the user left Edit and came back
+   * after already applying edits in a previous visit (finding #3). Pushed
+   * as a normal history entry (via `pushEntry`) so Undo can still step back
+   * through it, and so the existing eviction/cap logic applies uniformly.
+   */
+  async function reset() {
+    if (busy || isOriginal) return;
     setAngle(0);
-    if (isEdited) goToHistory(0);
+    setBusy(true);
+    try {
+      const copy = await createImageBitmap(originalImage);
+      pushEntry({ bitmap: copy, isOriginal: true });
+    } finally {
+      setBusy(false);
+    }
   }
 
   function zoomBy(factor: number) {
@@ -420,7 +482,7 @@ export function Editor({ image, onChange }: EditorProps) {
     !(busy || zoom >= ZOOM_MAX),
     !(busy || !canUndo),
     !(busy || !canRedo),
-    !(busy || !isEdited),
+    !(busy || isOriginal),
   ];
   const effectiveToolbarIndex = toolbarEnabled[toolbarActiveIndex]
     ? toolbarActiveIndex
@@ -571,8 +633,8 @@ export function Editor({ image, onChange }: EditorProps) {
           onFocus={() => setToolbarActiveIndex(6)}
           type="button"
           className={styles.toolButton}
-          disabled={busy || !isEdited}
-          onClick={reset}
+          disabled={busy || isOriginal}
+          onClick={() => void reset()}
           title="Reset to original"
         >
           <ResetIcon />
