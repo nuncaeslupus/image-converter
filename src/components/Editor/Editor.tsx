@@ -473,31 +473,49 @@ export function Editor({ image, transform, onChange }: EditorProps) {
           </button>
         </div>
 
-        <div className={styles.toolRow}>
-          <span className={styles.rowLabel}>Zoom</span>
-          <div className={styles.zoomGroup}>
-            <button
-              type="button"
-              className={styles.zoomButton}
-              disabled={zoom <= ZOOM_MIN}
-              onClick={() => zoomBy(1 / ZOOM_STEP)}
-              aria-label="Zoom out"
-              title="Zoom out"
-            >
-              <ZoomOutIcon />
-            </button>
-            <span className={`${styles.zoomLabel} mono ${atFit ? styles.zoomAtFit : ""}`}>
-              {atFit ? "Fit" : `${Math.round(zoom * 100)}%`}
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <span className={styles.groupLabel}>
+              <ZoomInIcon /> Zoom
             </span>
+          </div>
+          <div className={styles.zoomRow}>
+            <div className={styles.zoomGroup}>
+              <button
+                type="button"
+                className={styles.zoomButton}
+                disabled={zoom <= ZOOM_MIN}
+                onClick={() => zoomBy(1 / ZOOM_STEP)}
+                aria-label="Zoom out"
+                title="Zoom out"
+              >
+                <ZoomOutIcon />
+              </button>
+              <span className={`${styles.zoomLabel} mono ${atFit ? styles.zoomAtFit : ""}`}>
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                className={styles.zoomButton}
+                disabled={zoom >= ZOOM_MAX}
+                onClick={() => zoomBy(ZOOM_STEP)}
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                <ZoomInIcon />
+              </button>
+            </div>
             <button
               type="button"
-              className={styles.zoomButton}
-              disabled={zoom >= ZOOM_MAX}
-              onClick={() => zoomBy(ZOOM_STEP)}
-              aria-label="Zoom in"
-              title="Zoom in"
+              className={styles.fitButton}
+              aria-pressed={atFit}
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              title="Fit the whole image to the view"
             >
-              <ZoomInIcon />
+              Fit
             </button>
           </div>
         </div>
