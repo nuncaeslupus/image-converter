@@ -5,12 +5,13 @@ import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import { ResetIcon } from "../Editor/icons";
 import styles from "./TweakPanel.module.css";
 
-// Literal color counts, low-dense (posterization is most expressive at the low
-// end) plus Auto. paletteSize is an exact palette cap enforced by reducing the
-// image before the trace (see lib/quantize.ts): 1 is a black-&-white silhouette
-// (Otsu binarize), 2..16 reduce to that many colors, Auto lets VTracer cluster
-// on its own.
-export const PALETTE_OPTIONS: PaletteSize[] = [1, 2, 3, 4, 6, 8, 12, 16, "auto"];
+// Auto first — it's the default, so it belongs at the top rather than hidden at
+// the bottom of the scroll — then the literal color counts, low-dense
+// (posterization is most expressive at the low end). paletteSize is an exact
+// palette cap enforced by reducing the image before the trace (see
+// lib/quantize.ts): 1 is a black-&-white silhouette (Otsu binarize), 2..16
+// reduce to that many colors, Auto lets VTracer cluster on its own.
+export const PALETTE_OPTIONS: PaletteSize[] = ["auto", 1, 2, 3, 4, 6, 8, 12, 16];
 
 function paletteLabel(preset: PaletteSize): string {
   if (preset === "auto") return "Auto";
@@ -62,8 +63,6 @@ export interface TweakPanelProps {
   values: TweakValues;
   /** Called with the full next value set on any control change. */
   onChange: (values: TweakValues) => void;
-  /** True while a retrace is in flight — disables retrace-affecting controls, never background. */
-  busy?: boolean;
   /**
    * Real palette colors sampled from the current image, keyed by color count
    * (`"2"`..`"16"`), used to preview each Colors row's swatches. `undefined`
@@ -94,7 +93,6 @@ export interface TweakPanelProps {
 export function TweakPanel({
   values,
   onChange,
-  busy = false,
   palettePreviews,
   autoColorCount,
   maxColors,
@@ -143,7 +141,7 @@ export function TweakPanel({
 
   return (
     <div className={styles.panel}>
-      <fieldset className={styles.group} disabled={busy}>
+      <fieldset className={styles.group}>
         <legend className={styles.label}>Colors</legend>
         <p className={styles.hint}>How many colors to keep.</p>
         <div
@@ -193,7 +191,7 @@ export function TweakPanel({
         </div>
       </fieldset>
 
-      <fieldset className={styles.group} disabled={busy}>
+      <fieldset className={styles.group}>
         {SLIDERS.map(({ key, label, min, max, def, hint }) => (
           <div key={key} className={styles.slider}>
             <div className={styles.sliderHead}>
@@ -257,7 +255,6 @@ export function TweakPanel({
             </button>
           ))}
         </div>
-        <p className={styles.hint}>Transparent, or solid white behind the shapes.</p>
       </fieldset>
     </div>
   );
