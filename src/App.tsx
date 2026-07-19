@@ -72,7 +72,7 @@ export function App() {
     }
     mainRef.current?.focus();
     setAnnouncement(`Step ${current + 1} of ${WIZARD_STEPS.length}: ${STEP_META[current].label}`);
-  }, [wizard.step]);
+  }, [wizard.step, current]);
 
   function startOver() {
     wizard.setImage(null);

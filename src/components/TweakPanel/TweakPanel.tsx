@@ -1,4 +1,3 @@
-import { useRef } from "preact/hooks";
 import type { JSX } from "preact";
 import type { TweakValues, BackgroundMode } from "../../lib/tweakPipeline";
 import type { PaletteSize } from "../../lib/traceProtocol";
@@ -35,8 +34,6 @@ export interface TweakPanelProps {
  * is `tweakPipeline.ts`'s job, not this component's.
  */
 export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) {
-  const segmentRefs = useRef<(HTMLButtonElement | null)[]>([]);
-
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
   }
@@ -58,7 +55,7 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
     event.preventDefault();
     const option = BACKGROUND_OPTIONS[nextIndex];
     set("background", option.value);
-    segmentRefs.current[nextIndex]?.focus();
+    event.currentTarget.querySelectorAll("button")[nextIndex]?.focus();
   }
 
   return (
@@ -133,12 +130,9 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
           aria-label="Background handling"
           onKeyDown={handleBackgroundKeyDown}
         >
-          {BACKGROUND_OPTIONS.map((option, index) => (
+          {BACKGROUND_OPTIONS.map((option) => (
             <button
               key={option.value}
-              ref={(el) => {
-                segmentRefs.current[index] = el;
-              }}
               type="button"
               className={styles.segment}
               role="radio"

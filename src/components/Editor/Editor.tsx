@@ -112,11 +112,11 @@ export function Editor({ image, onChange }: EditorProps) {
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
   // Roving-tabindex state for the toolbar (WAI-ARIA APG toolbar pattern):
   // only one button is a Tab stop at a time; Left/Right arrow keys move it.
-  // The item list is rebuilt fresh every render (in JSX order) so it always
-  // reflects the current disabled states.
-  const toolbarItemsRef = useRef<HTMLButtonElement[]>([]);
+  // `toolbarRef` points at the toolbar container; the button list is queried
+  // from the DOM on demand (see `handleToolbarKeyDown`) rather than collected
+  // via per-button ref callbacks during render.
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarActiveIndex, setToolbarActiveIndex] = useState(0);
-  toolbarItemsRef.current = [];
   // In-session edit history: index 0 is the image this Edit visit started from.
   const [history, setHistory] = useState<History>(() => ({ stack: [image], index: 0 }));
 
@@ -409,26 +409,42 @@ export function Editor({ image, onChange }: EditorProps) {
     }
   }
 
-  function registerToolbarItem(el: HTMLButtonElement | null) {
-    if (el) toolbarItemsRef.current.push(el);
-  }
+  // Mirrors each toolbar button's `disabled` expression, in JSX order, so the
+  // render-time active index can be corrected away from a disabled button
+  // (a disabled button can't receive focus, so leaving tabIndex=0 on it would
+  // make the whole toolbar unreachable by keyboard — see toolbarTabIndex).
+  const toolbarEnabled = [
+    !busy,
+    !busy,
+    !(busy || zoom <= ZOOM_MIN),
+    !(busy || zoom >= ZOOM_MAX),
+    !(busy || !canUndo),
+    !(busy || !canRedo),
+    !(busy || !isEdited),
+  ];
+  const effectiveToolbarIndex = toolbarEnabled[toolbarActiveIndex]
+    ? toolbarActiveIndex
+    : toolbarEnabled.findIndex(Boolean);
 
   function toolbarTabIndex(index: number): number {
-    return index === toolbarActiveIndex ? 0 : -1;
+    return index === effectiveToolbarIndex ? 0 : -1;
   }
 
   function handleToolbarKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
-    const items = toolbarItemsRef.current.filter((el) => !el.disabled);
-    if (items.length === 0) return;
+    const container = toolbarRef.current;
+    if (!container) return;
+    const allButtons = Array.from(container.querySelectorAll("button"));
+    const enabledButtons = allButtons.filter((el) => !el.disabled);
+    if (enabledButtons.length === 0) return;
     const active = document.activeElement as HTMLButtonElement | null;
-    const activeIndex = active ? items.indexOf(active) : -1;
+    const activeIndex = active ? enabledButtons.indexOf(active) : -1;
     const currentIndex = activeIndex === -1 ? 0 : activeIndex;
-    const nextIndex = nextRovingIndex(event.key, currentIndex, items.length, TOOLBAR_KEYS);
+    const nextIndex = nextRovingIndex(event.key, currentIndex, enabledButtons.length, TOOLBAR_KEYS);
     if (nextIndex === null) return;
     event.preventDefault();
-    const nextEl = items[nextIndex];
+    const nextEl = enabledButtons[nextIndex];
     nextEl.focus();
-    setToolbarActiveIndex(toolbarItemsRef.current.indexOf(nextEl));
+    setToolbarActiveIndex(allButtons.indexOf(nextEl));
   }
 
   // Pan + zoom always transform the frame (screen space). Rotation targets
@@ -461,13 +477,13 @@ export function Editor({ image, onChange }: EditorProps) {
   return (
     <div className={styles.editor}>
       <div
+        ref={toolbarRef}
         className={styles.toolbar}
         role="toolbar"
         aria-label="Image editing tools"
         onKeyDown={handleToolbarKeyDown}
       >
         <button
-          ref={registerToolbarItem}
           type="button"
           className={styles.toolButton}
           disabled={busy}
@@ -480,7 +496,6 @@ export function Editor({ image, onChange }: EditorProps) {
           <span className={styles.toolButtonLabel}>Rotate left</span>
         </button>
         <button
-          ref={registerToolbarItem}
           type="button"
           className={styles.toolButton}
           disabled={busy}
@@ -497,7 +512,6 @@ export function Editor({ image, onChange }: EditorProps) {
 
         <div className={styles.zoomGroup}>
           <button
-            ref={registerToolbarItem}
             type="button"
             className={styles.zoomButton}
             disabled={busy || zoom <= ZOOM_MIN}
@@ -513,7 +527,6 @@ export function Editor({ image, onChange }: EditorProps) {
             {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
           </span>
           <button
-            ref={registerToolbarItem}
             type="button"
             className={styles.zoomButton}
             disabled={busy || zoom >= ZOOM_MAX}
@@ -530,7 +543,6 @@ export function Editor({ image, onChange }: EditorProps) {
         <span className={styles.spacer} />
 
         <button
-          ref={registerToolbarItem}
           type="button"
           className={styles.toolButton}
           disabled={busy || !canUndo}
@@ -543,7 +555,6 @@ export function Editor({ image, onChange }: EditorProps) {
           <span className={styles.toolButtonLabel}>Undo</span>
         </button>
         <button
-          ref={registerToolbarItem}
           type="button"
           className={styles.toolButton}
           disabled={busy || !canRedo}
@@ -556,7 +567,6 @@ export function Editor({ image, onChange }: EditorProps) {
           <span className={styles.toolButtonLabel}>Redo</span>
         </button>
         <button
-          ref={registerToolbarItem}
           tabIndex={toolbarTabIndex(6)}
           onFocus={() => setToolbarActiveIndex(6)}
           type="button"
