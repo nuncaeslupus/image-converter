@@ -10,6 +10,7 @@ import {
   needsFullResRetrace,
   EXPORT_MAX_DIMENSION,
 } from "../lib/previewDownscale";
+import { useBakedImage } from "../lib/useBakedImage";
 import styles from "./ExportStep.module.css";
 
 const FULL_RES_FAILURE_NOTICE =
@@ -32,7 +33,8 @@ const FULL_RES_FAILURE_NOTICE =
  */
 export function ExportStep({ wizard }: { wizard: Wizard }) {
   const previewSvg = wizard.svg;
-  const image = wizard.image;
+  // Full-res source with Edit's crop/rotate baked in (transformed dimensions).
+  const image = useBakedImage(wizard.image, wizard.transform);
   const tweakValues = wizard.tweakValues;
 
   const [fullResSvg, setFullResSvg] = useState<string | null>(null);

@@ -1,13 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import {
-  cropImage,
-  fitToFrameScale,
-  rotateImage,
-  rotateImageArbitrary,
-  type CropBox,
+  IDENTITY_TRANSFORM,
+  isIdentityTransform,
+  type EditTransform,
+  type NormalizedRect,
 } from "../../lib/imageEdit";
-import { TOOLBAR_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import {
   CropIcon,
   RedoIcon,
@@ -21,176 +19,144 @@ import {
 import styles from "./Editor.module.css";
 
 type Handle = "nw" | "ne" | "sw" | "se";
-
 const HANDLES: Handle[] = ["nw", "ne", "sw", "se"];
-const MIN_CROP_SIZE = 8;
+
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 8;
 const ZOOM_STEP = 1.25;
-// Rotation slider marks (every 45°), all numbered. Holding Shift sets the
-// slider's native `step` to 45° so the thumb physically snaps to — and sticks
-// at — each mark; default drag is free in 1° steps.
-const ANGLE_MARKS = [-180, -135, -90, -45, 0, 45, 90, 135, 180];
-const SNAP_STEP = 45;
-const STAGE_PAD = 12;
+const STAGE_PAD = 22; // leaves room for the rotate handle straddling the top edge
+const SNAP_STEP = 45; // Shift snaps rotation to these marks
+const MIN_CROP = 0.05; // smallest crop, as a fraction of the rotated bounding box
+const GRID_LINES = 4; // internal grid lines per axis (a 5×5 field ≈ 2× rule-of-thirds)
 
-interface HistoryEntry {
-  bitmap: ImageBitmap;
-  /** Whether `bitmap` is known pixel-identical to the wizard's `originalImage` — set on Reset, cleared on any crop/rotate. */
-  isOriginal: boolean;
-}
-
-interface History {
-  stack: HistoryEntry[];
-  index: number;
-}
-
-/**
- * Cap on the linear undo history: index 0 (this visit's starting image,
- * kept for {@link goToHistory} bookkeeping) plus the most recent
- * `HISTORY_CAP - 1` applied edits. A full-res 24MP bitmap is ~96MB, so an
- * uncapped history on a long edit session can pin close to a gigabyte;
- * evicted entries are `close()`d as they fall off (see {@link pushEntry}).
- */
-const HISTORY_CAP = 10;
+const FULL_CROP: NormalizedRect = { x: 0, y: 0, w: 1, h: 1 };
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), Math.max(min, max));
 }
 
-function fullBoxFor(image: { width: number; height: number }): CropBox {
-  return { x: 0, y: 0, width: image.width, height: image.height };
+/** Free = round to 1°, Shift = snap to 45°, Ctrl/Cmd = fine (0.1°). */
+function snapRotation(deg: number, shift: boolean, ctrl: boolean): number {
+  if (shift) return Math.round(deg / SNAP_STEP) * SNAP_STEP;
+  if (ctrl) return Math.round(deg * 10) / 10;
+  return Math.round(deg);
 }
 
-/** Moves one corner of `box` by `(dx, dy)`, keeping the opposite corner fixed and staying in bounds. */
-function moveCorner(
-  box: CropBox,
+/** Axis-aligned bounding box of a `w`×`h` rectangle rotated by `deg`. */
+function rotatedBounds(w: number, h: number, deg: number): { w: number; h: number } {
+  const rad = (deg * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  return { w: w * cos + h * sin, h: w * sin + h * cos };
+}
+
+/** Moves one corner of a normalized crop rect, keeping it inside [0,1]. */
+function moveCropCorner(
+  rect: NormalizedRect,
   handle: Handle,
-  dx: number,
-  dy: number,
-  bounds: { width: number; height: number },
-): CropBox {
-  let left = box.x;
-  let top = box.y;
-  let right = box.x + box.width;
-  let bottom = box.y + box.height;
+  dxN: number,
+  dyN: number,
+): NormalizedRect {
+  let left = rect.x;
+  let top = rect.y;
+  let right = rect.x + rect.w;
+  let bottom = rect.y + rect.h;
+  if (handle === "nw" || handle === "sw") left = clamp(left + dxN, 0, right - MIN_CROP);
+  else right = clamp(right + dxN, left + MIN_CROP, 1);
+  if (handle === "nw" || handle === "ne") top = clamp(top + dyN, 0, bottom - MIN_CROP);
+  else bottom = clamp(bottom + dyN, top + MIN_CROP, 1);
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
 
-  if (handle === "nw" || handle === "sw") {
-    left = clamp(left + dx, 0, right - MIN_CROP_SIZE);
-  } else {
-    right = clamp(right + dx, left + MIN_CROP_SIZE, bounds.width);
-  }
-  if (handle === "nw" || handle === "ne") {
-    top = clamp(top + dy, 0, bottom - MIN_CROP_SIZE);
-  } else {
-    bottom = clamp(bottom + dy, top + MIN_CROP_SIZE, bounds.height);
-  }
-
-  return { x: left, y: top, width: right - left, height: bottom - top };
+function isCropped(crop: NormalizedRect | null): boolean {
+  return crop !== null && (crop.x > 0 || crop.y > 0 || crop.w < 1 || crop.h < 1);
 }
 
 export interface EditorProps {
-  /** The current working image. */
   image: ImageBitmap;
-  /**
-   * The pristine decode this image ultimately derives from (`wizard.originalImage`)
-   * — never mutated, and never inserted into this Editor's own undo history
-   * (see `pushEntry`/`reset` below). Reset restores a fresh copy of this,
-   * not just this visit's starting image, so it reaches the true original
-   * even after a Back-to-Upload-and-return round trip.
-   */
-  originalImage: ImageBitmap;
-  /** Whether `image` is currently known to be pixel-identical to `originalImage` — seeds this visit's history entry 0. */
-  imageIsOriginal: boolean;
-  /** Called with the replacement image and whether it's (now) identical to the original, whenever an edit is applied/undone/redone/reset. */
-  onChange: (image: ImageBitmap, isOriginal: boolean) => void;
+  /** The current pending transform (from the wizard) — seeds this visit's history. */
+  transform: EditTransform;
+  /** Called with the committed transform on any applied change / undo / redo / reset. */
+  onChange: (transform: EditTransform) => void;
 }
 
 /**
- * Crop / rotate editor (T5). The stage is a constant size and fills unused
- * space with a neutral colour — the image is never stretched to fit. Zoom
- * −/+ scales the view (− bottoms out at "fit"; when zoomed in, drag to pan);
- * the rotation slider keeps the image size constant (transparent corners) or,
- * with "fit to frame", zooms so the image never leaves its rectangle.
- *
- * Keyboard: `R`/`Shift+R` rotate ±90°, hold `Shift` while dragging the slider
- * to snap to 45° marks, `Escape` cancels a pending rotation, `Ctrl/Cmd+Z`
- * undo, `Ctrl/Cmd+Shift+Z` or `Ctrl+Y` redo. Crop handles nudge with arrows.
+ * Non-destructive crop / rotate editor (T5). Rotation and crop are pending
+ * numbers, never baked here — Trace/Export bake them once (see
+ * docs/superpowers/specs/2026-07-19-nondestructive-edit-design.md). Straighten
+ * with the on-image rotate handle (a rule-based grid appears while dragging;
+ * Shift snaps to 45°, Ctrl/Cmd is fine), then pull the screen-aligned crop
+ * frame in over the tilted image. Undo/Redo/Reset ride on `{angle, crop}`
+ * snapshots — no bitmap history.
  */
-export function Editor({ image, originalImage, imageIsOriginal, onChange }: EditorProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [cropBox, setCropBox] = useState<CropBox>(() => fullBoxFor(image));
-  const [angle, setAngle] = useState(0);
-  const [fitToFrame, setFitToFrame] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [busy, setBusy] = useState(false);
-  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
-  // Roving-tabindex state for the toolbar (WAI-ARIA APG toolbar pattern):
-  // only one button is a Tab stop at a time; Left/Right arrow keys move it.
-  // `toolbarRef` points at the toolbar container; the button list is queried
-  // from the DOM on demand (see `handleToolbarKeyDown`) rather than collected
-  // via per-button ref callbacks during render.
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const [toolbarActiveIndex, setToolbarActiveIndex] = useState(0);
-  // In-session edit history: index 0 is the image this Edit visit started from.
-  const [history, setHistory] = useState<History>(() => ({
-    stack: [{ bitmap: image, isOriginal: imageIsOriginal }],
+export function Editor({ image, transform, onChange }: EditorProps) {
+  const [history, setHistory] = useState<{ stack: EditTransform[]; index: number }>(() => ({
+    stack: [transform],
     index: 0,
   }));
-
+  const committed = history.stack[history.index];
   const canUndo = history.index > 0;
   const canRedo = history.index < history.stack.length - 1;
-  const isOriginal = history.stack[history.index].isOriginal;
-  const isCropped =
-    cropBox.x !== 0 ||
-    cropBox.y !== 0 ||
-    cropBox.width !== image.width ||
-    cropBox.height !== image.height;
-  const rotating = angle !== 0;
+
+  // Live drafts while a handle is being dragged (committed to history on release).
+  const [draftRotation, setDraftRotation] = useState<number | null>(null);
+  const [draftCrop, setDraftCrop] = useState<NormalizedRect | null | undefined>(undefined);
+  const rotation = draftRotation ?? committed.rotation;
+  const crop = draftCrop !== undefined ? draftCrop : committed.crop;
+  const cropRect = crop ?? FULL_CROP;
+
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  const [rotatingLive, setRotatingLive] = useState(false);
+  const [shiftHeld, setShiftHeld] = useState(false);
+  const [ctrlHeld, setCtrlHeld] = useState(false);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const bboxRef = useRef<HTMLDivElement>(null);
+
+  const atFit = zoom === 1;
   const panning = zoom > 1;
 
-  const dragRef = useRef<{
-    handle: Handle;
-    pointerId: number;
-    startBox: CropBox;
-    startClientX: number;
-    startClientY: number;
-    scale: number;
-  } | null>(null);
-  const panRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    startPan: { x: number; y: number };
-  } | null>(null);
-  // Held-Shift drives the rotation slider's `step` (45° hard-snap); tracked as
-  // state (not a ref) so the input re-renders with the new step immediately.
-  const [shiftHeld, setShiftHeld] = useState(false);
-  const historyRef = useRef(history);
-  useEffect(() => {
-    historyRef.current = history;
-  }, [history]);
-  // Free the GPU backing store of every inactive history bitmap on unmount —
-  // the active one (index) is still `wizard.image`, consumed downstream.
-  useEffect(
-    () => () => {
-      const { stack, index } = historyRef.current;
-      stack.forEach((entry, i) => {
-        if (i !== index) entry.bitmap.close();
-      });
-    },
-    [],
-  );
+  function commit(next: EditTransform) {
+    setHistory((h) => {
+      const stack = h.stack.slice(0, h.index + 1);
+      stack.push(next);
+      return { stack, index: stack.length - 1 };
+    });
+    setDraftRotation(null);
+    setDraftCrop(undefined);
+    onChange(next);
+  }
+  function goTo(index: number) {
+    setHistory((h) => ({ ...h, index }));
+    onChange(history.stack[index]);
+  }
+  function undo() {
+    if (canUndo) goTo(history.index - 1);
+  }
+  function redo() {
+    if (canRedo) goTo(history.index + 1);
+  }
+  function reset() {
+    if (!isIdentityTransform(committed)) commit(IDENTITY_TRANSFORM);
+  }
+  function rotate90(delta: 90 | -90) {
+    commit({ rotation: (((committed.rotation + delta) % 360) + 360) % 360, crop: committed.crop });
+  }
+  function zoomBy(factor: number) {
+    setZoom((z) => {
+      let next = clamp(z * factor, ZOOM_MIN, ZOOM_MAX);
+      // Snap to exactly 1 within a float epsilon: `z * (1/ZOOM_STEP)` doesn't
+      // land on 1.0 exactly, which would miss the Fit detent (badge/pan reset).
+      if (Math.abs(next - 1) < 1e-9) next = 1;
+      if (next === 1) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  }
 
-  // Latest values for the window keydown handler (registered once).
-  const actionsRef = useRef<{
-    rotate90: (d: 90 | -90) => void;
-    undo: () => void;
-    redo: () => void;
-  }>({ rotate90: () => {}, undo: () => {}, redo: () => {} });
-
+  // Draw the source into the canvas once per image.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -199,15 +165,13 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
     canvas.getContext("2d")?.drawImage(image, 0, 0);
   }, [image]);
 
-  // A new working image resets the pending crop box and the view.
+  // Reset the view when the source changes.
   useEffect(() => {
-    setCropBox(fullBoxFor(image));
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [image]);
 
-  // Measure the stage so the image can be sized to a true "contain" fit
-  // (never stretched). Layout effect + ResizeObserver keeps it exact.
+  // Measure the stage for the contain-fit sizing.
   useLayoutEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -224,123 +188,21 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
     return () => ro.disconnect();
   }, []);
 
-  function pushEntry(entry: HistoryEntry) {
-    // Compute the next stack from the current state and perform all
-    // bitmap.close() side effects OUTSIDE the state updater — updaters must
-    // stay pure (they can be double-invoked under strict/concurrent
-    // rendering, which would close bitmaps twice / prematurely). pushEntry
-    // only runs from busy-gated event handlers, so `history` is current.
-    // A new edit discards any redo-future entries — close them to free memory.
-    const redoFuture = history.stack.slice(history.index + 1);
-    let stack = history.stack.slice(0, history.index + 1);
-    stack.push(entry);
-    // Cap the linear history: keep index 0 (this visit's starting image)
-    // plus the most recent HISTORY_CAP - 1 entries, closing whatever falls
-    // off the front so a long edit session can't pin unbounded memory.
-    let evicted: HistoryEntry[] = [];
-    if (stack.length > HISTORY_CAP) {
-      const overflow = stack.length - HISTORY_CAP;
-      evicted = stack.slice(1, 1 + overflow);
-      stack = [stack[0], ...stack.slice(1 + overflow)];
-    }
-    setHistory({ stack, index: stack.length - 1 });
-    for (const e of redoFuture) e.bitmap.close();
-    for (const e of evicted) {
-      // Guard against ever closing the entry just pushed (it's always
-      // the newest, so it can never actually be among the evicted —
-      // this just makes the invariant explicit rather than assumed).
-      if (e.bitmap !== entry.bitmap) e.bitmap.close();
-    }
-    onChange(entry.bitmap, entry.isOriginal);
-  }
-
-  function pushEdit(next: ImageBitmap) {
-    pushEntry({ bitmap: next, isOriginal: false });
-  }
-
-  function goToHistory(index: number) {
-    setHistory((h) => ({ ...h, index }));
-    const entry = history.stack[index];
-    onChange(entry.bitmap, entry.isOriginal);
-  }
-
-  async function rotate90(degrees: 90 | -90) {
-    if (busy) return;
-    setBusy(true);
-    try {
-      pushEdit(await rotateImage(image, degrees));
-      setAngle(0);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyAngle() {
-    if (busy || angle === 0) return;
-    setBusy(true);
-    try {
-      pushEdit(await rotateImageArbitrary(image, angle, fitToFrame));
-      setAngle(0);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function applyCrop() {
-    if (busy || !isCropped) return;
-    setBusy(true);
-    try {
-      pushEdit(await cropImage(image, cropBox));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function undo() {
-    if (canUndo) goToHistory(history.index - 1);
-  }
-  function redo() {
-    if (canRedo) goToHistory(history.index + 1);
-  }
-  /**
-   * Restores a fresh copy of `originalImage` — the pristine decode — rather
-   * than just this visit's starting image (`history.stack[0]`), so it
-   * reaches the true original even if the user left Edit and came back
-   * after already applying edits in a previous visit (finding #3). Pushed
-   * as a normal history entry (via `pushEntry`) so Undo can still step back
-   * through it, and so the existing eviction/cap logic applies uniformly.
-   */
-  async function reset() {
-    if (busy || isOriginal) return;
-    setAngle(0);
-    setBusy(true);
-    try {
-      const copy = await createImageBitmap(originalImage);
-      pushEntry({ bitmap: copy, isOriginal: true });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function zoomBy(factor: number) {
-    setZoom((z) => {
-      const next = clamp(z * factor, ZOOM_MIN, ZOOM_MAX);
-      if (next === 1) setPan({ x: 0, y: 0 });
-      return next;
-    });
-  }
-
-  actionsRef.current = { rotate90: (d) => void rotate90(d), undo, redo };
-
+  // Window keyboard: undo/redo/rotate shortcuts + modifier tracking (drives the
+  // rotate-handle snap mode). Registered once; reads latest actions via a ref.
+  const actionsRef = useRef({ undo, redo, rotate90 });
+  actionsRef.current = { undo, redo, rotate90 };
   useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
+    function track(event: KeyboardEvent) {
       setShiftHeld(event.shiftKey);
-
+      setCtrlHeld(event.ctrlKey || event.metaKey);
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      track(event);
       const target = event.target as HTMLElement | null;
-      const isTypingTarget =
+      const typing =
         target &&
         (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
-
       const mod = event.ctrlKey || event.metaKey;
       if (mod && (event.key === "z" || event.key === "Z")) {
         event.preventDefault();
@@ -353,90 +215,117 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
         actionsRef.current.redo();
         return;
       }
-
-      if (event.key === "Escape") {
-        setAngle(0);
-        return;
-      }
-      if (isTypingTarget) return;
-
+      if (typing) return;
       if (event.key === "r" || event.key === "R") {
         event.preventDefault();
         actionsRef.current.rotate90(event.shiftKey ? -90 : 90);
       }
     }
-    function onKeyUp(event: KeyboardEvent) {
-      setShiftHeld(event.shiftKey);
-    }
     window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("keyup", track);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("keyup", track);
     };
   }, []);
 
-  function handlePointerDownOnHandle(
-    handle: Handle,
-    event: JSX.TargetedPointerEvent<HTMLDivElement>,
-  ) {
+  // ---- geometry: contain-fit the rotated bounding box into the stage ----
+  const availW = Math.max(0, stageSize.w - STAGE_PAD * 2);
+  const availH = Math.max(0, stageSize.h - STAGE_PAD * 2);
+  const bounds = rotatedBounds(image.width, image.height, rotation);
+  const fit =
+    availW && availH && bounds.w && bounds.h ? Math.min(availW / bounds.w, availH / bounds.h) : 0;
+  const dispW = bounds.w * fit;
+  const dispH = bounds.h * fit;
+
+  const outW = Math.max(1, Math.round(bounds.w * cropRect.w));
+  const outH = Math.max(1, Math.round(bounds.h * cropRect.h));
+
+  // ---- rotate-handle drag (orbit around the image centre) ----
+  const rotateDragRef = useRef<{ pointerId: number; cx: number; cy: number; start: number } | null>(
+    null,
+  );
+  function onRotateDown(event: JSX.TargetedPointerEvent<HTMLButtonElement>) {
+    const bbox = bboxRef.current;
+    if (!bbox) return;
     event.stopPropagation();
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const scale = rect.width > 0 ? image.width / rect.width : 1;
-    dragRef.current = {
-      handle,
+    const r = bbox.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    rotateDragRef.current = {
       pointerId: event.pointerId,
-      startBox: cropBox,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      scale,
+      cx,
+      cy,
+      start: Math.atan2(event.clientY - cy, event.clientX - cx),
     };
-    if (typeof event.currentTarget.setPointerCapture === "function") {
-      event.currentTarget.setPointerCapture(event.pointerId);
+    setRotatingLive(true);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+  function onRotateMove(event: JSX.TargetedPointerEvent<HTMLButtonElement>) {
+    const d = rotateDragRef.current;
+    if (!d || d.pointerId !== event.pointerId) return;
+    const ang = Math.atan2(event.clientY - d.cy, event.clientX - d.cx);
+    // Normalize the angular difference to (-π, π] so dragging across the
+    // atan2 discontinuity (the -X axis) doesn't jump ~360° and spin the image.
+    const diff = ang - d.start;
+    const delta = (Math.atan2(Math.sin(diff), Math.cos(diff)) * 180) / Math.PI;
+    setDraftRotation(snapRotation(committed.rotation + delta, shiftHeld, ctrlHeld));
+  }
+  function onRotateUp(event: JSX.TargetedPointerEvent<HTMLButtonElement>) {
+    const d = rotateDragRef.current;
+    if (!d || d.pointerId !== event.pointerId) return;
+    rotateDragRef.current = null;
+    setRotatingLive(false);
+    if (draftRotation !== null && draftRotation !== committed.rotation) {
+      commit({ rotation: ((draftRotation % 360) + 360) % 360, crop: committed.crop });
+    } else {
+      setDraftRotation(null);
     }
   }
 
-  function handlePointerMoveOnHandle(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = (event.clientX - drag.startClientX) * drag.scale;
-    const dy = (event.clientY - drag.startClientY) * drag.scale;
-    setCropBox(moveCorner(drag.startBox, drag.handle, dx, dy, image));
+  // ---- crop-handle drag (screen-aligned frame over the rotated image) ----
+  const cropDragRef = useRef<{
+    pointerId: number;
+    handle: Handle;
+    startRect: NormalizedRect;
+    startX: number;
+    startY: number;
+  } | null>(null);
+  function onCropDown(handle: Handle, event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    event.stopPropagation();
+    cropDragRef.current = {
+      pointerId: event.pointerId,
+      handle,
+      startRect: cropRect,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
-
-  function handlePointerUpOnHandle(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
-    if (dragRef.current?.pointerId === event.pointerId) {
-      dragRef.current = null;
+  function onCropMove(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    const d = cropDragRef.current;
+    if (!d || d.pointerId !== event.pointerId) return;
+    const dxN = dispW ? (event.clientX - d.startX) / (dispW * zoom) : 0;
+    const dyN = dispH ? (event.clientY - d.startY) / (dispH * zoom) : 0;
+    setDraftCrop(moveCropCorner(d.startRect, d.handle, dxN, dyN));
+  }
+  function onCropUp(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    const d = cropDragRef.current;
+    if (!d || d.pointerId !== event.pointerId) return;
+    cropDragRef.current = null;
+    if (draftCrop !== undefined) {
+      commit({ rotation: committed.rotation, crop: isCropped(draftCrop) ? draftCrop : null });
     }
   }
 
-  function handleHandleKeyDown(handle: Handle, event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
-    const step = event.shiftKey ? 10 : 1;
-    let dx = 0;
-    let dy = 0;
-    switch (event.key) {
-      case "ArrowLeft":
-        dx = -step;
-        break;
-      case "ArrowRight":
-        dx = step;
-        break;
-      case "ArrowUp":
-        dy = -step;
-        break;
-      case "ArrowDown":
-        dy = step;
-        break;
-      default:
-        return;
-    }
-    event.preventDefault();
-    setCropBox((current) => moveCorner(current, handle, dx, dy, image));
-  }
-
-  function handleStagePointerDown(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+  // ---- stage pan (when zoomed in) ----
+  const panRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startPan: { x: number; y: number };
+  } | null>(null);
+  function onStageDown(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
     if (!panning) return;
     panRef.current = {
       pointerId: event.pointerId,
@@ -444,231 +333,195 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
       startY: event.clientY,
       startPan: pan,
     };
-    if (typeof event.currentTarget.setPointerCapture === "function") {
-      event.currentTarget.setPointerCapture(event.pointerId);
-    }
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
-
-  function handleStagePointerMove(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
-    const drag = panRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+  function onStageMove(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    const d = panRef.current;
+    if (!d || d.pointerId !== event.pointerId) return;
     const rect = stageRef.current?.getBoundingClientRect();
     const maxX = rect ? (rect.width * (zoom - 1)) / 2 : Infinity;
     const maxY = rect ? (rect.height * (zoom - 1)) / 2 : Infinity;
     setPan({
-      x: clamp(drag.startPan.x + (event.clientX - drag.startX), -maxX, maxX),
-      y: clamp(drag.startPan.y + (event.clientY - drag.startY), -maxY, maxY),
+      x: clamp(d.startPan.x + (event.clientX - d.startX), -maxX, maxX),
+      y: clamp(d.startPan.y + (event.clientY - d.startY), -maxY, maxY),
     });
   }
-
-  function handleStagePointerUp(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
-    if (panRef.current?.pointerId === event.pointerId) {
-      panRef.current = null;
-    }
+  function onStageUp(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
+    if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
   }
 
-  // Mirrors each utility-toolbar button's `disabled` expression, in JSX order
-  // (undo, redo, reset, zoom out, zoom in), so the render-time active index can
-  // be corrected away from a disabled button (a disabled button can't receive
-  // focus, so leaving tabIndex=0 on it would make the toolbar unreachable by
-  // keyboard — see toolbarTabIndex). The rotate-90 buttons live in the Rotate
-  // card as plain Tab stops, not part of this roving group.
-  const toolbarEnabled = [
-    !(busy || !canUndo),
-    !(busy || !canRedo),
-    !(busy || isOriginal),
-    !(busy || zoom <= ZOOM_MIN),
-    !(busy || zoom >= ZOOM_MAX),
-  ];
-  const effectiveToolbarIndex = toolbarEnabled[toolbarActiveIndex]
-    ? toolbarActiveIndex
-    : toolbarEnabled.findIndex(Boolean);
-
-  function toolbarTabIndex(index: number): number {
-    return index === effectiveToolbarIndex ? 0 : -1;
-  }
-
-  function handleToolbarKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
-    const container = toolbarRef.current;
-    if (!container) return;
-    const allButtons = Array.from(container.querySelectorAll("button"));
-    const enabledButtons = allButtons.filter((el) => !el.disabled);
-    if (enabledButtons.length === 0) return;
-    const active = document.activeElement as HTMLButtonElement | null;
-    const activeIndex = active ? enabledButtons.indexOf(active) : -1;
-    const currentIndex = activeIndex === -1 ? 0 : activeIndex;
-    const nextIndex = nextRovingIndex(event.key, currentIndex, enabledButtons.length, TOOLBAR_KEYS);
-    if (nextIndex === null) return;
-    event.preventDefault();
-    const nextEl = enabledButtons[nextIndex];
-    nextEl.focus();
-    setToolbarActiveIndex(allButtons.indexOf(nextEl));
-  }
-
-  // Pan + zoom always transform the frame (screen space). Rotation targets
-  // differ: fit-to-frame rotates the image *inside* a fixed axis-aligned
-  // rectangle (clipped); otherwise the whole rectangle tilts at constant size.
-  const viewParts: string[] = [];
-  if (pan.x || pan.y) viewParts.push(`translate(${pan.x}px, ${pan.y}px)`);
-  if (zoom !== 1) viewParts.push(`scale(${zoom})`);
-
-  let canvasStyle: JSX.CSSProperties | undefined;
-  if (rotating && fitToFrame) {
-    const cover = fitToFrameScale(image.width, image.height, (angle * Math.PI) / 180);
-    canvasStyle = { transform: `rotate(${angle}deg) scale(${cover})`, transformOrigin: "center" };
-  } else if (rotating) {
-    viewParts.push(`rotate(${angle}deg)`);
-  }
-
-  // Size the image rectangle to a true contain-fit of the measured stage — the
-  // image is never stretched; leftover space stays the neutral stage colour.
-  const availW = Math.max(0, stageSize.w - STAGE_PAD * 2);
-  const availH = Math.max(0, stageSize.h - STAGE_PAD * 2);
-  const fit = availW && availH ? Math.min(availW / image.width, availH / image.height) : 0;
-  const frameStyle: JSX.CSSProperties = {};
-  if (fit > 0) {
-    frameStyle.width = `${image.width * fit}px`;
-    frameStyle.height = `${image.height * fit}px`;
-  }
-  if (viewParts.length) frameStyle.transform = viewParts.join(" ");
+  const gridLines = Array.from(
+    { length: GRID_LINES },
+    (_, i) => ((i + 1) / (GRID_LINES + 1)) * 100,
+  );
 
   return (
     <div className={styles.editor}>
       <div
         ref={stageRef}
         className={`${styles.stage} ${panning ? styles.stagePannable : ""}`}
-        onPointerDown={handleStagePointerDown}
-        onPointerMove={handleStagePointerMove}
-        onPointerUp={handleStagePointerUp}
-        onPointerCancel={handleStagePointerUp}
+        onPointerDown={onStageDown}
+        onPointerMove={onStageMove}
+        onPointerUp={onStageUp}
+        onPointerCancel={onStageUp}
       >
         <div
-          className={`${styles.frame} ${rotating && fitToFrame ? styles.frameClip : ""}`}
-          style={frameStyle}
+          className={styles.view}
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
         >
-          <canvas
-            ref={canvasRef}
-            className={styles.canvas}
-            style={canvasStyle}
-            data-testid="editor-canvas"
-          />
-          {!rotating && (
-            <div className={styles.cropOverlay}>
-              <div
-                className={`${styles.cropRect} ${isCropped ? styles.cropRectScrim : ""}`}
-                style={{
-                  left: `${(cropBox.x / image.width) * 100}%`,
-                  top: `${(cropBox.y / image.height) * 100}%`,
-                  width: `${(cropBox.width / image.width) * 100}%`,
-                  height: `${(cropBox.height / image.height) * 100}%`,
-                }}
-              >
-                {HANDLES.map((handle) => (
-                  <div
-                    key={handle}
-                    className={styles.cropHandle}
-                    style={{
-                      left: handle.includes("w") ? "0%" : "100%",
-                      top: handle.includes("n") ? "0%" : "100%",
-                    }}
-                    role="button"
-                    aria-roledescription="crop handle"
-                    tabIndex={0}
-                    // role="button" has no notion of aria-valuetext (that's a
-                    // slider/spinbutton feature), so the position info folds
-                    // into the label itself instead of being silently dropped.
-                    aria-label={`Crop handle: ${handle}, x ${Math.round(cropBox.x)}, y ${Math.round(cropBox.y)}, width ${Math.round(cropBox.width)}, height ${Math.round(cropBox.height)}`}
-                    onPointerDown={(event) => handlePointerDownOnHandle(handle, event)}
-                    onPointerMove={handlePointerMoveOnHandle}
-                    onPointerUp={handlePointerUpOnHandle}
-                    onPointerCancel={handlePointerUpOnHandle}
-                    onKeyDown={(event) => handleHandleKeyDown(handle, event)}
-                  />
+          <div
+            ref={bboxRef}
+            className={styles.bbox}
+            style={{ width: `${dispW}px`, height: `${dispH}px` }}
+          >
+            <canvas
+              ref={canvasRef}
+              className={styles.canvas}
+              style={
+                fit > 0
+                  ? {
+                      width: `${image.width * fit}px`,
+                      height: `${image.height * fit}px`,
+                      transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                    }
+                  : { display: "none" }
+              }
+              data-testid="editor-canvas"
+            />
+
+            {rotatingLive && (
+              <div className={styles.grid} aria-hidden="true">
+                {gridLines.map((p) => (
+                  <div key={`v${p}`} className={styles.gridV} style={{ left: `${p}%` }} />
+                ))}
+                {gridLines.map((p) => (
+                  <div key={`h${p}`} className={styles.gridH} style={{ top: `${p}%` }} />
                 ))}
               </div>
+            )}
+
+            <div
+              className={`${styles.cropFrame} ${isCropped(crop) ? styles.cropScrim : ""}`}
+              style={{
+                left: `${cropRect.x * 100}%`,
+                top: `${cropRect.y * 100}%`,
+                width: `${cropRect.w * 100}%`,
+                height: `${cropRect.h * 100}%`,
+              }}
+            >
+              {HANDLES.map((handle) => (
+                <div
+                  key={handle}
+                  className={styles.cropHandle}
+                  style={{
+                    left: handle.includes("w") ? "0%" : "100%",
+                    top: handle.includes("n") ? "0%" : "100%",
+                  }}
+                  role="button"
+                  aria-label={`Crop ${handle} corner`}
+                  onPointerDown={(event) => onCropDown(handle, event)}
+                  onPointerMove={onCropMove}
+                  onPointerUp={onCropUp}
+                  onPointerCancel={onCropUp}
+                />
+              ))}
             </div>
-          )}
+
+            {fit > 0 && (
+              <button
+                type="button"
+                className={styles.rotateHandle}
+                aria-label="Rotate image"
+                title="Drag to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
+                onPointerDown={onRotateDown}
+                onPointerMove={onRotateMove}
+                onPointerUp={onRotateUp}
+                onPointerCancel={onRotateUp}
+              >
+                <RotateRightIcon />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       <div className={styles.sidebar}>
-        <div
-          ref={toolbarRef}
-          className={styles.toolbar}
-          role="toolbar"
-          aria-label="History and zoom"
-          onKeyDown={handleToolbarKeyDown}
-        >
-          <div className={styles.toolRow}>
-            <button
-              type="button"
-              className={styles.toolButton}
-              disabled={busy || !canUndo}
-              tabIndex={toolbarTabIndex(0)}
-              onFocus={() => setToolbarActiveIndex(0)}
-              onClick={undo}
-              title="Undo (Ctrl/Cmd+Z)"
-            >
-              <UndoIcon />
-              <span className={styles.toolButtonLabel}>Undo</span>
-            </button>
-            <button
-              type="button"
-              className={styles.toolButton}
-              disabled={busy || !canRedo}
-              tabIndex={toolbarTabIndex(1)}
-              onFocus={() => setToolbarActiveIndex(1)}
-              onClick={redo}
-              title="Redo (Ctrl/Cmd+Shift+Z)"
-            >
-              <RedoIcon />
-              <span className={styles.toolButtonLabel}>Redo</span>
-            </button>
-            <button
-              type="button"
-              className={styles.toolButton}
-              disabled={busy || isOriginal}
-              tabIndex={toolbarTabIndex(2)}
-              onFocus={() => setToolbarActiveIndex(2)}
-              onClick={() => void reset()}
-              title="Reset to original"
-            >
-              <ResetIcon />
-              <span className={styles.toolButtonLabel}>Reset</span>
-            </button>
-          </div>
+        <div className={styles.toolRow}>
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={!canUndo}
+            onClick={undo}
+            title="Undo (Ctrl/Cmd+Z)"
+          >
+            <UndoIcon />
+            <span className={styles.toolButtonLabel}>Undo</span>
+          </button>
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={!canRedo}
+            onClick={redo}
+            title="Redo (Ctrl/Cmd+Shift+Z)"
+          >
+            <RedoIcon />
+            <span className={styles.toolButtonLabel}>Redo</span>
+          </button>
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={isIdentityTransform(committed)}
+            onClick={reset}
+            title="Reset to original"
+          >
+            <ResetIcon />
+            <span className={styles.toolButtonLabel}>Reset</span>
+          </button>
+        </div>
 
-          <div className={styles.toolRow}>
-            <span className={styles.rowLabel}>Zoom</span>
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <span className={styles.groupLabel}>
+              <ZoomInIcon /> Zoom
+            </span>
+          </div>
+          <div className={styles.zoomRow}>
             <div className={styles.zoomGroup}>
               <button
                 type="button"
                 className={styles.zoomButton}
-                disabled={busy || zoom <= ZOOM_MIN}
-                tabIndex={toolbarTabIndex(3)}
-                onFocus={() => setToolbarActiveIndex(3)}
+                disabled={zoom <= ZOOM_MIN}
                 onClick={() => zoomBy(1 / ZOOM_STEP)}
-                title="Zoom out"
                 aria-label="Zoom out"
+                title="Zoom out"
               >
                 <ZoomOutIcon />
               </button>
-              <span className={`${styles.zoomLabel} mono`}>
-                {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+              <span className={`${styles.zoomLabel} mono ${atFit ? styles.zoomAtFit : ""}`}>
+                {Math.round(zoom * 100)}%
               </span>
               <button
                 type="button"
                 className={styles.zoomButton}
-                disabled={busy || zoom >= ZOOM_MAX}
-                tabIndex={toolbarTabIndex(4)}
-                onFocus={() => setToolbarActiveIndex(4)}
+                disabled={zoom >= ZOOM_MAX}
                 onClick={() => zoomBy(ZOOM_STEP)}
-                title="Zoom in"
                 aria-label="Zoom in"
+                title="Zoom in"
               >
                 <ZoomInIcon />
               </button>
             </div>
+            <button
+              type="button"
+              className={styles.toolButton}
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              title="Fit the whole image to the view"
+            >
+              Fit
+            </button>
           </div>
         </div>
 
@@ -677,82 +530,29 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
             <span className={styles.groupLabel}>
               <RotateRightIcon /> Rotate
             </span>
+            <span className={`${styles.angleValue} mono`}>{Math.round(rotation)}°</span>
           </div>
-
           <div className={styles.rotateButtons}>
             <button
               type="button"
               className={styles.toolButton}
-              disabled={busy}
-              onClick={() => void rotate90(-90)}
+              onClick={() => rotate90(-90)}
               title="Rotate left 90° (Shift+R)"
             >
               <RotateLeftIcon />
-              <span className={styles.toolButtonLabel}>Rotate left</span>
+              <span className={styles.toolButtonLabel}>90° left</span>
             </button>
             <button
               type="button"
               className={styles.toolButton}
-              disabled={busy}
-              onClick={() => void rotate90(90)}
+              onClick={() => rotate90(90)}
               title="Rotate right 90° (R)"
             >
               <RotateRightIcon />
-              <span className={styles.toolButtonLabel}>Rotate right</span>
+              <span className={styles.toolButtonLabel}>90° right</span>
             </button>
           </div>
-
-          <div className={styles.sliderWrap}>
-            <input
-              type="range"
-              min={-180}
-              max={180}
-              step={shiftHeld ? SNAP_STEP : 1}
-              value={angle}
-              disabled={busy}
-              aria-label="Rotation angle"
-              title="Hold Shift to snap to 45° marks"
-              onInput={(event) => setAngle(Number(event.currentTarget.value))}
-            />
-            <div className={styles.ticks} aria-hidden="true">
-              {ANGLE_MARKS.map((t) => (
-                <div
-                  key={t}
-                  className={styles.tickWrap}
-                  style={{ left: `${((t + 180) / 360) * 100}%` }}
-                >
-                  <span className={styles.tick} data-major={t % 90 === 0 || undefined} />
-                  <span className={`${styles.tickLabel} mono`}>{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.actions}>
-            <label className={styles.checkboxField}>
-              <input
-                type="checkbox"
-                checked={fitToFrame}
-                onChange={(event) => setFitToFrame(event.currentTarget.checked)}
-              />
-              Fit to frame
-            </label>
-            <span className={`${styles.angleValue} mono`}>{angle}°</span>
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={() => void applyAngle()}
-              disabled={busy || !rotating}
-            >
-              Apply rotation
-            </button>
-          </div>
-
-          {rotating && (
-            <p className={styles.unappliedHint} role="status">
-              Unapplied rotation — Apply to keep it
-            </p>
-          )}
+          <p className={styles.hint}>Drag the handle above the image to straighten.</p>
         </div>
 
         <div className={styles.card}>
@@ -761,28 +561,10 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
               <CropIcon /> Crop
             </span>
             <span className={`${styles.cropDims} mono`}>
-              {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
+              {outW} × {outH}
             </span>
           </div>
-
-          <p className={styles.cropHint}>Drag the corner handles on the image.</p>
-
-          <div className={styles.actions}>
-            <button
-              type="button"
-              className={styles.ghostButton}
-              onClick={() => void applyCrop()}
-              disabled={busy || !isCropped}
-            >
-              Apply crop
-            </button>
-          </div>
-
-          {isCropped && (
-            <p className={styles.unappliedHint} role="status">
-              Unapplied crop — Apply to keep it
-            </p>
-          )}
+          <p className={styles.hint}>Drag the corner handles on the image.</p>
         </div>
       </div>
     </div>

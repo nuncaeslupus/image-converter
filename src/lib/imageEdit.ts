@@ -31,6 +31,32 @@ export interface CropBox {
   height: number;
 }
 
+/** A crop region as fractions [0,1] of the (rotated) image's bounding box. */
+export interface NormalizedRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/**
+ * Non-destructive Edit transform: rotate then crop, baked into pixels once at
+ * trace time (see docs/superpowers/specs/2026-07-19-nondestructive-edit-design.md).
+ * `crop` is normalized to the rotated bounding box; `null` = full frame.
+ */
+export interface EditTransform {
+  /** degrees, any value (90° taps just add ±90) */
+  rotation: number;
+  crop: NormalizedRect | null;
+}
+
+export const IDENTITY_TRANSFORM: EditTransform = { rotation: 0, crop: null };
+
+/** Whether `t` would leave the image unchanged (no rotation, no crop). */
+export function isIdentityTransform(t: EditTransform): boolean {
+  return ((t.rotation % 360) + 360) % 360 === 0 && t.crop === null;
+}
+
 /**
  * A `Uint8ClampedArray` explicitly backed by a real `ArrayBuffer` (as
  * opposed to the wider `ArrayBufferLike`, which also covers
@@ -255,4 +281,48 @@ export async function readImagePixels(
   bitmap: ImageBitmap,
 ): Promise<{ width: number; height: number; data: Pixels }> {
   return bitmapToPixels(bitmap);
+}
+
+function denormalizeCrop(rect: NormalizedRect, width: number, height: number): CropBox {
+  return {
+    x: rect.x * width,
+    y: rect.y * height,
+    width: rect.w * width,
+    height: rect.h * height,
+  };
+}
+
+/**
+ * Bakes a non-destructive {@link EditTransform} into a fresh bitmap:
+ * `crop(rotate(source, rotation), crop)`. Always returns a NEW bitmap the
+ * caller owns (never `source` itself), closing any intermediate.
+ *
+ * Right-angle rotations (0/90/180/270) use the lossless {@link rotateImage};
+ * other angles resample exactly once via the canvas-based
+ * {@link rotateImageArbitrary}. Because it always starts from the upright
+ * `source`, the result is never cumulative no matter how often it's re-baked.
+ */
+export async function bakeTransform(
+  source: ImageBitmap,
+  transform: EditTransform,
+): Promise<ImageBitmap> {
+  const norm = ((transform.rotation % 360) + 360) % 360;
+  const hasRotation = norm !== 0;
+  const base = !hasRotation
+    ? source
+    : norm % 90 === 0
+      ? await rotateImage(source, norm)
+      : await rotateImageArbitrary(source, transform.rotation);
+  try {
+    if (!transform.crop) {
+      // No crop: hand off the fresh rotated bitmap, or a copy of the source.
+      return hasRotation ? base : await createImageBitmap(source);
+    }
+    return await cropImage(base, denormalizeCrop(transform.crop, base.width, base.height));
+  } finally {
+    // Close the intermediate rotated bitmap only when a crop produced a
+    // further new bitmap from it (otherwise `base` is the returned value or
+    // the caller-owned `source`).
+    if (hasRotation && transform.crop) base.close();
+  }
 }

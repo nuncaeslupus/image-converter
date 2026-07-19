@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  bakeTransform,
   bitmapFromPixels,
   cropImage,
+  IDENTITY_TRANSFORM,
+  isIdentityTransform,
   readImagePixels,
   resizeImage,
   rotateImage,
@@ -112,5 +115,73 @@ describe("imageEdit", () => {
     expect(current.height).toBe(FIXTURE_HEIGHT);
     const roundTripped = await readImagePixels(current);
     expect(Array.from(roundTripped.data)).toEqual(Array.from(original.data));
+  });
+});
+
+describe("bakeTransform", () => {
+  it("test_bakeTransform_identity_returnsSameSizeCopy", async () => {
+    const bitmap = await makeFixtureBitmap();
+    const original = await readImagePixels(bitmap);
+
+    const out = await bakeTransform(bitmap, IDENTITY_TRANSFORM);
+
+    // A fresh bitmap (never the source itself), pixel-identical.
+    expect(out).not.toBe(bitmap);
+    expect(out.width).toBe(FIXTURE_WIDTH);
+    expect(out.height).toBe(FIXTURE_HEIGHT);
+    const baked = await readImagePixels(out);
+    expect(Array.from(baked.data)).toEqual(Array.from(original.data));
+  });
+
+  it("test_bakeTransform_cropOnly_mapsNormalizedRectToPixels", async () => {
+    const bitmap = await makeFixtureBitmap();
+
+    // Right two columns of a 4x2 image: x 0.5..1.0, full height.
+    const out = await bakeTransform(bitmap, {
+      rotation: 0,
+      crop: { x: 0.5, y: 0, w: 0.5, h: 1 },
+    });
+
+    expect(out.width).toBe(2);
+    expect(out.height).toBe(2);
+    const pixels = await readImagePixels(out);
+    expect(pixelAt(pixels, 0, 0)).toEqual(pixelColor(2));
+    expect(pixelAt(pixels, 0, 1)).toEqual(pixelColor(3));
+    expect(pixelAt(pixels, 1, 0)).toEqual(pixelColor(6));
+    expect(pixelAt(pixels, 1, 1)).toEqual(pixelColor(7));
+  });
+
+  it("test_bakeTransform_rightAngleRotation_isLosslessAndSwapsDims", async () => {
+    const bitmap = await makeFixtureBitmap();
+
+    const out = await bakeTransform(bitmap, { rotation: 90, crop: null });
+
+    // Lossless (rotateImage path): 4x2 -> 2x4, same pixel content as a direct rotate.
+    expect(out.width).toBe(FIXTURE_HEIGHT);
+    expect(out.height).toBe(FIXTURE_WIDTH);
+    const pixels = await readImagePixels(out);
+    expect(pixelAt(pixels, 0, 0)).toEqual(pixelColor(4));
+    expect(pixelAt(pixels, 0, 1)).toEqual(pixelColor(0));
+  });
+
+  it("test_bakeTransform_rotationThenCrop_composes", async () => {
+    const bitmap = await makeFixtureBitmap();
+
+    // Rotate 90 -> 2x4, then keep the top half -> 2x2.
+    const out = await bakeTransform(bitmap, {
+      rotation: 90,
+      crop: { x: 0, y: 0, w: 1, h: 0.5 },
+    });
+
+    expect(out.width).toBe(2);
+    expect(out.height).toBe(2);
+  });
+
+  it("test_isIdentityTransform", () => {
+    expect(isIdentityTransform({ rotation: 0, crop: null })).toBe(true);
+    expect(isIdentityTransform({ rotation: 360, crop: null })).toBe(true);
+    expect(isIdentityTransform({ rotation: -720, crop: null })).toBe(true);
+    expect(isIdentityTransform({ rotation: 90, crop: null })).toBe(false);
+    expect(isIdentityTransform({ rotation: 0, crop: { x: 0, y: 0, w: 1, h: 1 } })).toBe(false);
   });
 });

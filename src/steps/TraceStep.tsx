@@ -17,6 +17,7 @@ import {
   type TraceParams,
 } from "../lib/traceProtocol";
 import { downscaleForPreview } from "../lib/previewDownscale";
+import { useBakedImage } from "../lib/useBakedImage";
 import { estimateSvg, countPaths } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
@@ -55,7 +56,9 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   const dispatcherRef = useRef(createTraceDispatcher());
   const retryRef = useRef<() => void>(() => {});
 
-  const image = wizard.image;
+  // The image to trace is the source with Edit's crop/rotate baked in — a
+  // fresh upright bitmap, re-baked when the source or transform changes.
+  const image = useBakedImage(wizard.image, wizard.transform);
 
   // Publish the current traced SVG up to the wizard so ExportStep (T9) reads
   // it. Only publish real results — the initial local state is seeded from
@@ -171,7 +174,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
     retryRef.current();
   }
 
-  if (!image) {
+  if (!wizard.image) {
     return (
       <section>
         <p role="alert">No image to trace yet — go back and choose one first.</p>

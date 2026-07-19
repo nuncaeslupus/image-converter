@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/preact";
 import userEvent from "@testing-library/user-event";
-import { bitmapFromPixels } from "./imageEdit";
+import { bitmapFromPixels, IDENTITY_TRANSFORM } from "./imageEdit";
 import { useWizard, type Wizard } from "./wizard";
 
 async function makeBitmap(): Promise<ImageBitmap> {
@@ -9,10 +9,8 @@ async function makeBitmap(): Promise<ImageBitmap> {
 }
 
 /**
- * Exposes the live `Wizard` object to the test via a mutable ref-like
- * object, updated on every render, while driving all mutations through real
- * button clicks (so state updates go through Preact's normal act()-wrapped
- * event handling rather than being poked from outside a render).
+ * Exposes the live `Wizard` to the test, driving all mutations through real
+ * button clicks so state updates go through Preact's act()-wrapped handling.
  */
 function Harness({ wizardBox }: { wizardBox: { current: Wizard | null } }) {
   const wizard = useWizard();
@@ -20,28 +18,29 @@ function Harness({ wizardBox }: { wizardBox: { current: Wizard | null } }) {
   return (
     <div>
       <p>image: {wizard.image ? "set" : "none"}</p>
-      <p>original: {wizard.originalImage ? "set" : "none"}</p>
+      <p>rotation: {wizard.transform.rotation}</p>
       <button
         type="button"
         onClick={() => {
           void (async () => {
-            const bitmap = await makeBitmap();
-            const original = await makeBitmap();
-            wizard.replaceImage(bitmap, original, "fixture.png");
+            wizard.replaceImage(await makeBitmap(), "fixture.png");
           })();
         }}
       >
         load
       </button>
-      <button type="button" onClick={() => wizard.replaceImage(null, null, null)}>
+      <button type="button" onClick={() => wizard.replaceImage(null, null)}>
         clear
+      </button>
+      <button type="button" onClick={() => wizard.setTransform({ rotation: 90, crop: null })}>
+        rotate
       </button>
     </div>
   );
 }
 
-describe("wizard image/originalImage lifecycle", () => {
-  it("test_wizard_replaceImage_closesOutgoingImageAndOriginalExactlyOnce", async () => {
+describe("wizard source-image lifecycle", () => {
+  it("test_wizard_replaceImage_closesOutgoingSourceOnceAndResetsTransform", async () => {
     const user = userEvent.setup();
     const wizardBox: { current: Wizard | null } = { current: null };
     render(<Harness wizardBox={wizardBox} />);
@@ -50,32 +49,27 @@ describe("wizard image/originalImage lifecycle", () => {
     await waitFor(() => expect(screen.getByText("image: set")).toBeInTheDocument());
 
     const firstImage = wizardBox.current!.image!;
-    const firstOriginal = wizardBox.current!.originalImage!;
-    expect(firstImage).not.toBe(firstOriginal); // distinct owners, not aliased
-    expect(wizardBox.current!.imageIsOriginal).toBe(true);
-    const closeImageSpy = vi.spyOn(firstImage, "close");
-    const closeOriginalSpy = vi.spyOn(firstOriginal, "close");
+    expect(wizardBox.current!.fileName).toBe("fixture.png");
+    expect(wizardBox.current!.transform).toEqual(IDENTITY_TRANSFORM);
+    const closeSpy = vi.spyOn(firstImage, "close");
 
-    // Replacing with a second image/original pair (the "Replace image" flow)
-    // must close both outgoing bitmaps exactly once — see finding #1.
+    // A pending transform is discarded (reset to identity) when the source is
+    // replaced — the transform belongs to the old image.
+    await user.click(screen.getByRole("button", { name: "rotate" }));
+    await waitFor(() => expect(screen.getByText("rotation: 90")).toBeInTheDocument());
+
     await user.click(screen.getByRole("button", { name: "load" }));
     await waitFor(() => expect(wizardBox.current!.image).not.toBe(firstImage));
-
-    expect(closeImageSpy).toHaveBeenCalledTimes(1);
-    expect(closeOriginalSpy).toHaveBeenCalledTimes(1);
-    expect(wizardBox.current!.imageIsOriginal).toBe(true);
+    // The outgoing source is closed exactly once (no separate original to leak).
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(wizardBox.current!.transform).toEqual(IDENTITY_TRANSFORM);
 
     const secondImage = wizardBox.current!.image!;
-    const secondOriginal = wizardBox.current!.originalImage!;
-    const closeSecondImageSpy = vi.spyOn(secondImage, "close");
-    const closeSecondOriginalSpy = vi.spyOn(secondOriginal, "close");
+    const closeSecondSpy = vi.spyOn(secondImage, "close");
 
-    // Clearing (the "Remove image" / "Start over" flow) must also close
-    // whatever was current exactly once.
+    // Clearing ("Remove image" / "Start over") closes the current source once.
     await user.click(screen.getByRole("button", { name: "clear" }));
     await waitFor(() => expect(screen.getByText("image: none")).toBeInTheDocument());
-
-    expect(closeSecondImageSpy).toHaveBeenCalledTimes(1);
-    expect(closeSecondOriginalSpy).toHaveBeenCalledTimes(1);
+    expect(closeSecondSpy).toHaveBeenCalledTimes(1);
   });
 });
