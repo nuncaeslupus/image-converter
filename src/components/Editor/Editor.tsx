@@ -7,6 +7,7 @@ import {
   rotateImageArbitrary,
   type CropBox,
 } from "../../lib/imageEdit";
+import { TOOLBAR_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import {
   CropIcon,
   RedoIcon,
@@ -109,6 +110,13 @@ export function Editor({ image, onChange }: EditorProps) {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [busy, setBusy] = useState(false);
   const [stageSize, setStageSize] = useState({ w: 0, h: 0 });
+  // Roving-tabindex state for the toolbar (WAI-ARIA APG toolbar pattern):
+  // only one button is a Tab stop at a time; Left/Right arrow keys move it.
+  // `toolbarRef` points at the toolbar container; the button list is queried
+  // from the DOM on demand (see `handleToolbarKeyDown`) rather than collected
+  // via per-button ref callbacks during render.
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarActiveIndex, setToolbarActiveIndex] = useState(0);
   // In-session edit history: index 0 is the image this Edit visit started from.
   const [history, setHistory] = useState<History>(() => ({ stack: [image], index: 0 }));
 
@@ -401,6 +409,44 @@ export function Editor({ image, onChange }: EditorProps) {
     }
   }
 
+  // Mirrors each toolbar button's `disabled` expression, in JSX order, so the
+  // render-time active index can be corrected away from a disabled button
+  // (a disabled button can't receive focus, so leaving tabIndex=0 on it would
+  // make the whole toolbar unreachable by keyboard — see toolbarTabIndex).
+  const toolbarEnabled = [
+    !busy,
+    !busy,
+    !(busy || zoom <= ZOOM_MIN),
+    !(busy || zoom >= ZOOM_MAX),
+    !(busy || !canUndo),
+    !(busy || !canRedo),
+    !(busy || !isEdited),
+  ];
+  const effectiveToolbarIndex = toolbarEnabled[toolbarActiveIndex]
+    ? toolbarActiveIndex
+    : toolbarEnabled.findIndex(Boolean);
+
+  function toolbarTabIndex(index: number): number {
+    return index === effectiveToolbarIndex ? 0 : -1;
+  }
+
+  function handleToolbarKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
+    const container = toolbarRef.current;
+    if (!container) return;
+    const allButtons = Array.from(container.querySelectorAll("button"));
+    const enabledButtons = allButtons.filter((el) => !el.disabled);
+    if (enabledButtons.length === 0) return;
+    const active = document.activeElement as HTMLButtonElement | null;
+    const activeIndex = active ? enabledButtons.indexOf(active) : -1;
+    const currentIndex = activeIndex === -1 ? 0 : activeIndex;
+    const nextIndex = nextRovingIndex(event.key, currentIndex, enabledButtons.length, TOOLBAR_KEYS);
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const nextEl = enabledButtons[nextIndex];
+    nextEl.focus();
+    setToolbarActiveIndex(allButtons.indexOf(nextEl));
+  }
+
   // Pan + zoom always transform the frame (screen space). Rotation targets
   // differ: fit-to-frame rotates the image *inside* a fixed axis-aligned
   // rectangle (clipped); otherwise the whole rectangle tilts at constant size.
@@ -430,11 +476,19 @@ export function Editor({ image, onChange }: EditorProps) {
 
   return (
     <div className={styles.editor}>
-      <div className={styles.toolbar} role="toolbar" aria-label="Image editing tools">
+      <div
+        ref={toolbarRef}
+        className={styles.toolbar}
+        role="toolbar"
+        aria-label="Image editing tools"
+        onKeyDown={handleToolbarKeyDown}
+      >
         <button
           type="button"
           className={styles.toolButton}
           disabled={busy}
+          tabIndex={toolbarTabIndex(0)}
+          onFocus={() => setToolbarActiveIndex(0)}
           onClick={() => void rotate90(-90)}
           title="Rotate left 90° (Shift+R)"
         >
@@ -445,6 +499,8 @@ export function Editor({ image, onChange }: EditorProps) {
           type="button"
           className={styles.toolButton}
           disabled={busy}
+          tabIndex={toolbarTabIndex(1)}
+          onFocus={() => setToolbarActiveIndex(1)}
           onClick={() => void rotate90(90)}
           title="Rotate right 90° (R)"
         >
@@ -459,6 +515,8 @@ export function Editor({ image, onChange }: EditorProps) {
             type="button"
             className={styles.zoomButton}
             disabled={busy || zoom <= ZOOM_MIN}
+            tabIndex={toolbarTabIndex(2)}
+            onFocus={() => setToolbarActiveIndex(2)}
             onClick={() => zoomBy(1 / ZOOM_STEP)}
             title="Zoom out"
             aria-label="Zoom out"
@@ -472,6 +530,8 @@ export function Editor({ image, onChange }: EditorProps) {
             type="button"
             className={styles.zoomButton}
             disabled={busy || zoom >= ZOOM_MAX}
+            tabIndex={toolbarTabIndex(3)}
+            onFocus={() => setToolbarActiveIndex(3)}
             onClick={() => zoomBy(ZOOM_STEP)}
             title="Zoom in"
             aria-label="Zoom in"
@@ -486,6 +546,8 @@ export function Editor({ image, onChange }: EditorProps) {
           type="button"
           className={styles.toolButton}
           disabled={busy || !canUndo}
+          tabIndex={toolbarTabIndex(4)}
+          onFocus={() => setToolbarActiveIndex(4)}
           onClick={undo}
           title="Undo (Ctrl/Cmd+Z)"
         >
@@ -496,6 +558,8 @@ export function Editor({ image, onChange }: EditorProps) {
           type="button"
           className={styles.toolButton}
           disabled={busy || !canRedo}
+          tabIndex={toolbarTabIndex(5)}
+          onFocus={() => setToolbarActiveIndex(5)}
           onClick={redo}
           title="Redo (Ctrl/Cmd+Shift+Z)"
         >
@@ -503,6 +567,8 @@ export function Editor({ image, onChange }: EditorProps) {
           <span className={styles.toolButtonLabel}>Redo</span>
         </button>
         <button
+          tabIndex={toolbarTabIndex(6)}
+          onFocus={() => setToolbarActiveIndex(6)}
           type="button"
           className={styles.toolButton}
           disabled={busy || !isEdited}
@@ -513,6 +579,16 @@ export function Editor({ image, onChange }: EditorProps) {
           <span className={styles.toolButtonLabel}>Reset</span>
         </button>
       </div>
+
+      {(isCropped || rotating) && (
+        <p className={styles.unappliedHint} role="status">
+          {isCropped && rotating
+            ? "Unapplied crop and rotation — use Apply to keep them"
+            : isCropped
+              ? "Unapplied crop — use Apply to keep it"
+              : "Unapplied rotation — use Apply to keep it"}
+        </p>
+      )}
 
       <div
         ref={stageRef}
@@ -551,10 +627,13 @@ export function Editor({ image, onChange }: EditorProps) {
                       left: handle.includes("w") ? "0%" : "100%",
                       top: handle.includes("n") ? "0%" : "100%",
                     }}
-                    role="slider"
+                    role="button"
+                    aria-roledescription="crop handle"
                     tabIndex={0}
-                    aria-label={`Crop handle: ${handle}`}
-                    aria-valuetext={`x ${Math.round(cropBox.x)}, y ${Math.round(cropBox.y)}, width ${Math.round(cropBox.width)}, height ${Math.round(cropBox.height)}`}
+                    // role="button" has no notion of aria-valuetext (that's a
+                    // slider/spinbutton feature), so the position info folds
+                    // into the label itself instead of being silently dropped.
+                    aria-label={`Crop handle: ${handle}, x ${Math.round(cropBox.x)}, y ${Math.round(cropBox.y)}, width ${Math.round(cropBox.width)}, height ${Math.round(cropBox.height)}`}
                     onPointerDown={(event) => handlePointerDownOnHandle(handle, event)}
                     onPointerMove={handlePointerMoveOnHandle}
                     onPointerUp={handlePointerUpOnHandle}

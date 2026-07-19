@@ -16,7 +16,9 @@
   --border-strong: #c4cddb;
   --fg: #20262f;
   --fg-2: #5a6472;
-  --fg-3: #8891a0;
+  /* >= 4.5:1 vs --surface (#fff), --surface-2 (#fbfcfe) and --bg (#f2f5fa) —
+     see contrast computations in the a11y PR notes. */
+  --fg-3: #626c7a;
   --accent: #0e8f86;
   --accent-soft: #e2f4f2;
   --accent-fg: #0a6b64;
@@ -24,6 +26,8 @@
   --ok: #2f7d55;
   --ok-bg: #eaf5ee;
   --ok-border: #cfe7d8;
+  /* >= 4.5:1 vs --surface / --surface-2 / --bg in this theme. */
+  --danger: #c0392f;
   --shadow: rgba(30, 45, 70, 0.32);
   --track: #e0e6ef;
   --check-a: #ebeff6;
@@ -44,7 +48,8 @@
   --border-strong: #3a454d;
   --fg: #e9eef1;
   --fg-2: #a3adb4;
-  --fg-3: #77828a;
+  /* >= 4.5:1 vs --surface (#1d242a), --surface-2 (#1a2126) and --bg (#161b1f). */
+  --fg-3: #98a4ae;
   --accent: #34c9bb;
   --accent-soft: #123330;
   --accent-fg: #7fe0d5;
@@ -52,6 +57,8 @@
   --ok: #8fd0a8;
   --ok-bg: #16281f;
   --ok-border: #2c4536;
+  /* >= 4.5:1 vs --surface / --surface-2 / --bg in this theme. */
+  --danger: #f08c8c;
   --shadow: rgba(0, 0, 0, 0.7);
   --track: #2b343b;
   --check-a: #1a2024;

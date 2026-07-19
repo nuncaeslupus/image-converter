@@ -3,3 +3,13 @@
   min-height: 0;
   min-width: 0;
 }
+
+/* Same clipping chain as Trace/Export/Upload: `.root` already has a bounded
+   height (flex:1/min-height:0 from `.body > section`); let the Editor's own
+   box scroll on short/narrow viewports instead of the card clipping the
+   crop/rotate controls (see Editor.module.css `.editor`). */
+@media (max-width: 720px) {
+  .root {
+    overflow-y: auto;
+  }
+}

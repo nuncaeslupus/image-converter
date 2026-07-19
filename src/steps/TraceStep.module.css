@@ -28,6 +28,14 @@
 @media (max-width: 720px) {
   .layout {
     flex-direction: column;
+    /* In row mode the fixed-width `.controls` gets a stretched height that its
+       own overflow-y:auto scrolls; stacked, nothing constrains the column's
+       height anymore, so the previous rules let content overflow the card
+       (which clips via `overflow:hidden`). Making `.layout` itself the
+       scroll container — it already has a bounded height via the
+       flex:1/min-height:0 chain from `.root` — keeps every control reachable. */
+    overflow-y: auto;
+    min-height: 0;
   }
   .controls {
     flex: none;
@@ -55,7 +63,7 @@
 }
 
 .error {
-  color: #d64545;
+  color: var(--danger);
   font-size: 13px;
 }
 

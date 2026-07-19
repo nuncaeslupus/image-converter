@@ -48,4 +48,25 @@ describe("UploadStep", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/unsupported/i);
     expect(screen.getByText("current step: upload")).toBeInTheDocument();
   });
+
+  it("test_uploadStep_duringDecode_dropzoneDisabledAndBusy", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    const input = screen.getByLabelText("Choose file", { selector: "input" });
+    const uploadPromise = user.upload(input, loadFixture("sample.png", "image/png"));
+
+    // `handleFile` sets the "decoding" status synchronously before the real
+    // async decode work runs, so the dropzone should briefly reflect it —
+    // guarding against a concurrent second drop/pick racing the first decode.
+    await waitFor(() => {
+      const dropzone = screen.getByRole("button", { name: /decoding/i });
+      expect(dropzone).toBeDisabled();
+      expect(dropzone).toHaveAttribute("aria-busy", "true");
+    });
+    expect(input).toBeDisabled();
+
+    await uploadPromise;
+    await waitFor(() => expect(screen.getByText("current step: edit")).toBeInTheDocument());
+  });
 });

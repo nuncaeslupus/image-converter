@@ -57,7 +57,10 @@ describe("EditStep", () => {
     render(<Harness image={image} />);
 
     expect(screen.getByRole("toolbar", { name: "Image editing tools" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /crop/i })).toBeInTheDocument();
+    // Exact name: crop handles are now `role="button"` too (see the a11y
+    // fix in Editor.tsx), so a loose /crop/i match would also catch those
+    // and the 4 corner handles, making this ambiguous.
+    expect(screen.getByRole("button", { name: "Apply crop" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rotate left/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /rotate right/i })).toBeInTheDocument();
     // Resize was removed (SVG output is resized at Export); undo/redo/reset added.

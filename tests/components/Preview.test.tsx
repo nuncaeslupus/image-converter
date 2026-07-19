@@ -21,8 +21,12 @@ describe("Preview", () => {
     const button = screen.getByRole("button", { name: /hold to see original/i });
     fireEvent.pointerDown(button);
 
-    expect(screen.queryByTestId("traced-marker")).not.toBeInTheDocument();
+    // The traced SVG div stays mounted (T17: the compare canvas is drawn
+    // once and just toggles visibility), so assert on visibility rather than
+    // presence in the document.
+    expect(screen.getByTestId("preview-traced")).not.toBeVisible();
     const canvas = screen.getByTestId("preview-original") as HTMLCanvasElement;
+    expect(canvas).toBeVisible();
     const pixel = canvas.getContext("2d")!.getImageData(0, 0, 1, 1).data;
     expect(Array.from(pixel)).toEqual([0, 0, 255, 255]);
   });
@@ -35,7 +39,35 @@ describe("Preview", () => {
     fireEvent.pointerDown(button);
     fireEvent.pointerUp(button);
 
-    expect(screen.queryByTestId("preview-original")).not.toBeInTheDocument();
-    expect(screen.getByTestId("traced-marker")).toBeInTheDocument();
+    expect(screen.getByTestId("preview-original")).not.toBeVisible();
+    expect(screen.getByTestId("traced-marker")).toBeVisible();
+  });
+
+  it("test_previewCompare_spaceKeyHeld_showsOriginalUntilKeyUp", async () => {
+    const originalImage = await makeOriginalImage();
+    render(<Preview title="Trace & Tweak" originalImage={originalImage} tracedSvg={TRACED_SVG} />);
+
+    const button = screen.getByRole("button", { name: /hold to see original/i });
+    fireEvent.keyDown(button, { key: " " });
+
+    expect(screen.getByTestId("preview-original")).toBeVisible();
+
+    fireEvent.keyUp(button, { key: " " });
+
+    expect(screen.getByTestId("preview-original")).not.toBeVisible();
+    expect(screen.getByTestId("traced-marker")).toBeVisible();
+  });
+
+  it("test_previewCompare_blurWhileHeld_revertsToTraced", async () => {
+    const originalImage = await makeOriginalImage();
+    render(<Preview title="Trace & Tweak" originalImage={originalImage} tracedSvg={TRACED_SVG} />);
+
+    const button = screen.getByRole("button", { name: /hold to see original/i });
+    fireEvent.keyDown(button, { key: "Enter" });
+    expect(screen.getByTestId("preview-original")).toBeVisible();
+
+    fireEvent.blur(button);
+
+    expect(screen.getByTestId("preview-original")).not.toBeVisible();
   });
 });

@@ -91,13 +91,25 @@ if (typeof globalThis.createImageBitmap !== "function") {
       throw new DOMException("Failed to decode image: no dimensions found", "InvalidStateError");
     }
 
-    return {
+    const bitmap = {
       width: dimensions.width,
       height: dimensions.height,
       close() {
         /* no-op: test-environment shim holds no real GPU/bitmap resource */
       },
     } as ImageBitmap;
+    // `image-size` only recovers header dimensions, not real pixels — but any
+    // component that draws this bitmap into a canvas (e.g. UploadStep's
+    // thumbnail preview) still needs *some* recorded pixel data for the fake
+    // 2D context below to draw from, or its `drawImage()` throws. A flat
+    // mid-gray fill is enough: nothing in these tests asserts real photo
+    // pixel content, only that the draw completes and sizes correctly.
+    FAKE_BITMAP_PIXELS.set(bitmap, {
+      width: dimensions.width,
+      height: dimensions.height,
+      data: new Uint8ClampedArray(dimensions.width * dimensions.height * 4).fill(128),
+    });
+    return bitmap;
   }) as typeof createImageBitmap;
 }
 

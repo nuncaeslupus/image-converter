@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import styles from "./Preview.module.css";
 
 export interface PreviewProps {
@@ -23,18 +23,48 @@ export interface PreviewProps {
  * button swaps to the source raster (pointer down) and reverts on release —
  * per status/specification.md Goals' "hold to see original" toggle.
  */
+// Long-edge cap for the compare canvas's backing store — a preview box never
+// shows more detail than this, so a full-resolution draw (~96MB of pixels for
+// a 24MP photo) would just be wasted memory. Matches the approach UploadStep's
+// thumbnail uses.
+const MAX_COMPARE_EDGE = 1024;
+
 export function Preview({ title, tracedSvg, originalImage, caption }: PreviewProps) {
   const [showOriginal, setShowOriginal] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Keyed on `originalImage` only (not `showOriginal`) — the canvas is drawn
+  // once per image and just toggles visibility afterwards, so repeatedly
+  // pressing "hold to see original" never re-draws or re-allocates it.
   useEffect(() => {
-    if (!showOriginal || !originalImage) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = originalImage.width;
-    canvas.height = originalImage.height;
-    canvas.getContext("2d")?.drawImage(originalImage, 0, 0);
-  }, [showOriginal, originalImage]);
+    if (!canvas || !originalImage) return;
+    const scale = Math.min(
+      1,
+      MAX_COMPARE_EDGE / Math.max(originalImage.width, originalImage.height),
+    );
+    canvas.width = Math.max(1, Math.round(originalImage.width * scale));
+    canvas.height = Math.max(1, Math.round(originalImage.height * scale));
+    canvas.getContext("2d")?.drawImage(originalImage, 0, 0, canvas.width, canvas.height);
+  }, [originalImage]);
+
+  // Space/Enter mirrors the pointer hold: press-and-hold reveals the
+  // original, release (or losing focus mid-hold) reverts to the trace.
+  // `repeat` is guarded so OS key-repeat doesn't spam state updates.
+  function handleKeyDown(event: JSX.TargetedKeyboardEvent<HTMLButtonElement>) {
+    if (event.repeat) return;
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      setShowOriginal(true);
+    }
+  }
+  function handleKeyUp(event: JSX.TargetedKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === " " || event.key === "Enter") {
+      setShowOriginal(false);
+    }
+  }
+
+  const showingOriginal = showOriginal && !!originalImage;
 
   return (
     <div className={styles.panel}>
@@ -45,9 +75,13 @@ export function Preview({ title, tracedSvg, originalImage, caption }: PreviewPro
             type="button"
             className={styles.compareButton}
             aria-pressed={showOriginal}
+            title="Press and hold (or Space/Enter) to reveal the original image"
             onPointerDown={() => setShowOriginal(true)}
             onPointerUp={() => setShowOriginal(false)}
             onPointerLeave={() => setShowOriginal(false)}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onBlur={() => setShowOriginal(false)}
           >
             Hold to see original
           </button>
@@ -55,16 +89,25 @@ export function Preview({ title, tracedSvg, originalImage, caption }: PreviewPro
       </div>
 
       <div className={styles.box}>
-        {showOriginal && originalImage ? (
-          <canvas ref={canvasRef} className={styles.canvas} data-testid="preview-original" />
-        ) : (
-          // svg is our own worker's trace output, not user-supplied markup.
-          <div
-            className={styles.svg}
-            data-testid="preview-traced"
-            dangerouslySetInnerHTML={{ __html: tracedSvg }}
+        {originalImage && (
+          <canvas
+            ref={canvasRef}
+            className={styles.canvas}
+            data-testid="preview-original"
+            hidden={!showingOriginal}
+            role="img"
+            aria-label="Original image"
           />
         )}
+        {/* svg is our own worker's trace output, not user-supplied markup. */}
+        <div
+          className={styles.svg}
+          data-testid="preview-traced"
+          hidden={showingOriginal}
+          role="img"
+          aria-label="Traced SVG preview"
+          dangerouslySetInnerHTML={{ __html: tracedSvg }}
+        />
       </div>
 
       {caption && <span className={`${styles.caption} mono`}>{caption}</span>}

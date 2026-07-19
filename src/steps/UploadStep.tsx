@@ -23,9 +23,16 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const thumbRef = useRef<HTMLCanvasElement>(null);
   const image = wizard.image;
+  const isDecoding = status.kind === "decoding";
+  // Guards re-entrant decodes (e.g. a drop on the dropzone bubbling to the
+  // window-level drop handler below) independent of React's state timing —
+  // checked/set synchronously at call time, not via a possibly-stale closure.
+  const decodingRef = useRef(false);
 
   const handleFile = useCallback(
     async (file: File) => {
+      if (decodingRef.current) return;
+      decodingRef.current = true;
       setStatus({ kind: "decoding", fileName: file.name });
       try {
         const bitmap = await decodeImage(file);
@@ -40,10 +47,29 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
             ? err.message
             : "Something went wrong reading that file. Please try again.";
         setStatus({ kind: "error", message });
+      } finally {
+        decodingRef.current = false;
       }
     },
     [wizard],
   );
+
+  // A file dropped anywhere on the window — not just the dropzone tile —
+  // should still be picked up, as long as we're not already showing an image
+  // or mid-decode. The dropzone's own onDrop (below) stops propagation, so
+  // this only fires for drops elsewhere in the window.
+  useEffect(() => {
+    if (image || isDecoding) return;
+    function onWindowDrop(event: DragEvent) {
+      const file = event.dataTransfer?.files?.[0];
+      if (file) {
+        event.preventDefault();
+        void handleFile(file);
+      }
+    }
+    window.addEventListener("drop", onWindowDrop);
+    return () => window.removeEventListener("drop", onWindowDrop);
+  }, [image, isDecoding, handleFile]);
 
   // Draw the loaded image into the thumbnail canvas whenever it changes. The
   // canvas backing store is capped (a full-res draw of a 24MP photo would
@@ -69,7 +95,11 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
   const handleDrop = (event: JSX.TargetedDragEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    // Keep this drop from also reaching the window-level fallback listener
+    // above, which would otherwise decode the same file a second time.
+    event.stopPropagation();
     setIsDragOver(false);
+    if (isDecoding) return;
     const file = event.dataTransfer?.files?.[0];
     if (file) {
       void handleFile(file);
@@ -78,7 +108,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
   const handleDragOver = (event: JSX.TargetedDragEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    setIsDragOver(true);
+    if (!isDecoding) setIsDragOver(true);
   };
 
   const handleDragLeave = () => setIsDragOver(false);
@@ -102,7 +132,13 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
       {image ? (
         <div className={styles.ready}>
           <div className={styles.thumbWrap}>
-            <canvas ref={thumbRef} className={styles.thumb} data-testid="upload-thumb" />
+            <canvas
+              ref={thumbRef}
+              className={styles.thumb}
+              data-testid="upload-thumb"
+              role="img"
+              aria-label="Uploaded image preview"
+            />
             <button
               type="button"
               className={styles.remove}
@@ -131,18 +167,26 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         <button
           type="button"
           className={styles.dropzone}
-          onClick={() => inputRef.current?.click()}
+          onClick={() => !isDecoding && inputRef.current?.click()}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           data-drag-over={isDragOver || undefined}
+          disabled={isDecoding}
+          aria-busy={isDecoding}
         >
           <span className={styles.tile}>
             <UploadTrayIcon size={28} />
           </span>
           <span>
             <span className={styles.cta}>
-              Drop an image here, or <span>browse</span>
+              {status.kind === "decoding" ? (
+                `Decoding ${status.fileName}…`
+              ) : (
+                <>
+                  Drop an image here, or <span>browse</span>
+                </>
+              )}
             </span>
             <span className={styles.formats}>
               PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
@@ -158,6 +202,8 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         aria-label="Choose file"
         accept={SUPPORTED_IMAGE_MIME_TYPES.join(",")}
         onChange={handleInputChange}
+        tabIndex={-1}
+        disabled={isDecoding}
       />
 
       <div className={styles.privacy}>
