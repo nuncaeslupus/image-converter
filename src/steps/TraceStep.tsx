@@ -244,6 +244,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
               tracedSvg={tracedSvg}
               originalImage={image}
               caption={caption}
+              busy={busy}
             />
           ) : (
             <div className={styles.loading} role={error ? "alert" : "status"}>
@@ -273,11 +274,6 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
           />
         </div>
       </div>
-      {tracedSvg && busy && (
-        <p className={styles.retracing} role="status">
-          Retracing…
-        </p>
-      )}
       {tracedSvg && error && (
         <p className={styles.error} role="alert">
           {error}

@@ -14,7 +14,6 @@
 .header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -24,6 +23,76 @@
   color: var(--fg);
   margin: 0;
   letter-spacing: -0.01em;
+}
+
+/* Zoom widget takes the middle of the header and centers itself between the
+   title (left) and the compare button (right). */
+.zoomRow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.zoomGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+  background: var(--surface-2);
+}
+.zoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+.zoomButton :global(svg) {
+  font-size: 17px;
+}
+.zoomButton:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.zoomButton:disabled {
+  color: var(--fg-3);
+  cursor: not-allowed;
+}
+.zoomLabel {
+  min-width: 42px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--fg-2);
+}
+/* Subtle badge when the view is exactly at Fit (100%). */
+.zoomAtFit {
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border-radius: 6px;
+}
+.fitButton {
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 11px;
+  cursor: pointer;
+}
+.fitButton:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+.fitButton:disabled {
+  color: var(--fg-3);
+  cursor: not-allowed;
 }
 
 .compareButton {
@@ -46,6 +115,7 @@
 }
 
 .box {
+  position: relative;
   flex: 1;
   min-height: 200px;
   border-radius: 12px;
@@ -54,6 +124,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+}
+/* Grab cursor only while zoomed in (panning is possible). */
+.boxPannable {
+  cursor: grab;
+}
+.boxPannable:active {
+  cursor: grabbing;
+}
+
+/* Zoom/pan wrapper — holds both the trace and the compare canvas so they share
+   one transform and stay aligned when toggling the compare. */
+.view {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  transform-origin: center center;
 }
 
 /* Both fill the box and scale their content to a contain-fit (up or down),
@@ -88,6 +177,35 @@
 .svg[hidden],
 .canvas[hidden] {
   display: none;
+}
+
+/* Centered spinner shown while a retrace is in flight — an overlay inside the
+   preview box, so it never changes the layout or resizes the image. */
+.spinnerOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: preview-spin 0.7s linear infinite;
+}
+@keyframes preview-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
 }
 
 .caption {
