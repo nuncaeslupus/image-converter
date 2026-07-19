@@ -3,10 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- %BASE_URL% so icons resolve under the GitHub Pages sub-path (base "/image-converter/") too. -->
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%pwa-192x192.png" />
+    <link rel="apple-touch-icon" href="%BASE_URL%pwa-192x192.png" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e2e7ef" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101417" />
     <title>Halftone — raster to SVG converter</title>
     <meta
       name="description"
       content="Free, browser-based raster-to-SVG converter. Runs entirely client-side — your images never leave your device."
+    />
+
+    <!-- Open Graph / Twitter. og:url and image URLs must be ABSOLUTE (crawlers
+         don't resolve relative paths), so the deploy origin is hardcoded here —
+         update it if the site moves off github.io/image-converter/. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Halftone" />
+    <meta property="og:title" content="Halftone — raster to SVG converter" />
+    <meta
+      property="og:description"
+      content="Free, browser-based raster-to-SVG converter. Runs entirely client-side — your images never leave your device."
+    />
+    <meta property="og:url" content="https://nuncaeslupus.github.io/image-converter/" />
+    <meta
+      property="og:image"
+      content="https://nuncaeslupus.github.io/image-converter/og-image.png"
+    />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Halftone — raster images to clean SVG, right in your browser"
+    />
+    <meta property="og:locale" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Halftone — raster to SVG converter" />
+    <meta
+      name="twitter:description"
+      content="Free, browser-based raster-to-SVG converter. Your images never leave your device."
+    />
+    <meta
+      name="twitter:image"
+      content="https://nuncaeslupus.github.io/image-converter/og-image.png"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="Halftone — raster images to clean SVG, right in your browser"
     />
   </head>
   <body>
