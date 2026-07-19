@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { Wizard } from "../lib/wizard";
 import { decodeImage, ImageDecodeError, SUPPORTED_IMAGE_MIME_TYPES } from "../lib/imageDecode";
-import { LockIcon, ReplaceIcon, UploadTrayIcon, XIcon } from "../components/shellIcons";
+import { ReplaceIcon, UploadTrayIcon, XIcon } from "../components/shellIcons";
 import styles from "./UploadStep.module.css";
 
 type Status =
@@ -221,11 +221,6 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         tabIndex={-1}
         disabled={isDecoding}
       />
-
-      <div className={styles.privacy}>
-        <LockIcon />
-        Processed 100% on your device
-      </div>
 
       {status.kind === "decoding" && (
         <p className={styles.status} role="status">

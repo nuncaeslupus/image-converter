@@ -1,35 +1,63 @@
+/* Two-column layout mirroring Trace/Export: the image stage fills the left
+   column at full card height; all tools live in the fixed-width right column,
+   so the stage is as tall as possible and the unapplied-crop hint (in the
+   sidebar) never reflows/shrinks the image. */
 .editor {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  gap: 22px;
   min-height: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  min-width: 0;
 }
 
-/* The stage has no min-height of its own (it shrinks freely via
-   flex:1/min-height:0), so on short viewports the fixed-height toolbar +
-   controls can squeeze it to an unusably tiny — or invisible — sliver
-   instead of visibly overflowing. Floor the stage and let `.editor` scroll
-   internally so nothing is fully clipped or squashed away. */
+.sidebar {
+  flex: 0 0 340px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* Stack on narrow viewports (matches Trace): the whole editor scrolls and the
+   stage keeps a usable floor instead of collapsing under the controls. */
 @media (max-width: 720px) {
   .editor {
+    flex-direction: column;
     overflow-y: auto;
+  }
+  .sidebar {
+    flex: none;
+    width: auto;
+    /* When stacked, `.editor` is the scroll container; keep the sidebar from
+       being a second nested scroll region (janky on touch). */
+    overflow-y: visible;
   }
   .stage {
     min-height: 200px;
   }
 }
 
+/* Utility toolbar: history row + zoom row, one roving-tabindex group. */
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  align-items: center;
   flex: 0 0 auto;
+}
+
+.toolRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rowLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
 }
 
 .toolButton {
@@ -69,10 +97,6 @@
   font-size: 13px;
 }
 
-.spacer {
-  flex: 1 1 auto;
-}
-
 /* Non-blocking reminder that a crop/rotation is staged but not yet applied —
    Apply is a manual step (see `applyCrop`/`applyAngle`), so this is the only
    cue that leaving the step now silently discards it. */
@@ -83,7 +107,7 @@
   color: var(--accent-fg);
 }
 
-/* ---- zoom control (centered in the toolbar) ---- */
+/* ---- zoom control ---- */
 .zoomGroup {
   display: inline-flex;
   align-items: center;
@@ -124,12 +148,13 @@
   color: var(--fg-2);
 }
 
-/* Constant-size stage: fills the space between the toolbar and the (fixed)
-   controls panel with a neutral colour. Transforms on the frame don't change
-   layout, so zooming/rotating never resizes it. */
+/* Left-column stage: fills the space beside the controls sidebar with a
+   neutral colour. Transforms on the frame don't change layout, so
+   zooming/rotating never resizes it. */
 .stage {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,8 +230,8 @@
   outline-offset: 2px;
 }
 
-/* Fixed controls panel — always present so the card never resizes. */
-.controls {
+/* Rotate / Crop cards — each groups one concern into its own labelled panel. */
+.card {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -217,11 +242,28 @@
   background: var(--surface-2);
 }
 
-.rotateHead {
+.cardHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* The two 90° buttons share the row equally, sat directly above the fine
+   rotation slider so all rotation lives in one place. */
+.rotateButtons {
+  display: flex;
+  gap: 8px;
+}
+.rotateButtons button {
+  flex: 1;
+  justify-content: center;
+}
+
+.cropHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--fg-3);
 }
 
 .sliderWrap {
