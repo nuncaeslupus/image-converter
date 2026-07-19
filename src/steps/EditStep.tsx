@@ -30,7 +30,7 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
 
   return (
     <section className={styles.root}>
-      <Editor image={current} originalImage={original} onChange={wizard.setImage} />
+      <Editor image={current} onChange={wizard.setImage} />
     </section>
   );
 }

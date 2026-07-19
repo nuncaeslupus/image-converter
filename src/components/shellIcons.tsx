@@ -1,7 +1,6 @@
 /**
  * Inline Feather/Lucide-style icons for the app shell (logo, theme toggle,
- * privacy lock, stepper tool icons). Paths copied verbatim from the design
- * prototype `Halftone Wizard.dc.html`.
+ * privacy lock, stepper tool icons).
  */
 import type { JSX, ComponentChildren } from "preact";
 
@@ -116,17 +115,8 @@ export function TraceStepIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+/** Down-arrow-into-tray glyph — used for both the Export stepper node and the download button. */
 export function ExportStepIcon({ size = 20 }: { size?: number }) {
-  return (
-    <Stroke size={size}>
-      <path d="M12 4v12" />
-      <path d="M8 12l4 4 4-4" />
-      <path d="M4 20h16" />
-    </Stroke>
-  );
-}
-
-export function DownloadIcon({ size = 17 }: { size?: number }) {
   return (
     <Stroke size={size}>
       <path d="M12 4v12" />

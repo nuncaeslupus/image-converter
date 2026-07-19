@@ -9,16 +9,16 @@ palette / number of colors, level of detail, and straight vs. curved lines.
 
 ## Status
 
-Pre-specification. Agreed technical direction:
+Implemented and deployed to GitHub Pages, with PWA/offline support. **Halftone**
+walks through a 4-step wizard — Upload → Edit → Trace → Export:
 
-- **Tracer:** [VTracer](https://github.com/visioncortex/vtracer) (Rust → WASM) as
-  the primary engine; optional Potrace for clean black-and-white.
-- **Hosting:** 100% static site (GitHub / Cloudflare / Netlify Pages) — $0 backend.
+- **Tracer:** [VTracer](https://github.com/visioncortex/vtracer) (Rust → WASM),
+  running in a Web Worker so tracing never blocks the UI thread.
+- **Hosting:** 100% static site (GitHub Pages) — $0 backend.
 - **Fast tweaking:** two-tier pipeline — cheap SVG-only edits (background, fill,
-  scale) never retrace; only color/detail/curve changes re-run the tracer. Traced
-  results are cached by parameter set.
-- **Device-safe:** tracing runs in a Web Worker; a downscaled preview keeps
-  tweaking snappy on phones/tablets, full resolution only on export.
+  scale) never retrace; only color/detail/curve changes re-run the tracer.
+- **Device-safe:** traces run on a preview downscaled to a 512px long edge,
+  keeping tweaking snappy on phones/tablets.
 - Tracer sits behind a `bitmap → SVG` interface, leaving room for an AI tracer later.
 
 ## Development

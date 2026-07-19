@@ -6,7 +6,7 @@ import {
   downloadSvg,
   estimateSvg,
 } from "../../lib/svgExport";
-import { DownloadIcon, CopyIcon } from "../shellIcons";
+import { ExportStepIcon, CopyIcon } from "../shellIcons";
 import styles from "./Export.module.css";
 
 function formatBytes(bytes: number): string {
@@ -120,7 +120,7 @@ export function Export({ svg }: ExportProps) {
       </div>
 
       <button type="button" className={styles.primary} onClick={() => downloadSvg(effectiveSvg)}>
-        <DownloadIcon />
+        <ExportStepIcon size={17} />
         Download .svg
       </button>
       <button type="button" className={styles.secondary} onClick={() => void handleCopy()}>
