@@ -56,21 +56,29 @@
   justify-content: center;
 }
 
+/* Both fill the box and scale their content to a contain-fit (up or down),
+   preserving aspect ratio — small results fill the panel instead of sitting
+   tiny in the middle, large ones shrink to fit. The svg relies on its own
+   viewBox + default preserveAspectRatio="meet"; the raster canvas uses
+   object-fit. Kept identical so the hold-to-compare toggle doesn't jump size. */
+.svg,
+.canvas {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+}
 .svg {
-  display: flex;
-  max-width: 100%;
-  max-height: 100%;
+  display: block;
 }
 .svg :global(svg) {
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
+  width: 100%;
+  height: 100%;
 }
-
 .canvas {
-  max-width: 100%;
-  max-height: 100%;
-  height: auto;
+  object-fit: contain;
 }
 
 /* Both `.svg` (display:flex) and `.canvas` set their own `display`, which

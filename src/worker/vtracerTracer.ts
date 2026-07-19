@@ -10,7 +10,7 @@
  */
 import initWasm, { convert_rgba, type InitInput } from "../wasm/vtracer_wasm.js";
 import { translateParams } from "../lib/paramTranslation";
-import { countPaths } from "../lib/svgExport";
+import { countPaths, ensureViewBox } from "../lib/svgExport";
 import type { Tracer, TraceParams } from "../lib/traceProtocol";
 
 let initPromise: Promise<unknown> | null = null;
@@ -48,21 +48,25 @@ export async function traceRgba(
 ): Promise<{ svg: string; pathCount: number }> {
   await initVtracer();
   const c = translateParams(params);
-  const svg = convert_rgba(
-    rgba,
-    width,
-    height,
-    c.colorMode,
-    c.hierarchical,
-    c.mode,
-    c.filterSpeckle,
-    c.colorPrecision,
-    c.layerDifference,
-    c.cornerThreshold,
-    c.lengthThreshold,
-    c.spliceThreshold,
-    c.maxIterations,
-    c.pathPrecision,
+  // VTracer omits the viewBox; add it so the SVG scales (preview fit + a
+  // resolution-independent exported file).
+  const svg = ensureViewBox(
+    convert_rgba(
+      rgba,
+      width,
+      height,
+      c.colorMode,
+      c.hierarchical,
+      c.mode,
+      c.filterSpeckle,
+      c.colorPrecision,
+      c.layerDifference,
+      c.cornerThreshold,
+      c.lengthThreshold,
+      c.spliceThreshold,
+      c.maxIterations,
+      c.pathPrecision,
+    ),
   );
   return { svg, pathCount: countPaths(svg) };
 }

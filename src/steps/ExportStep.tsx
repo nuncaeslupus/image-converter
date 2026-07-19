@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
 import { Export } from "../components/Export/Export";
+import { svgDownloadName } from "../lib/svgExport";
 import { Preview } from "../components/Preview/Preview";
 import { DEFAULT_TWEAK_VALUES, applyBackground, toTraceParams } from "../lib/tweakPipeline";
 import { createTraceDispatcher, createTraceRequest, isTraceResponse } from "../lib/traceProtocol";
-import { needsFullResRetrace } from "../lib/previewDownscale";
+import {
+  downscaleForPreview,
+  needsFullResRetrace,
+  EXPORT_MAX_DIMENSION,
+} from "../lib/previewDownscale";
 import styles from "./ExportStep.module.css";
 
 const FULL_RES_FAILURE_NOTICE =
@@ -19,8 +24,9 @@ const FULL_RES_FAILURE_NOTICE =
  * geometry. On mount, this step runs ONE additional full-resolution trace of
  * `wizard.image` with the user's final tweak values so what actually gets
  * downloaded/copied matches the source resolution, not the 512px preview
- * cap. Skipped entirely when the source is already within that cap (the
- * preview trace already ran at full resolution). The preview SVG is shown
+ * cap (bounded by EXPORT_MAX_DIMENSION so an enormous source can't OOM the
+ * worker). Skipped entirely when the source is already within the preview cap
+ * (the preview trace already ran at full resolution). The preview SVG is shown
  * immediately and stays in use — with a small status line — until the
  * full-res trace finishes; on failure it's the permanent fallback.
  */
@@ -88,8 +94,13 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
         // Clone rather than transfer `wizard.image` itself — the worker
         // transfers (and closes) whatever bitmap it receives, and the wizard's
         // working image must stay usable afterwards (e.g. if the user goes
-        // Back to Trace/Edit again).
-        const bitmapCopy = await createImageBitmap(image);
+        // Back to Trace/Edit again). Capped at EXPORT_MAX_DIMENSION: a no-op for
+        // any realistic source (so the export stays full-resolution), but bounds
+        // the worker's RGBA allocation on a pathologically large image.
+        const bitmapCopy = await downscaleForPreview(
+          await createImageBitmap(image),
+          EXPORT_MAX_DIMENSION,
+        );
         if (cancelled) {
           bitmapCopy.close();
           return;
@@ -136,7 +147,7 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
         <Preview title="Your SVG is ready" tracedSvg={displaySvg} caption={statusCaption} />
       </div>
       <div className={styles.controls}>
-        <Export svg={displaySvg} />
+        <Export svg={displaySvg} defaultFileName={svgDownloadName(wizard.fileName)} />
       </div>
     </section>
   );

@@ -4,7 +4,9 @@ import {
   countPaths,
   createSvgBlob,
   copySvgToClipboard,
+  ensureViewBox,
   estimateSvg,
+  svgDownloadName,
 } from "../../src/lib/svgExport";
 
 const SAMPLE_SVG =
@@ -56,6 +58,31 @@ describe("svgExport", () => {
 
   it("test_countPaths_noPaths_returnsZero", () => {
     expect(countPaths('<svg xmlns="http://www.w3.org/2000/svg"></svg>')).toBe(0);
+  });
+
+  it("test_svgDownloadName_swapsExtensionOrFallsBack", () => {
+    expect(svgDownloadName("logo.png")).toBe("logo.svg");
+    expect(svgDownloadName("photo.final.jpeg")).toBe("photo.final.svg");
+    expect(svgDownloadName("noext")).toBe("noext.svg");
+    expect(svgDownloadName(null)).toBe("image.svg");
+    expect(svgDownloadName("")).toBe("image.svg");
+    expect(svgDownloadName(".hidden")).toBe("image.svg");
+  });
+
+  it("test_ensureViewBox_addsFromWidthHeightAndIsIdempotent", () => {
+    const noVb =
+      '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="300" height="200"><path/></svg>';
+    const withVb = ensureViewBox(noVb);
+    expect(withVb).toContain('viewBox="0 0 300 200"');
+    // Already-present viewBox and missing dimensions are both no-ops.
+    expect(ensureViewBox(withVb)).toBe(withVb);
+    expect(ensureViewBox("<svg><path/></svg>")).toBe("<svg><path/></svg>");
+  });
+
+  it("test_applyViewBoxOverride_valueWithDollarSign_insertsLiterally", () => {
+    // A `$&`/`$1` in the value must not be treated as a String.replace pattern.
+    const out = applyViewBoxOverride(SAMPLE_SVG, { viewBox: "0 0 $& 5" });
+    expect(out).toContain('viewBox="0 0 $& 5"');
   });
 
   it("test_estimateSvg_selfClosingPath_agreesWithCountPaths", () => {

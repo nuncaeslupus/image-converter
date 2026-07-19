@@ -14,10 +14,33 @@ export interface ViewBoxOverride {
 
 function setAttr(openTag: string, name: string, value: string): string {
   const attrRegex = new RegExp(`\\s${name}="[^"]*"`);
+  // Function replacers so a `$`/`$&`/`$1` in `value` is inserted verbatim, not
+  // interpreted as a String.replace substitution pattern (a viewBox override
+  // string could contain one and corrupt the tag otherwise).
   if (attrRegex.test(openTag)) {
-    return openTag.replace(attrRegex, ` ${name}="${value}"`);
+    return openTag.replace(attrRegex, () => ` ${name}="${value}"`);
   }
-  return openTag.replace(/^<svg/, `<svg ${name}="${value}"`);
+  return openTag.replace(/^<svg/, () => `<svg ${name}="${value}"`);
+}
+
+/**
+ * Ensures the root `<svg>` carries a `viewBox`. VTracer emits `width`/`height`
+ * but no `viewBox`, and without one an SVG can't scale — the content stays
+ * pinned to its intrinsic pixel size no matter how large the container (the
+ * preview can't fit it, and downstream consumers can't rescale the exported
+ * file). Derives `0 0 W H` from the existing width/height; a no-op when a
+ * viewBox is already present or width/height are missing.
+ */
+export function ensureViewBox(svg: string): string {
+  const match = /<svg[^>]*>/.exec(svg);
+  if (!match) return svg;
+  const openTag = match[0];
+  if (/\sviewBox="/.test(openTag)) return svg;
+  const width = /\swidth="([\d.]+)"/.exec(openTag)?.[1];
+  const height = /\sheight="([\d.]+)"/.exec(openTag)?.[1];
+  if (!width || !height) return svg;
+  const withViewBox = openTag.replace(/^<svg/, () => `<svg viewBox="0 0 ${width} ${height}"`);
+  return svg.slice(0, match.index) + withViewBox + svg.slice(match.index + openTag.length);
 }
 
 /** Rewrites width/height/viewBox on the root `<svg>` tag. Pure string edit — no worker call. */
@@ -29,6 +52,17 @@ export function applyViewBoxOverride(svg: string, override: ViewBoxOverride): st
   if (override.width !== undefined) openTag = setAttr(openTag, "width", String(override.width));
   if (override.height !== undefined) openTag = setAttr(openTag, "height", String(override.height));
   return svg.slice(0, match.index) + openTag + svg.slice(match.index + match[0].length);
+}
+
+/**
+ * Default download name for an export: the source's base name with its
+ * extension swapped for `.svg` (e.g. "logo.png" -> "logo.svg"), or "image.svg"
+ * when there's no source name to derive from.
+ */
+export function svgDownloadName(sourceName: string | null): string {
+  if (!sourceName) return "image.svg";
+  const base = sourceName.replace(/\.[^./\\]+$/, "").trim();
+  return `${base || "image"}.svg`;
 }
 
 /** Downloadable Blob for the current SVG markup. */

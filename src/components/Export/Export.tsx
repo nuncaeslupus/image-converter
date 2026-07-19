@@ -33,6 +33,8 @@ const COPY_FEEDBACK_MS = 1500;
 export interface ExportProps {
   /** The current traced SVG markup (status/plan.md "Data flow" step 8). */
   svg: string;
+  /** Pre-filled download name (source name with a `.svg` extension). */
+  defaultFileName: string;
 }
 
 /**
@@ -68,7 +70,13 @@ function intrinsicSize(svg: string): { width: string; height: string; viewBox: s
  * rewrite (`applyViewBoxOverride`) applied on every render — never a tracer
  * call — so it's reflected instantly in the estimate, download, and copy.
  */
-export function Export({ svg }: ExportProps) {
+export function Export({ svg, defaultFileName }: ExportProps) {
+  // Pre-fill the download name from the source; re-seed if the default changes
+  // (new source while mounted). A blank field falls back to the default, and a
+  // `.svg` extension is enforced at download time.
+  const [fileName, setFileName] = useState(defaultFileName);
+  useEffect(() => setFileName(defaultFileName), [defaultFileName]);
+
   // DOMParser + a viewBox regex/TextEncoder pass over potentially hundreds
   // of KB of markup — memoized so it only reruns when its actual inputs
   // change, not on every render/keystroke (finding: recomputes heavy work
@@ -145,11 +153,30 @@ export function Export({ svg }: ExportProps) {
     if (!isInvalidSize(value)) setLastValidHeight(value);
   }
 
+  function handleDownload() {
+    const name = fileName.trim() || defaultFileName;
+    downloadSvg(effectiveSvg, /\.svg$/i.test(name) ? name : `${name}.svg`);
+  }
+
   const copyLabel =
     copyState === "copied" ? "Copied!" : copyState === "failed" ? "Copy failed" : "Copy SVG markup";
 
   return (
     <div className={styles.export}>
+      <div>
+        <div className={styles.label}>File name</div>
+        <label className={styles.field}>
+          <input
+            type="text"
+            className="mono"
+            value={fileName}
+            aria-label="Download file name"
+            spellcheck={false}
+            onInput={(event) => setFileName(event.currentTarget.value)}
+          />
+        </label>
+      </div>
+
       <div>
         <div className={styles.label}>Output size</div>
         <div className={styles.sizeRow}>
@@ -203,7 +230,7 @@ export function Export({ svg }: ExportProps) {
         </div>
       </div>
 
-      <button type="button" className={styles.primary} onClick={() => downloadSvg(effectiveSvg)}>
+      <button type="button" className={styles.primary} onClick={handleDownload}>
         <ExportStepIcon size={17} />
         Download .svg
       </button>
