@@ -1,16 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">
-  <!-- Mirrors the in-app LogoMark; accent tracks the light/dark theme like the app does. -->
+  <!-- Mirrors the in-app LogoMark; accent tracks the light/dark theme like the
+       app does. The presentation fill on <g> is the fallback for renderers that
+       strip/ignore <style> (some image pipelines, feed readers); CSS overrides
+       it for theme adaptation where styles are evaluated. -->
   <style>
-    circle { fill: #0e8f86; }
-    @media (prefers-color-scheme: dark) { circle { fill: #34c9bb; } }
+    g { fill: #0e8f86; }
+    @media (prefers-color-scheme: dark) { g { fill: #34c9bb; } }
   </style>
-  <circle cx="20" cy="20" r="5" />
-  <circle cx="20" cy="7" r="2.6" />
-  <circle cx="20" cy="33" r="2.6" />
-  <circle cx="7" cy="20" r="2.6" />
-  <circle cx="33" cy="20" r="2.6" />
-  <circle cx="11" cy="11" r="1.8" />
-  <circle cx="29" cy="11" r="1.8" />
-  <circle cx="11" cy="29" r="1.8" />
-  <circle cx="29" cy="29" r="1.8" />
+  <g fill="#0e8f86">
+    <circle cx="20" cy="20" r="5" />
+    <circle cx="20" cy="7" r="2.6" />
+    <circle cx="20" cy="33" r="2.6" />
+    <circle cx="7" cy="20" r="2.6" />
+    <circle cx="33" cy="20" r="2.6" />
+    <circle cx="11" cy="11" r="1.8" />
+    <circle cx="29" cy="11" r="1.8" />
+    <circle cx="11" cy="29" r="1.8" />
+    <circle cx="29" cy="29" r="1.8" />
+  </g>
 </svg>
