@@ -24,35 +24,73 @@
   color: var(--fg);
 }
 
-.chipRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.hint {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--fg-3);
 }
 
-.chip {
+.paletteList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paletteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font: inherit;
   font-size: 13px;
-  padding: 6px 11px;
+  padding: 7px 10px;
   border-radius: 9px;
   cursor: pointer;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--fg-2);
+  text-align: left;
   transition:
     background 0.15s,
     border-color 0.15s,
     color 0.15s;
 }
-.chip[aria-pressed="true"] {
+.paletteRow[aria-checked="true"] {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-fg);
   font-weight: 600;
 }
-.chip:focus-visible {
+.paletteRow:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+.paletteName {
+  white-space: nowrap;
+}
+
+.paletteAuto {
+  font-size: 11.5px;
+  color: var(--fg-3);
+  font-weight: 400;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-end;
+  min-height: 14px;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  /* A hairline so light/near-white swatches stay visible on the surface. */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
 }
 
 .slider {

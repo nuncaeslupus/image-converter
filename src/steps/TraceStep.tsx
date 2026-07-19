@@ -18,11 +18,44 @@ import {
 } from "../lib/traceProtocol";
 import { downscaleForPreview } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
+import { medianCutPalette, rgbToHex } from "../lib/quantize";
 import { estimateSvg, countPaths } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
+
+// The color counts that get a swatch preview (B&W and Auto render their own
+// label instead). Kept in sync with PALETTE_OPTIONS in TweakPanel.
+const PREVIEW_COUNTS = [2, 3, 4, 6, 8, 12, 16] as const;
+
+/**
+ * Samples the image down to a small RGBA buffer and derives each palette
+ * option's real colors via median cut — the same algorithm the worker uses to
+ * quantize before tracing, so the swatches match the rendered result closely.
+ * Cheap (palette only, no trace) and computed once per baked image. Returns
+ * `undefined` where there's no canvas (jsdom) so the panel just omits swatches.
+ */
+function computePalettePreviews(bitmap: ImageBitmap): Record<string, string[]> | undefined {
+  const CAP = 64;
+  const scale = Math.min(1, CAP / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  try {
+    const canvas = new OffscreenCanvas(w, h);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const rgba = new Uint8Array(ctx.getImageData(0, 0, w, h).data.buffer);
+    const previews: Record<string, string[]> = {};
+    for (const n of PREVIEW_COUNTS) {
+      previews[String(n)] = medianCutPalette(rgba, n).map(rgbToHex);
+    }
+    return previews;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Wizard step 3 — the live tweak panel driving the two-tier retrace/
@@ -59,6 +92,15 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   // The image to trace is the source with Edit's crop/rotate baked in — a
   // fresh upright bitmap, re-baked when the source or transform changes.
   const image = useBakedImage(wizard.image, wizard.transform);
+
+  // Real per-palette swatches for the Colors control, sampled from the current
+  // baked image (recomputed only when it changes).
+  const [palettePreviews, setPalettePreviews] = useState<Record<string, string[]> | undefined>(
+    undefined,
+  );
+  useEffect(() => {
+    setPalettePreviews(image ? computePalettePreviews(image) : undefined);
+  }, [image]);
 
   // Publish the current traced SVG up to the wizard so ExportStep (T9) reads
   // it. Only publish real results — the initial local state is seeded from
@@ -220,7 +262,12 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         </div>
 
         <div className={styles.controls}>
-          <TweakPanel values={values} onChange={handleChange} busy={busy} />
+          <TweakPanel
+            values={values}
+            onChange={handleChange}
+            busy={busy}
+            palettePreviews={palettePreviews}
+          />
         </div>
       </div>
       {tracedSvg && busy && (

@@ -56,16 +56,17 @@ function clampRound(value: number, [min, max]: readonly [number, number]): numbe
 export function translateParams(params: TraceParams): VtracerConfig {
   const { paletteSize, smoothness, detail, contrast } = params;
 
-  // paletteSize (colors) -> colorPrecision (bits/channel). "auto" keeps
-  // VTracer's default of 6 bits.
-  // ponytail: colorPrecision is bits/channel, not a hard color count — VTracer
-  // has no "exactly N colors" knob, so this is a coarse richness scale, not a
-  // literal palette cap. Upgrade path: pre-quantize the RGBA to N colors before
-  // tracing if a true palette-size guarantee is ever needed.
-  const colorPrecision =
-    paletteSize === "auto"
-      ? 6
-      : clampRound(Math.log2(Math.max(1, paletteSize)), VTRACER_RANGES.colorPrecision);
+  // paletteSize is now a LITERAL color count enforced by pre-quantizing the
+  // RGBA before the trace (see lib/quantize.ts + traceRgba), not a VTracer
+  // knob. This function only reflects that upstream choice into colorMode /
+  // colorPrecision:
+  //   1     -> binary mode: one thresholded black silhouette (the B&W case).
+  //   >= 2  -> color mode at max precision (8), so VTracer preserves the
+  //            already-reduced N-color palette instead of merging it further.
+  //   auto  -> color mode at VTracer's default 6 bits, no pre-quantization.
+  const isBinary = paletteSize === 1;
+  const colorMode = isBinary ? "binary" : "color";
+  const colorPrecision = paletteSize === "auto" ? 6 : isBinary ? 6 : 8;
 
   // Higher detail keeps smaller specks (lower filter) and finer coordinates.
   const filterSpeckle = clampRound(((100 - detail) / 100) * 16, VTRACER_RANGES.filterSpeckle);
@@ -79,7 +80,7 @@ export function translateParams(params: TraceParams): VtracerConfig {
   const layerDifference = clampRound(16 - (contrast / 100) * 16, VTRACER_RANGES.layerDifference);
 
   return {
-    colorMode: "color",
+    colorMode,
     hierarchical: "stacked",
     mode: "spline",
     colorPrecision,

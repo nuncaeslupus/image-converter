@@ -4,12 +4,18 @@ import type { PaletteSize } from "../../lib/traceProtocol";
 import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import styles from "./TweakPanel.module.css";
 
-// Palette presets + Auto. Powers of two because paletteSize maps to VTracer's
-// colorPrecision via log2 (see lib/paramTranslation.ts): the old [1,2,3,4,8,16]
-// set collapsed onto duplicate precisions (1&2 → 1 bit, 3&4 → 2 bits), so
-// clicking "3" then "4" produced byte-identical output. These six each map to a
-// distinct precision (1–6 bits/channel), so every chip does something.
-const PALETTE_PRESETS: (PaletteSize | "auto")[] = [2, 4, 8, 16, 32, 64, "auto"];
+// Literal color counts, low-dense (posterization is most expressive at the low
+// end) plus Auto. paletteSize is now an exact palette cap enforced by
+// pre-quantizing the image before the trace (see lib/quantize.ts): 1 is a
+// black-&-white silhouette (VTracer binary mode), 2..16 reduce to that many
+// colors, Auto lets VTracer cluster on its own.
+const PALETTE_OPTIONS: PaletteSize[] = [1, 2, 3, 4, 6, 8, 12, 16, "auto"];
+
+function paletteLabel(preset: PaletteSize): string {
+  if (preset === "auto") return "Auto";
+  if (preset === 1) return "Black & white";
+  return `${preset} colors`;
+}
 
 /**
  * "Removed" used to be a third option here, but it rendered byte-identically
@@ -29,55 +35,96 @@ export interface TweakPanelProps {
   onChange: (values: TweakValues) => void;
   /** True while a retrace is in flight — disables retrace-affecting controls, never background. */
   busy?: boolean;
+  /**
+   * Real palette colors sampled from the current image, keyed by color count
+   * (`"2"`..`"16"`), used to preview each Colors row's swatches. `undefined`
+   * before the sample is computed (or under jsdom, which has no canvas).
+   */
+  palettePreviews?: Record<string, string[]>;
 }
 
 /**
- * Live tweak panel (T6): palette chips, smoothness, detail, contrast, and
- * background. Every control change is forwarded as a full `TweakValues`
- * snapshot — routing to a debounced worker retrace vs. an immediate cheap edit
- * is `tweakPipeline.ts`'s job, not this component's.
+ * Live tweak panel (T6): Colors (literal palette), smoothness, detail,
+ * contrast, and background. Every control change is forwarded as a full
+ * `TweakValues` snapshot — routing to a debounced worker retrace vs. an
+ * immediate cheap edit is `tweakPipeline.ts`'s job, not this component's.
  */
-export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) {
+export function TweakPanel({ values, onChange, busy = false, palettePreviews }: TweakPanelProps) {
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
   }
 
   // WAI-ARIA radiogroup keyboard pattern: arrow keys move *and select* the
   // next/previous radio (wrapping), independent of which one currently has
-  // focus — see the roving tabIndex on each `.segment` button below.
-  function handleBackgroundKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
-    const currentIndex = BACKGROUND_OPTIONS.findIndex(
-      (option) => option.value === values.background,
-    );
-    const nextIndex = nextRovingIndex(
-      event.key,
-      currentIndex,
-      BACKGROUND_OPTIONS.length,
-      RADIOGROUP_KEYS,
-    );
+  // focus — shared by the Colors list and the Background segmented control.
+  function handleRadioKeyDown<T>(
+    event: JSX.TargetedKeyboardEvent<HTMLDivElement>,
+    options: readonly T[],
+    currentIndex: number,
+    select: (option: T) => void,
+  ) {
+    const nextIndex = nextRovingIndex(event.key, currentIndex, options.length, RADIOGROUP_KEYS);
     if (nextIndex === null) return;
     event.preventDefault();
-    const option = BACKGROUND_OPTIONS[nextIndex];
-    set("background", option.value);
+    select(options[nextIndex]);
     event.currentTarget.querySelectorAll("button")[nextIndex]?.focus();
   }
+
+  function swatchesFor(preset: PaletteSize): string[] {
+    // B&W is a binary silhouette — one black shape, so a single black chip
+    // represents it (not a median-cut mean color, which would be a muddy gray).
+    if (preset === 1) return ["#000000"];
+    if (preset === "auto") return [];
+    return palettePreviews?.[String(preset)] ?? [];
+  }
+
+  const paletteIndex = PALETTE_OPTIONS.findIndex((p) => p === values.paletteSize);
 
   return (
     <div className={styles.panel}>
       <fieldset className={styles.group} disabled={busy}>
-        <legend className={styles.label}>Palette</legend>
-        <div className={styles.chipRow} role="group" aria-label="Palette size presets">
-          {PALETTE_PRESETS.map((preset) => (
-            <button
-              key={String(preset)}
-              type="button"
-              className={styles.chip}
-              aria-pressed={values.paletteSize === preset}
-              onClick={() => set("paletteSize", preset)}
-            >
-              {preset === "auto" ? "Auto" : preset}
-            </button>
-          ))}
+        <legend className={styles.label}>Colors</legend>
+        <p className={styles.hint}>How many colors to keep. 1 is black &amp; white.</p>
+        <div
+          className={styles.paletteList}
+          role="radiogroup"
+          aria-label="Number of colors"
+          onKeyDown={(event) =>
+            handleRadioKeyDown(event, PALETTE_OPTIONS, paletteIndex, (option) =>
+              set("paletteSize", option),
+            )
+          }
+        >
+          {PALETTE_OPTIONS.map((preset) => {
+            const selected = values.paletteSize === preset;
+            const swatches = swatchesFor(preset);
+            return (
+              <button
+                key={String(preset)}
+                type="button"
+                className={styles.paletteRow}
+                role="radio"
+                aria-checked={selected}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => set("paletteSize", preset)}
+              >
+                <span className={styles.paletteName}>{paletteLabel(preset)}</span>
+                {preset === "auto" ? (
+                  <span className={styles.paletteAuto}>VTracer picks</span>
+                ) : (
+                  <span className={styles.swatches} aria-hidden="true">
+                    {swatches.map((color, i) => (
+                      <span
+                        key={`${color}-${i}`}
+                        className={styles.swatch}
+                        style={{ background: color }}
+                      />
+                    ))}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </fieldset>
 
@@ -95,6 +142,7 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
             aria-label="Smoothness"
             onInput={(event) => set("smoothness", Number(event.currentTarget.value))}
           />
+          <p className={styles.hint}>Rounds off jagged edges.</p>
         </div>
         <div className={styles.slider}>
           <div className={styles.sliderHead}>
@@ -109,6 +157,7 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
             aria-label="Detail"
             onInput={(event) => set("detail", Number(event.currentTarget.value))}
           />
+          <p className={styles.hint}>Keeps small features and fine lines.</p>
         </div>
         <div className={styles.slider}>
           <div className={styles.sliderHead}>
@@ -123,6 +172,7 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
             aria-label="Contrast"
             onInput={(event) => set("contrast", Number(event.currentTarget.value))}
           />
+          <p className={styles.hint}>Splits colors into more or fewer layers.</p>
         </div>
       </fieldset>
 
@@ -132,7 +182,14 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
           className={styles.segmented}
           role="radiogroup"
           aria-label="Background handling"
-          onKeyDown={handleBackgroundKeyDown}
+          onKeyDown={(event) =>
+            handleRadioKeyDown(
+              event,
+              BACKGROUND_OPTIONS,
+              BACKGROUND_OPTIONS.findIndex((o) => o.value === values.background),
+              (option) => set("background", option.value),
+            )
+          }
         >
           {BACKGROUND_OPTIONS.map((option) => (
             <button
@@ -150,6 +207,7 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
             </button>
           ))}
         </div>
+        <p className={styles.hint}>Transparent, or solid white behind the shapes.</p>
       </fieldset>
     </div>
   );

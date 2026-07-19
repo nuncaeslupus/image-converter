@@ -10,6 +10,7 @@
  */
 import initWasm, { convert_rgba, type InitInput } from "../wasm/vtracer_wasm.js";
 import { translateParams } from "../lib/paramTranslation";
+import { quantizeRgba } from "../lib/quantize";
 import { countPaths, ensureViewBox } from "../lib/svgExport";
 import type { Tracer, TraceParams } from "../lib/traceProtocol";
 
@@ -48,11 +49,20 @@ export async function traceRgba(
 ): Promise<{ svg: string; pathCount: number }> {
   await initVtracer();
   const c = translateParams(params);
+  // "Colors: N" is a literal palette cap, enforced by reducing the pixels to N
+  // colors here before the trace (VTracer has no exact-count knob). N === 1 is
+  // handled by binary mode instead (translateParams), and "auto" skips
+  // quantization entirely. A flat N-color input is what keeps antialiased edge
+  // fringes from being traced as extra layers — the B&W-legibility fix.
+  const pixels =
+    typeof params.paletteSize === "number" && params.paletteSize >= 2
+      ? quantizeRgba(rgba, params.paletteSize)
+      : rgba;
   // VTracer omits the viewBox; add it so the SVG scales (preview fit + a
   // resolution-independent exported file).
   const svg = ensureViewBox(
     convert_rgba(
-      rgba,
+      pixels,
       width,
       height,
       c.colorMode,
