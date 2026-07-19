@@ -11,14 +11,20 @@
  */
 import { resizeImage } from "./imageEdit";
 
-/** Long-edge cap for the trace pass, in pixels. Benchmarked against the real
- * VTracer WASM engine (`tests/perf/previewBudget.test.ts`) to trace in under
- * 1s even on dense/noisy content — comfortable margin under the 5s budget
- * once CI-hardware slowdown and decode/worker round-trip overhead are added.
- * (768 measured ~2x too close to budget on CI; 512 roughly halves the traced
- * pixel count and restores real headroom — also directly narrows the §6 risk
- * of large images freezing the tab on low-end/mobile devices.) */
-export const PREVIEW_MAX_DIMENSION = 512;
+/** Long-edge cap for the color trace pass, in pixels. This is now the SINGLE
+ * resolution used for both the Trace preview and the exported file — Export
+ * reuses the preview SVG verbatim rather than re-tracing at full resolution, so
+ * what you tweak is exactly what you download (no preview↔export mismatch).
+ *
+ * The cap is the ceiling that keeps even a worst-case noisy 12MP photo inside
+ * the ~5s preview budget (`tests/perf/previewBudget.test.ts`): a full-color
+ * trace's cost explodes super-linearly with resolution on noisy content (768
+ * measured ~7.4s, 1024 ~20s — both would freeze the tab), so 640 is the
+ * highest value with real headroom. Flat graphics trace far faster than this
+ * bound, so they get the full benefit; a genuine photo is the pathological case
+ * this guards. B&W is exempt — it's pre-binarized to one color and stays cheap
+ * at {@link BW_PREVIEW_MAX_DIMENSION}. */
+export const PREVIEW_MAX_DIMENSION = 640;
 
 /** Long-edge cap for the black-&-white preview trace. B&W is pre-binarized to a
  * single color, so VTracer emits very few paths and tracing stays cheap even at

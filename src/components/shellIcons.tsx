@@ -154,6 +154,17 @@ export function CopyIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Chain-link — the "keep aspect ratio" toggle between width and height. */
+export function LinkIcon({ size = 15 }: { size?: number }) {
+  return (
+    <Stroke size={size}>
+      <path d="M9 12h6" />
+      <path d="M8 7H6a5 5 0 0 0 0 10h2" />
+      <path d="M16 7h2a5 5 0 0 1 0 10h-2" />
+    </Stroke>
+  );
+}
+
 /** GitHub mark (filled octocat) — currentColor so it follows the link color. */
 export function GitHubIcon({ size = 18 }: { size?: number }) {
   return (

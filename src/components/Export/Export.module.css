@@ -11,10 +11,66 @@
   margin-bottom: 9px;
 }
 
-.sizeRow {
+.sizeHead {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+.sizeHead .label {
+  margin-bottom: 0;
+}
+
+.unitToggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.unitButton {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 11px;
+  border: none;
+  background: var(--surface);
+  color: var(--fg-2);
+  cursor: pointer;
+}
+.unitButton[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.sizeRow {
+  display: flex;
+  /* Bottom-align so the chain button lines up with the inputs, not the labels
+     above them. */
+  align-items: flex-end;
   gap: 8px;
+}
+
+.chain {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 35px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg-3);
+  cursor: pointer;
+}
+.chain[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+}
+.chain:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .field {
