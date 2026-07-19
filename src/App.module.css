@@ -89,6 +89,12 @@
   gap: 11px;
 }
 
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .wordmark {
   margin: 0;
   font-size: 22px;
@@ -97,10 +103,40 @@
   color: var(--fg);
 }
 
+.tagline {
+  font-size: 12.5px;
+  color: var(--fg-3);
+}
+/* Below the wordmark row on very narrow screens the tagline would crowd the
+   badge — drop it there, the wordmark still identifies the app. */
+@media (max-width: 560px) {
+  .tagline {
+    display: none;
+  }
+}
+
 .topActions {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.siteFooter {
+  display: flex;
+  justify-content: center;
+  padding: 18px 6px 4px;
+}
+.githubLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--fg-3);
+  text-decoration: none;
+}
+.githubLink:hover {
+  color: var(--fg);
+  text-decoration: underline;
 }
 
 .badge {

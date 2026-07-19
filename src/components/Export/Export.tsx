@@ -104,6 +104,7 @@ export function Export({ svg, defaultFileName }: ExportProps) {
   }, [intrinsic]);
 
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [showMarkup, setShowMarkup] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clears the pending "revert to idle" timeout on unmount — otherwise
@@ -234,10 +235,33 @@ export function Export({ svg, defaultFileName }: ExportProps) {
         <ExportStepIcon size={17} />
         Download .svg
       </button>
-      <button type="button" className={styles.secondary} onClick={() => void handleCopy()}>
+
+      <button
+        type="button"
+        className={styles.secondary}
+        onClick={() => setShowMarkup((v) => !v)}
+        aria-expanded={showMarkup}
+      >
         <CopyIcon />
-        <span aria-live="polite">{copyLabel}</span>
+        {showMarkup ? "Hide SVG markup" : "View SVG markup"}
       </button>
+
+      {showMarkup && (
+        <div className={styles.markup}>
+          <textarea
+            className={`${styles.markupText} mono`}
+            readOnly
+            value={effectiveSvg}
+            aria-label="SVG markup"
+            spellcheck={false}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <button type="button" className={styles.markupCopy} onClick={() => void handleCopy()}>
+            <CopyIcon />
+            <span aria-live="polite">{copyLabel}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

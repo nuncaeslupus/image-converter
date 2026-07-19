@@ -14,6 +14,7 @@ import {
   EditStepIcon,
   TraceStepIcon,
   ExportStepIcon,
+  GitHubIcon,
 } from "./components/shellIcons";
 import { Fragment, type FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -101,7 +102,10 @@ export function App() {
         <header className={styles.topbar}>
           <div className={styles.brand}>
             <LogoMark size={52} />
-            <h1 className={styles.wordmark}>Halftone</h1>
+            <div className={styles.brandText}>
+              <h1 className={styles.wordmark}>Halftone</h1>
+              <span className={styles.tagline}>Free, easy & private image vectorizer</span>
+            </div>
           </div>
           <div className={styles.topActions}>
             <span className={styles.badge}>
@@ -199,6 +203,18 @@ export function App() {
             </button>
           </footer>
         </div>
+
+        <footer className={styles.siteFooter}>
+          <a
+            className={styles.githubLink}
+            href="https://github.com/nuncaeslupus/image-converter"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <GitHubIcon size={16} />
+            View source on GitHub
+          </a>
+        </footer>
       </div>
     </div>
   );
