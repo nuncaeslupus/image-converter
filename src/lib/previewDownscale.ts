@@ -23,7 +23,7 @@ export const PREVIEW_MAX_DIMENSION = 512;
 /** Computes the aspect-ratio-preserving size for `width`x`height` capped to
  * `maxDimension` on its longest edge. No-op (returns the input unchanged)
  * when already within the cap. */
-export function computeDownscaledDimensions(
+function computeDownscaledDimensions(
   width: number,
   height: number,
   maxDimension: number = PREVIEW_MAX_DIMENSION,
