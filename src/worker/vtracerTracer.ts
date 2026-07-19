@@ -10,6 +10,7 @@
  */
 import initWasm, { convert_rgba, type InitInput } from "../wasm/vtracer_wasm.js";
 import { translateParams } from "../lib/paramTranslation";
+import { countPaths } from "../lib/svgExport";
 import type { Tracer, TraceParams } from "../lib/traceProtocol";
 
 let initPromise: Promise<unknown> | null = null;
@@ -32,10 +33,6 @@ export function initVtracer(input?: InitInput): Promise<unknown> {
     );
   }
   return initPromise;
-}
-
-function countPaths(svg: string): number {
-  return (svg.match(/<path[\s/>]/g) ?? []).length;
 }
 
 /**

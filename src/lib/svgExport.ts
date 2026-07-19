@@ -36,6 +36,11 @@ export function createSvgBlob(svg: string): Blob {
   return new Blob([svg], { type: "image/svg+xml" });
 }
 
+/** Grace period before revoking the download's object URL — revoking in the
+ * same tick as `click()` can abort the download in Firefox, which resolves
+ * the navigation asynchronously. */
+const DOWNLOAD_REVOKE_DELAY_MS = 4000;
+
 /** Triggers a browser download of the SVG markup as a `.svg` file. */
 export function downloadSvg(svg: string, filename = "image.svg"): void {
   const url = URL.createObjectURL(createSvgBlob(svg));
@@ -43,7 +48,7 @@ export function downloadSvg(svg: string, filename = "image.svg"): void {
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), DOWNLOAD_REVOKE_DELAY_MS);
 }
 
 /** Copies the full, exact SVG markup to the clipboard. */
@@ -56,10 +61,20 @@ export interface SvgEstimate {
   pathCount: number;
 }
 
+/**
+ * Counts `<path>` elements in SVG markup. Matches both open (`<path ...>`)
+ * and self-closing (`<path .../>`) forms — the single shared definition for
+ * this, so the worker's post-trace `pathCount` (src/worker/vtracerTracer.ts)
+ * and this pre-export estimate never disagree on the same markup.
+ */
+export function countPaths(svg: string): number {
+  return (svg.match(/<path[\s/>]/g) ?? []).length;
+}
+
 /** Byte size and `<path>` count of the given SVG markup, for a pre-export estimate. */
 export function estimateSvg(svg: string): SvgEstimate {
   return {
     bytes: new TextEncoder().encode(svg).length,
-    pathCount: (svg.match(/<path[\s>]/g) ?? []).length,
+    pathCount: countPaths(svg),
   };
 }

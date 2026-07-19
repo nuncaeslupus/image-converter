@@ -39,6 +39,20 @@ export function computeDownscaledDimensions(
   };
 }
 
+/**
+ * Whether a `width`x`height` source needs a separate full-resolution export
+ * trace (T-full-res-export). When the source's long edge is already within
+ * the preview cap, the preview trace already ran at full resolution, so
+ * re-tracing for export would just repeat the same work.
+ */
+export function needsFullResRetrace(
+  width: number,
+  height: number,
+  maxDimension: number = PREVIEW_MAX_DIMENSION,
+): boolean {
+  return Math.max(width, height) > maxDimension;
+}
+
 /** Downscales `bitmap` to fit within `maxDimension` on its longest edge,
  * preserving aspect ratio. A no-op that returns `bitmap` unchanged when it is
  * already within the cap (the common case for icons/small images). Closes

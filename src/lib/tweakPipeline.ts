@@ -33,7 +33,16 @@ function retraceParamsChanged(a: TweakValues, b: TweakValues): boolean {
   return RETRACE_KEYS.some((key) => a[key] !== b[key]);
 }
 
-function toTraceParams({ paletteSize, smoothness, detail, contrast }: TweakValues): TraceParams {
+/** Narrows a full `TweakValues` snapshot to just the four fields the worker's
+ * `TraceParams` cares about — shared so every call site (the debounced
+ * pipeline here, the initial/retry trace, and the full-resolution export
+ * trace) builds the worker request from the same field list. */
+export function toTraceParams({
+  paletteSize,
+  smoothness,
+  detail,
+  contrast,
+}: TweakValues): TraceParams {
   return { paletteSize, smoothness, detail, contrast };
 }
 
