@@ -1,23 +1,35 @@
+/* Two-column layout mirroring Trace/Export: the image stage fills the left
+   column at full card height; all tools live in the fixed-width right column,
+   so the stage is as tall as possible and the unapplied-crop hint (in the
+   sidebar) never reflows/shrinks the image. */
 .editor {
   flex: 1;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  flex-direction: row;
+  gap: 22px;
   min-height: 0;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
+  min-width: 0;
 }
 
-/* The stage has no min-height of its own (it shrinks freely via
-   flex:1/min-height:0), so on short viewports the fixed-height toolbar +
-   controls can squeeze it to an unusably tiny — or invisible — sliver
-   instead of visibly overflowing. Floor the stage and let `.editor` scroll
-   internally so nothing is fully clipped or squashed away. */
+.sidebar {
+  flex: 0 0 340px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+/* Stack on narrow viewports (matches Trace): the whole editor scrolls and the
+   stage keeps a usable floor instead of collapsing under the controls. */
 @media (max-width: 720px) {
   .editor {
+    flex-direction: column;
     overflow-y: auto;
+  }
+  .sidebar {
+    flex: none;
+    width: auto;
   }
   .stage {
     min-height: 200px;
@@ -69,10 +81,6 @@
   font-size: 13px;
 }
 
-.spacer {
-  flex: 1 1 auto;
-}
-
 /* Non-blocking reminder that a crop/rotation is staged but not yet applied —
    Apply is a manual step (see `applyCrop`/`applyAngle`), so this is the only
    cue that leaving the step now silently discards it. */
@@ -83,7 +91,7 @@
   color: var(--accent-fg);
 }
 
-/* ---- zoom control (centered in the toolbar) ---- */
+/* ---- zoom control ---- */
 .zoomGroup {
   display: inline-flex;
   align-items: center;
@@ -124,12 +132,13 @@
   color: var(--fg-2);
 }
 
-/* Constant-size stage: fills the space between the toolbar and the (fixed)
-   controls panel with a neutral colour. Transforms on the frame don't change
-   layout, so zooming/rotating never resizes it. */
+/* Left-column stage: fills the space beside the controls sidebar with a
+   neutral colour. Transforms on the frame don't change layout, so
+   zooming/rotating never resizes it. */
 .stage {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;

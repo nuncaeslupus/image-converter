@@ -544,120 +544,6 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
   return (
     <div className={styles.editor}>
       <div
-        ref={toolbarRef}
-        className={styles.toolbar}
-        role="toolbar"
-        aria-label="Image editing tools"
-        onKeyDown={handleToolbarKeyDown}
-      >
-        <button
-          type="button"
-          className={styles.toolButton}
-          disabled={busy}
-          tabIndex={toolbarTabIndex(0)}
-          onFocus={() => setToolbarActiveIndex(0)}
-          onClick={() => void rotate90(-90)}
-          title="Rotate left 90° (Shift+R)"
-        >
-          <RotateLeftIcon />
-          <span className={styles.toolButtonLabel}>Rotate left</span>
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          disabled={busy}
-          tabIndex={toolbarTabIndex(1)}
-          onFocus={() => setToolbarActiveIndex(1)}
-          onClick={() => void rotate90(90)}
-          title="Rotate right 90° (R)"
-        >
-          <RotateRightIcon />
-          <span className={styles.toolButtonLabel}>Rotate right</span>
-        </button>
-
-        <span className={styles.spacer} />
-
-        <div className={styles.zoomGroup}>
-          <button
-            type="button"
-            className={styles.zoomButton}
-            disabled={busy || zoom <= ZOOM_MIN}
-            tabIndex={toolbarTabIndex(2)}
-            onFocus={() => setToolbarActiveIndex(2)}
-            onClick={() => zoomBy(1 / ZOOM_STEP)}
-            title="Zoom out"
-            aria-label="Zoom out"
-          >
-            <ZoomOutIcon />
-          </button>
-          <span className={`${styles.zoomLabel} mono`}>
-            {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
-          </span>
-          <button
-            type="button"
-            className={styles.zoomButton}
-            disabled={busy || zoom >= ZOOM_MAX}
-            tabIndex={toolbarTabIndex(3)}
-            onFocus={() => setToolbarActiveIndex(3)}
-            onClick={() => zoomBy(ZOOM_STEP)}
-            title="Zoom in"
-            aria-label="Zoom in"
-          >
-            <ZoomInIcon />
-          </button>
-        </div>
-
-        <span className={styles.spacer} />
-
-        <button
-          type="button"
-          className={styles.toolButton}
-          disabled={busy || !canUndo}
-          tabIndex={toolbarTabIndex(4)}
-          onFocus={() => setToolbarActiveIndex(4)}
-          onClick={undo}
-          title="Undo (Ctrl/Cmd+Z)"
-        >
-          <UndoIcon />
-          <span className={styles.toolButtonLabel}>Undo</span>
-        </button>
-        <button
-          type="button"
-          className={styles.toolButton}
-          disabled={busy || !canRedo}
-          tabIndex={toolbarTabIndex(5)}
-          onFocus={() => setToolbarActiveIndex(5)}
-          onClick={redo}
-          title="Redo (Ctrl/Cmd+Shift+Z)"
-        >
-          <RedoIcon />
-          <span className={styles.toolButtonLabel}>Redo</span>
-        </button>
-        <button
-          tabIndex={toolbarTabIndex(6)}
-          onFocus={() => setToolbarActiveIndex(6)}
-          type="button"
-          className={styles.toolButton}
-          disabled={busy || isOriginal}
-          onClick={() => void reset()}
-          title="Reset to original"
-        >
-          <ResetIcon />
-          <span className={styles.toolButtonLabel}>Reset</span>
-        </button>
-      </div>
-
-      {(isCropped || rotating) && (
-        <p className={styles.unappliedHint} role="status">
-          {isCropped && rotating
-            ? "Unapplied crop and rotation — use Apply to keep them"
-            : isCropped
-              ? "Unapplied crop — use Apply to keep it"
-              : "Unapplied rotation — use Apply to keep it"}
-        </p>
-      )}
-
-      <div
         ref={stageRef}
         className={`${styles.stage} ${panning ? styles.stagePannable : ""}`}
         onPointerDown={handleStagePointerDown}
@@ -714,72 +600,183 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
         </div>
       </div>
 
-      <div className={styles.controls}>
-        <div className={styles.rotateHead}>
-          <span className={styles.groupLabel}>
-            <CropIcon /> Crop &amp; rotate
-          </span>
-          <span className={`${styles.cropDims} mono`}>
-            {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
-          </span>
-        </div>
-
-        <div className={styles.sliderWrap}>
-          <input
-            type="range"
-            min={-180}
-            max={180}
-            step={1}
-            value={angle}
+      <div className={styles.sidebar}>
+        <div
+          ref={toolbarRef}
+          className={styles.toolbar}
+          role="toolbar"
+          aria-label="Image editing tools"
+          onKeyDown={handleToolbarKeyDown}
+        >
+          <button
+            type="button"
+            className={styles.toolButton}
             disabled={busy}
-            aria-label="Rotation angle"
-            onInput={(event) =>
-              setAngle(
-                snapAngle(Number(event.currentTarget.value), shiftRef.current, ctrlRef.current),
-              )
-            }
-          />
-          <div className={styles.ticks} aria-hidden="true">
-            {ANGLE_MARKS.map((t) => (
-              <div
-                key={t}
-                className={styles.tickWrap}
-                style={{ left: `${((t + 180) / 360) * 100}%` }}
-              >
-                <span className={styles.tick} data-major={t % 90 === 0 || undefined} />
-                <span className={`${styles.tickLabel} mono`}>{t}</span>
-              </div>
-            ))}
+            tabIndex={toolbarTabIndex(0)}
+            onFocus={() => setToolbarActiveIndex(0)}
+            onClick={() => void rotate90(-90)}
+            title="Rotate left 90° (Shift+R)"
+          >
+            <RotateLeftIcon />
+            <span className={styles.toolButtonLabel}>Rotate left</span>
+          </button>
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={busy}
+            tabIndex={toolbarTabIndex(1)}
+            onFocus={() => setToolbarActiveIndex(1)}
+            onClick={() => void rotate90(90)}
+            title="Rotate right 90° (R)"
+          >
+            <RotateRightIcon />
+            <span className={styles.toolButtonLabel}>Rotate right</span>
+          </button>
+
+          <div className={styles.zoomGroup}>
+            <button
+              type="button"
+              className={styles.zoomButton}
+              disabled={busy || zoom <= ZOOM_MIN}
+              tabIndex={toolbarTabIndex(2)}
+              onFocus={() => setToolbarActiveIndex(2)}
+              onClick={() => zoomBy(1 / ZOOM_STEP)}
+              title="Zoom out"
+              aria-label="Zoom out"
+            >
+              <ZoomOutIcon />
+            </button>
+            <span className={`${styles.zoomLabel} mono`}>
+              {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+            </span>
+            <button
+              type="button"
+              className={styles.zoomButton}
+              disabled={busy || zoom >= ZOOM_MAX}
+              tabIndex={toolbarTabIndex(3)}
+              onFocus={() => setToolbarActiveIndex(3)}
+              onClick={() => zoomBy(ZOOM_STEP)}
+              title="Zoom in"
+              aria-label="Zoom in"
+            >
+              <ZoomInIcon />
+            </button>
           </div>
+
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={busy || !canUndo}
+            tabIndex={toolbarTabIndex(4)}
+            onFocus={() => setToolbarActiveIndex(4)}
+            onClick={undo}
+            title="Undo (Ctrl/Cmd+Z)"
+          >
+            <UndoIcon />
+            <span className={styles.toolButtonLabel}>Undo</span>
+          </button>
+          <button
+            type="button"
+            className={styles.toolButton}
+            disabled={busy || !canRedo}
+            tabIndex={toolbarTabIndex(5)}
+            onFocus={() => setToolbarActiveIndex(5)}
+            onClick={redo}
+            title="Redo (Ctrl/Cmd+Shift+Z)"
+          >
+            <RedoIcon />
+            <span className={styles.toolButtonLabel}>Redo</span>
+          </button>
+          <button
+            tabIndex={toolbarTabIndex(6)}
+            onFocus={() => setToolbarActiveIndex(6)}
+            type="button"
+            className={styles.toolButton}
+            disabled={busy || isOriginal}
+            onClick={() => void reset()}
+            title="Reset to original"
+          >
+            <ResetIcon />
+            <span className={styles.toolButtonLabel}>Reset</span>
+          </button>
         </div>
 
-        <div className={styles.actions}>
-          <label className={styles.checkboxField}>
+        {(isCropped || rotating) && (
+          <p className={styles.unappliedHint} role="status">
+            {isCropped && rotating
+              ? "Unapplied crop and rotation — use Apply to keep them"
+              : isCropped
+                ? "Unapplied crop — use Apply to keep it"
+                : "Unapplied rotation — use Apply to keep it"}
+          </p>
+        )}
+
+        <div className={styles.controls}>
+          <div className={styles.rotateHead}>
+            <span className={styles.groupLabel}>
+              <CropIcon /> Crop &amp; rotate
+            </span>
+            <span className={`${styles.cropDims} mono`}>
+              {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
+            </span>
+          </div>
+
+          <div className={styles.sliderWrap}>
             <input
-              type="checkbox"
-              checked={fitToFrame}
-              onChange={(event) => setFitToFrame(event.currentTarget.checked)}
+              type="range"
+              min={-180}
+              max={180}
+              step={1}
+              value={angle}
+              disabled={busy}
+              aria-label="Rotation angle"
+              onInput={(event) =>
+                setAngle(
+                  snapAngle(Number(event.currentTarget.value), shiftRef.current, ctrlRef.current),
+                )
+              }
             />
-            Fit to frame
-          </label>
-          <span className={`${styles.angleValue} mono`}>{angle}°</span>
-          <span className={styles.spacer} />
-          <button
-            type="button"
-            className={styles.ghostButton}
-            onClick={() => void applyCrop()}
-            disabled={busy || !isCropped}
-          >
-            Apply crop
-          </button>
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => void applyAngle()}
-            disabled={busy || !rotating}
-          >
-            Apply rotation
-          </button>
+            <div className={styles.ticks} aria-hidden="true">
+              {ANGLE_MARKS.map((t) => (
+                <div
+                  key={t}
+                  className={styles.tickWrap}
+                  style={{ left: `${((t + 180) / 360) * 100}%` }}
+                >
+                  <span className={styles.tick} data-major={t % 90 === 0 || undefined} />
+                  <span className={`${styles.tickLabel} mono`}>{t}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.actions}>
+            <label className={styles.checkboxField}>
+              <input
+                type="checkbox"
+                checked={fitToFrame}
+                onChange={(event) => setFitToFrame(event.currentTarget.checked)}
+              />
+              Fit to frame
+            </label>
+            <span className={`${styles.angleValue} mono`}>{angle}°</span>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={() => void applyCrop()}
+              disabled={busy || !isCropped}
+            >
+              Apply crop
+            </button>
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => void applyAngle()}
+              disabled={busy || !rotating}
+            >
+              Apply rotation
+            </button>
+          </div>
         </div>
       </div>
     </div>
