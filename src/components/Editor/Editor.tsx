@@ -147,7 +147,10 @@ export function Editor({ image, transform, onChange }: EditorProps) {
   }
   function zoomBy(factor: number) {
     setZoom((z) => {
-      const next = clamp(z * factor, ZOOM_MIN, ZOOM_MAX);
+      let next = clamp(z * factor, ZOOM_MIN, ZOOM_MAX);
+      // Snap to exactly 1 within a float epsilon: `z * (1/ZOOM_STEP)` doesn't
+      // land on 1.0 exactly, which would miss the Fit detent (badge/pan reset).
+      if (Math.abs(next - 1) < 1e-9) next = 1;
       if (next === 1) setPan({ x: 0, y: 0 });
       return next;
     });
@@ -262,7 +265,10 @@ export function Editor({ image, transform, onChange }: EditorProps) {
     const d = rotateDragRef.current;
     if (!d || d.pointerId !== event.pointerId) return;
     const ang = Math.atan2(event.clientY - d.cy, event.clientX - d.cx);
-    const delta = ((ang - d.start) * 180) / Math.PI;
+    // Normalize the angular difference to (-π, π] so dragging across the
+    // atan2 discontinuity (the -X axis) doesn't jump ~360° and spin the image.
+    const diff = ang - d.start;
+    const delta = (Math.atan2(Math.sin(diff), Math.cos(diff)) * 180) / Math.PI;
     setDraftRotation(snapRotation(committed.rotation + delta, shiftHeld, ctrlHeld));
   }
   function onRotateUp(event: JSX.TargetedPointerEvent<HTMLButtonElement>) {
