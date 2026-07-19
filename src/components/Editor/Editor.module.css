@@ -1,7 +1,4 @@
-/* Two-column layout mirroring Trace/Export: the image stage fills the left
-   column at full card height; all tools live in the fixed-width right column,
-   so the stage is as tall as possible and the unapplied-crop hint (in the
-   sidebar) never reflows/shrinks the image. */
+/* Two-column layout: full-height stage on the left, minimal controls right. */
 .editor {
   flex: 1;
   display: flex;
@@ -12,16 +9,14 @@
 }
 
 .sidebar {
-  flex: 0 0 340px;
-  width: 340px;
+  flex: 0 0 300px;
+  width: 300px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
 }
 
-/* Stack on narrow viewports (matches Trace): the whole editor scrolls and the
-   stage keeps a usable floor instead of collapsing under the controls. */
 @media (max-width: 720px) {
   .editor {
     flex-direction: column;
@@ -30,23 +25,140 @@
   .sidebar {
     flex: none;
     width: auto;
-    /* When stacked, `.editor` is the scroll container; keep the sidebar from
-       being a second nested scroll region (janky on touch). */
     overflow-y: visible;
   }
   .stage {
-    min-height: 200px;
+    min-height: 260px;
   }
 }
 
-/* Utility toolbar: history row + zoom row, one roving-tabindex group. */
-.toolbar {
+/* ---- stage ---- */
+.stage {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  touch-action: none;
+}
+.stagePannable {
+  cursor: grab;
+}
+.stagePannable:active {
+  cursor: grabbing;
 }
 
+/* Pan/zoom wrapper — transforms the whole view without affecting layout. */
+.view {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+}
+
+/* The rotated image's axis-aligned bounding box; crop frame, grid and rotate
+   handle are all positioned within it. */
+.bbox {
+  position: relative;
+}
+
+.canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  /* transform (translate(-50%,-50%) rotate(θ)) + size set inline */
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+/* ---- straightening grid (only while dragging the rotate handle) ---- */
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.gridV,
+.gridH {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.55);
+}
+.gridV {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+.gridH {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+/* ---- crop frame ---- */
+.cropFrame {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1.5px dashed #fff;
+  outline: 1.5px dashed var(--accent);
+}
+.cropScrim {
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+}
+
+.cropHandle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  border-radius: 3px;
+  background: var(--accent);
+  border: 2px solid #fff;
+  cursor: grab;
+  touch-action: none;
+}
+.cropHandle:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* ---- rotate handle (straddles the image's top-centre edge) ---- */
+.rotateHandle {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.5);
+  padding: 0;
+}
+.rotateHandle :global(svg) {
+  width: 16px;
+  height: 16px;
+}
+.rotateHandle:active {
+  cursor: grabbing;
+}
+.rotateHandle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---- sidebar controls ---- */
 .toolRow {
   display: flex;
   flex-wrap: wrap;
@@ -97,17 +209,6 @@
   font-size: 13px;
 }
 
-/* Non-blocking reminder that a crop/rotation is staged but not yet applied —
-   Apply is a manual step (see `applyCrop`/`applyAngle`), so this is the only
-   cue that leaving the step now silently discards it. */
-.unappliedHint {
-  flex: 0 0 auto;
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--accent-fg);
-}
-
-/* ---- zoom control ---- */
 .zoomGroup {
   display: inline-flex;
   align-items: center;
@@ -117,7 +218,6 @@
   padding: 3px;
   background: var(--surface);
 }
-
 .zoomButton {
   display: inline-flex;
   align-items: center;
@@ -140,97 +240,20 @@
   color: var(--fg-3);
   cursor: not-allowed;
 }
-
 .zoomLabel {
   min-width: 42px;
   text-align: center;
   font-size: 12px;
   color: var(--fg-2);
 }
-
-/* Left-column stage: fills the space beside the controls sidebar with a
-   neutral colour. Transforms on the frame don't change layout, so
-   zooming/rotating never resizes it. */
-.stage {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  padding: 12px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  overflow: hidden;
-  touch-action: none;
-}
-.stagePannable {
-  cursor: grab;
-}
-.stagePannable:active {
-  cursor: grabbing;
+/* Subtle badge when the view is exactly at Fit (100%). */
+.zoomAtFit {
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border-radius: 6px;
 }
 
-/* The image rectangle — a hairline border + soft shadow so its bounds are
-   always legible against the neutral fill, even if the image's own background
-   matches it. */
-/* The frame is sized in JS to the image's exact contain-fit rectangle, so the
-   canvas fills it 1:1 without any aspect distortion. */
-.frame {
-  position: relative;
-  line-height: 0;
-  overflow: visible;
-  border-radius: 3px;
-  box-shadow:
-    0 0 0 1px var(--border-strong),
-    0 6px 20px -10px rgba(0, 0, 0, 0.45);
-  transform-origin: center;
-}
-/* Clip the rotation overhang (fit-to-frame cover) — only while rotating, so
-   crop handles at the corners stay fully visible otherwise. */
-.frameClip {
-  overflow: hidden;
-}
-
-.canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.cropOverlay {
-  position: absolute;
-  inset: 0;
-}
-
-.cropRect {
-  position: absolute;
-  border: 1.5px dashed #fff;
-  outline: 1.5px dashed var(--accent);
-}
-/* Dim outside the crop region only once the user has actually cropped. */
-.cropRectScrim {
-  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.4);
-}
-
-.cropHandle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  margin: -6px;
-  border-radius: 2px;
-  background: var(--accent);
-  border: 2px solid #fff;
-  cursor: grab;
-  touch-action: none;
-}
-.cropHandle:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-}
-
-/* Rotate / Crop cards — each groups one concern into its own labelled panel. */
+/* Rotate / Crop cards. */
 .card {
   flex: 0 0 auto;
   display: flex;
@@ -249,59 +272,6 @@
   gap: 12px;
 }
 
-/* The two 90° buttons share the row equally, sat directly above the fine
-   rotation slider so all rotation lives in one place. */
-.rotateButtons {
-  display: flex;
-  gap: 8px;
-}
-.rotateButtons button {
-  flex: 1;
-  justify-content: center;
-}
-
-.cropHint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--fg-3);
-}
-
-.sliderWrap {
-  position: relative;
-  padding-bottom: 22px;
-}
-
-.ticks {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 0;
-  height: 20px;
-}
-.tickWrap {
-  position: absolute;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transform: translateX(-50%);
-}
-.tick {
-  width: 1px;
-  height: 5px;
-  background: var(--border-strong);
-}
-.tick[data-major] {
-  height: 7px;
-  width: 2px;
-  background: var(--accent);
-}
-.tickLabel {
-  margin-top: 2px;
-  font-size: 10px;
-  color: var(--fg-3);
-}
-
 .groupLabel {
   display: inline-flex;
   align-items: center;
@@ -315,72 +285,23 @@
   font-size: 15px;
 }
 
+.rotateButtons {
+  display: flex;
+  gap: 8px;
+}
+.rotateButtons button {
+  flex: 1;
+  justify-content: center;
+}
+
+.angleValue,
 .cropDims {
   font-size: 12.5px;
   color: var(--fg-3);
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.angleValue {
-  font-size: 12.5px;
+.hint {
+  margin: 0;
+  font-size: 12px;
   color: var(--fg-3);
-  min-width: 40px;
-}
-
-.checkboxField {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12.5px;
-  color: var(--fg-2);
-  cursor: pointer;
-}
-.checkboxField input {
-  accent-color: var(--accent);
-}
-
-.primaryButton {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  background: var(--accent);
-  border: none;
-  border-radius: 9px;
-  padding: 9px 16px;
-  cursor: pointer;
-  box-shadow: 0 8px 18px -8px var(--accent-shadow);
-}
-.primaryButton:hover:not(:disabled) {
-  filter: brightness(0.97);
-}
-.primaryButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  box-shadow: none;
-}
-
-.ghostButton {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 9px 16px;
-  cursor: pointer;
-}
-.ghostButton:hover:not(:disabled) {
-  filter: brightness(0.97);
-}
-.ghostButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

@@ -13,3 +13,5 @@ Every session, without waiting to be asked:
 4. After any session with tasks: update workspace handover + global session handover.
 
 @claude-arsenal/AGENTS.md
+
+<!-- github-skill: projects=none -->

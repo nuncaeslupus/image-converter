@@ -1,18 +1,18 @@
 import type { Wizard } from "../lib/wizard";
+import type { EditTransform } from "../lib/imageEdit";
 import { Editor } from "../components/Editor/Editor";
 import styles from "./EditStep.module.css";
 
 /**
- * Wizard step 2 — optional crop/resize/rotate editing (T5).
+ * Wizard step 2 — non-destructive crop/rotate (T5).
  *
- * Operates on the `ImageBitmap` decoded by Upload (T4, `wizard.image`).
- * This step is skippable by design (status/plan.md "UI flow (step wizard)"
- * step 2): the original bitmap already lives in `wizard.image` when this
- * step mounts, so clicking Next without touching any tool passes it through
- * to Trace & Tweak completely unchanged.
+ * Edit no longer bakes bitmaps: the Editor writes a pending `transform`
+ * (rotation + crop) onto the wizard, which Trace/Export bake into pixels once,
+ * at trace time. Skipping this step leaves the transform at identity, so the
+ * source passes through unchanged.
  */
 export function EditStep({ wizard }: { wizard: Wizard }) {
-  if (!wizard.image || !wizard.originalImage) {
+  if (!wizard.image) {
     return (
       <section>
         <p role="alert">No image to edit yet — go back and choose one first.</p>
@@ -20,29 +20,16 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
     );
   }
 
-  // A crop/rotate/undo/redo/reset replaces the working image, which
-  // invalidates any previously traced SVG still sitting in `wizard.svg` —
-  // otherwise the stale pre-edit trace remains reachable/exportable
-  // (App.tsx's `stepReachable` gates Export purely on `!!wizard.svg`).
-  //
-  // `setImage` (not `replaceImage`) is deliberate here: the Editor is
-  // mounted and owns the lifecycle of every bitmap in its own undo history,
-  // including whichever one was previously published as `wizard.image` — see
-  // the doc comments on both setters in `lib/wizard.ts`.
-  function handleChange(next: ImageBitmap, isOriginal: boolean) {
-    wizard.setImage(next);
-    wizard.setImageIsOriginal(isOriginal);
+  // A crop/rotate change invalidates any previously traced SVG still sitting in
+  // `wizard.svg` (App gates Export purely on `!!wizard.svg`).
+  function handleChange(transform: EditTransform) {
+    wizard.setTransform(transform);
     wizard.setSvg(null);
   }
 
   return (
     <section className={styles.root}>
-      <Editor
-        image={wizard.image}
-        originalImage={wizard.originalImage}
-        imageIsOriginal={wizard.imageIsOriginal}
-        onChange={handleChange}
-      />
+      <Editor image={wizard.image} transform={wizard.transform} onChange={handleChange} />
     </section>
   );
 }
