@@ -13,7 +13,7 @@ __pycache__/
 *.py[cod]
 
 # Node / frontend build
-node_modules/
+node_modules
 dist/
 dist-ssr/
 *.local
