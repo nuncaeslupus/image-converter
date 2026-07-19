@@ -4,68 +4,53 @@
 
 ## Last task
 
-- **ID**: `lo-9704`
-- **Title**: T15: Offline/PWA — service worker precache (spec §1)
-- **Status at handover**: `merged` — PR #25.
+- **Type**: Repo-wide audit + fix session (multi-agent review workflow, not queue-driven).
+- **Status at handover**: complete — 5 PRs opened, reviewed (Gemini), and **merged**: #27–#31.
 
 ## Headline
 
-Spec §1 **offline capability** is now shipped and merged (was a manual-validation
-gap last session). The app loads and runs fully offline after first visit via a
-service-worker precache of the app shell + WASM tracer. Verified end-to-end.
+A 5-reviewer multi-agent audit (correctness, security, UI/a11y, obsolete code,
+anti-patterns) found 56 issues; 44 survived adversarial verification and all 44
+were fixed across five themed PRs, each taken through Gemini review to merge.
 
 ## What was done this session
 
-1. **Offline/PWA (T15, #25)**: added `vite-plugin-pwa` to `vite.config.ts`
-   (`registerType: "autoUpdate"`, `workbox.globPatterns` extended to include
-   `wasm` — not in workbox's default glob, so the tracer would break offline
-   without it; minimal manifest). No app code change — `injectRegister: "auto"`
-   injects `registerSW.js` at build.
-2. **Verified offline for real**: built → served `dist/` under the
-   `/image-converter/` base with a plain static server (mirrors GitHub Pages) →
-   SW registered + controlling, 7 precache entries incl. the 133 KB WASM + tracer
-   worker → **killed the server, reloaded → app rendered fully from cache**.
-3. **Lockfile fix (#25, 2nd commit)**: CI's `npm ci` first failed — the lockfile
-   was missing cross-platform optional transitive deps (`@emnapi/*`) that the
-   workbox tree pulls in; my Linux-only `npm install` had omitted them.
-   Regenerated from a clean install; verified `npm ci` + full CI gate pass locally.
-4. **Gemini review**: asked for *installability* (`display`/`start_url`/`icons`).
-   Declined inline as out-of-scope — that's a separate feature from offline and
-   needs real icon PNG assets to do anything. Left as a possible follow-up.
+1. **#27 CI hardening**: least-privilege `GITHUB_TOKEN` permissions in
+   `ci.yml`/`deploy.yml` (build jobs run `npm ci` read-only; only deploy gets
+   Pages/OIDC writes).
+2. **#28 Cleanup & branding**: deleted dead `settingsStore.ts`/`traceCache.ts`
+   (+tests), stale README Status rewrite (Potrace/caching claims dropped),
+   unused prop/duplicate icon/dead comments removed, Halftone branding in
+   title/manifest, real PWA icons (installability was broken with `icons: []`).
+3. **#29 Trace correctness**: export now re-traces at **full source
+   resolution** (was silently 512px preview geometry forever); tweak
+   values/SVG survive step navigation (were wiped on every remount); edits
+   invalidate the published SVG (stale pre-edit exports were possible);
+   worker `onerror` handling + Try-again (UI could hang on "Tracing…"
+   forever); worker skips superseded requests; shared `countPaths`.
+4. **#30 UI/a11y**: mobile clipping fixed (controls were unreachable on
+   phones), window drag-drop guard (dropping a file outside the dropzone
+   destroyed all work), full keyboard access (compare button, radiogroup +
+   toolbar roving tabindex — incl. a disabled-button keyboard-trap fix from
+   review), step-change focus management + live announcements, WCAG AA
+   `--fg-3`/`--danger` tokens, honest Background control ("Removed" option
+   deleted), full −100..100 contrast range, h1/branding, capped compare
+   canvas.
+5. **#31 Memory & export robustness**: `wizard.replaceImage` closes outgoing
+   ImageBitmaps (OOM risk on replace/start-over), undo history capped at 10
+   with eviction closes, Reset reaches the pristine decode across step
+   round-trips (`wizard.originalImage`), export size fields validated
+   (0/negative produced invisible SVGs), clipboard failure surfaced +
+   timeout cleanup, memoized heavy per-render SVG work.
 
-## Trap learned
+## Notes / caveats for the next session
 
-`npm run dev` and `npm run preview` **mis-serve `sw.js`/`registerSW.js` as
-`text/html`** (vite 8's SPA fallback is too broad) → the SW won't register there.
-Offline can only be verified against a plain static host (`python3 -m http.server`
-from `dist/`), which is also the real deploy target (GitHub Pages). Not a bug.
-
-Also: `npm install` on one platform can omit cross-platform optional deps from the
-lockfile → `npm ci` fails in CI. Regenerate with a clean `rm -rf node_modules
-package-lock.json && npm install` and confirm `npm ci` locally before pushing.
-
-## Live + local
-
-- **Live**: https://nuncaeslupus.github.io/image-converter/ (auto-deploys on push to main; now offline-capable after first load)
-- **Local dev**: `npm run dev` (SW won't register locally — see trap above).
-
-## What remains — 2 seeded follow-ups (queue has these OPEN)
-
-Both modules were built + unit-tested by their tasks but never wired into the app:
-- **T13 (`lo-50a8`, WEB)**: wire `traceCache.ts` into the trace path. Blocked on
-  no stable `imageId` in `wizard.ts` — add one, then wrap the worker call in
-  `TraceStep.runRetrace` with `withTraceCache`.
-- **T14 (`lo-8913`, WEB)**: wire `settingsStore.ts` — seed initial tweak values
-  from `load()` on mount, `save()` on change, in `TraceStep.tsx`.
-- Optional: PWA **installability** (icons + `display`/`start_url`/`background_color`)
-  — not seeded; separate from offline. Seed if "install to home screen" is wanted.
-
-## PR audit
-
-- **#25** (T15 offline/PWA): **MERGED**, CI green (`ci` ✓, GitGuardian ✓), squash-merged, branch deleted.
-- No open PRs, no `in_progress` tasks with a PR, no escalated tasks.
-
-## Note
-
-Retrospective scan surfaced only noise (generic exit-code spikes, false-positive
-"wrong" matches on skill boilerplate) — no skill-update proposals this session.
+- Tests grew 33 → 53; lint/typecheck/build green at every merge. CI runs on
+  the merges were not gating this session (Actions quota exhausted) — worth a
+  glance at the next green run.
+- Deferred (refuted or intentionally skipped): SVG sanitization layer
+  (client-side own-image tracing — no injection vector), SHA-pinning of
+  actions (left as tags), background-removal heuristic (option removed
+  instead).
+- Queue (`claude-arsenal/queue/tasks.jsonl`) untouched: single historical
+  task `lo-9704` remains `merged`; no open tasks.
