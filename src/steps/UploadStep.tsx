@@ -40,8 +40,16 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         // from `bitmap` (which becomes `wizard.image` and, once Edit is
         // visited, lives in the Editor's undo history) — see the
         // `replaceImage` doc comment on `Wizard` for why these must never be
-        // the same object.
-        const original = await createImageBitmap(bitmap);
+        // the same object. If the clone fails (resource pressure), close the
+        // already-decoded bitmap before rethrowing — otherwise the full-res
+        // decode would leak with no owner.
+        let original: ImageBitmap;
+        try {
+          original = await createImageBitmap(bitmap);
+        } catch (err) {
+          bitmap.close();
+          throw err;
+        }
         wizard.replaceImage(bitmap, original);
         // A fresh source invalidates any previously traced SVG.
         wizard.setSvg(null);

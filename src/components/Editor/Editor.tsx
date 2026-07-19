@@ -232,27 +232,32 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
   }, []);
 
   function pushEntry(entry: HistoryEntry) {
-    setHistory((h) => {
-      // A new edit discards any redo-future entries — close them to free memory.
-      for (const e of h.stack.slice(h.index + 1)) e.bitmap.close();
-      let stack = h.stack.slice(0, h.index + 1);
-      stack.push(entry);
-      // Cap the linear history: keep index 0 (this visit's starting image)
-      // plus the most recent HISTORY_CAP - 1 entries, closing whatever falls
-      // off the front so a long edit session can't pin unbounded memory.
-      if (stack.length > HISTORY_CAP) {
-        const overflow = stack.length - HISTORY_CAP;
-        const evicted = stack.slice(1, 1 + overflow);
-        for (const e of evicted) {
-          // Guard against ever closing the entry just pushed (it's always
-          // the newest, so it can never actually be among the evicted —
-          // this just makes the invariant explicit rather than assumed).
-          if (e.bitmap !== entry.bitmap) e.bitmap.close();
-        }
-        stack = [stack[0], ...stack.slice(1 + overflow)];
-      }
-      return { stack, index: stack.length - 1 };
-    });
+    // Compute the next stack from the current state and perform all
+    // bitmap.close() side effects OUTSIDE the state updater — updaters must
+    // stay pure (they can be double-invoked under strict/concurrent
+    // rendering, which would close bitmaps twice / prematurely). pushEntry
+    // only runs from busy-gated event handlers, so `history` is current.
+    // A new edit discards any redo-future entries — close them to free memory.
+    const redoFuture = history.stack.slice(history.index + 1);
+    let stack = history.stack.slice(0, history.index + 1);
+    stack.push(entry);
+    // Cap the linear history: keep index 0 (this visit's starting image)
+    // plus the most recent HISTORY_CAP - 1 entries, closing whatever falls
+    // off the front so a long edit session can't pin unbounded memory.
+    let evicted: HistoryEntry[] = [];
+    if (stack.length > HISTORY_CAP) {
+      const overflow = stack.length - HISTORY_CAP;
+      evicted = stack.slice(1, 1 + overflow);
+      stack = [stack[0], ...stack.slice(1 + overflow)];
+    }
+    setHistory({ stack, index: stack.length - 1 });
+    for (const e of redoFuture) e.bitmap.close();
+    for (const e of evicted) {
+      // Guard against ever closing the entry just pushed (it's always
+      // the newest, so it can never actually be among the evicted —
+      // this just makes the invariant explicit rather than assumed).
+      if (e.bitmap !== entry.bitmap) e.bitmap.close();
+    }
     onChange(entry.bitmap, entry.isOriginal);
   }
 

@@ -99,14 +99,14 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   // before publishing the replacement. See the `replaceImage` doc comment
   // on the `Wizard` interface for why this is only safe outside the Editor.
   function replaceImage(next: ImageBitmap | null, original: ImageBitmap | null) {
-    setImage((prev) => {
-      if (prev && prev !== next) prev.close();
-      return next;
-    });
-    setOriginalImage((prev) => {
-      if (prev && prev !== original) prev.close();
-      return original;
-    });
+    // Close the outgoing bitmaps OUTSIDE the state updaters — updaters must
+    // stay pure (double-invocation under strict/concurrent rendering would
+    // close the replacement's predecessor twice). replaceImage only runs
+    // from event handlers, so `image`/`originalImage` are current here.
+    if (image && image !== next) image.close();
+    if (originalImage && originalImage !== original) originalImage.close();
+    setImage(next);
+    setOriginalImage(original);
     setImageIsOriginal(true);
   }
 

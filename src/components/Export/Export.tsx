@@ -83,6 +83,18 @@ export function Export({ svg }: ExportProps) {
   // stray "0" or "-5" can never produce an invisible `width="0"` SVG.
   const [lastValidWidth, setLastValidWidth] = useState(intrinsic.width);
   const [lastValidHeight, setLastValidHeight] = useState(intrinsic.height);
+
+  // Re-seed the fields if the SVG itself is replaced while this component
+  // stays mounted (`intrinsic` is memoized on `svg`, so its identity only
+  // changes with a genuinely new document) — without this, stale dimensions
+  // from the previous SVG would keep overriding the new one's.
+  useEffect(() => {
+    setWidth(intrinsic.width);
+    setHeight(intrinsic.height);
+    setLastValidWidth(intrinsic.width);
+    setLastValidHeight(intrinsic.height);
+  }, [intrinsic]);
+
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

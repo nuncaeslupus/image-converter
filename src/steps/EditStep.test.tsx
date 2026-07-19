@@ -40,14 +40,10 @@ function Harness({ image, originalImage }: { image: ImageBitmap; originalImage: 
     imageIsOriginal,
     setImageIsOriginal,
     replaceImage: (next, original) => {
-      setWizardImage((prev) => {
-        if (prev && prev !== next) prev.close();
-        return next;
-      });
-      setWizardOriginalImage((prev) => {
-        if (prev && prev !== original) prev.close();
-        return original;
-      });
+      if (wizardImage && wizardImage !== next) wizardImage.close();
+      if (wizardOriginalImage && wizardOriginalImage !== original) wizardOriginalImage.close();
+      setWizardImage(next);
+      setWizardOriginalImage(original);
       setImageIsOriginal(true);
     },
     svg,
