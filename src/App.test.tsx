@@ -27,10 +27,10 @@ describe("App wizard shell", () => {
     const input = screen.getByLabelText("Choose file", { selector: "input" });
     await user.upload(input, loadFixture("sample.png", "image/png"));
 
-    // Edit step is identified by the image-editing toolbar (the shell owns the
-    // per-step headings/nav now, so there's no "2. Edit" heading).
+    // Edit step is identified by its History-and-zoom toolbar (the shell owns
+    // the per-step headings/nav now, so there's no "2. Edit" heading).
     await waitFor(() =>
-      expect(screen.getByRole("toolbar", { name: "Image editing tools" })).toBeInTheDocument(),
+      expect(screen.getByRole("toolbar", { name: "History and zoom" })).toBeInTheDocument(),
     );
   });
 });

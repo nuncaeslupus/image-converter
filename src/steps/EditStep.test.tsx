@@ -81,7 +81,7 @@ describe("EditStep", () => {
     const originalImage = await makeFixtureBitmap();
     render(<Harness image={image} originalImage={originalImage} />);
 
-    expect(screen.getByRole("toolbar", { name: "Image editing tools" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "History and zoom" })).toBeInTheDocument();
     // Exact name: crop handles are now `role="button"` too (see the a11y
     // fix in Editor.tsx), so a loose /crop/i match would also catch those
     // and the 4 corner handles, making this ambiguous.

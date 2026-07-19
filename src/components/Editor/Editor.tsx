@@ -27,12 +27,11 @@ const MIN_CROP_SIZE = 8;
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 8;
 const ZOOM_STEP = 1.25;
-// Rotation slider marks (every 45°), all numbered. Default drag has a small
-// snap zone around each mark; Shift snaps hard to the nearest 45°; Ctrl/Cmd
-// disables snapping entirely.
+// Rotation slider marks (every 45°), all numbered. Holding Shift sets the
+// slider's native `step` to 45° so the thumb physically snaps to — and sticks
+// at — each mark; default drag is free in 1° steps.
 const ANGLE_MARKS = [-180, -135, -90, -45, 0, 45, 90, 135, 180];
 const SNAP_STEP = 45;
-const SNAP_ZONE = 2;
 const STAGE_PAD = 12;
 
 interface HistoryEntry {
@@ -61,13 +60,6 @@ function clamp(value: number, min: number, max: number): number {
 
 function fullBoxFor(image: { width: number; height: number }): CropBox {
   return { x: 0, y: 0, width: image.width, height: image.height };
-}
-
-function snapAngle(value: number, shift: boolean, ctrl: boolean): number {
-  if (ctrl) return value;
-  const nearest = Math.round(value / SNAP_STEP) * SNAP_STEP;
-  if (shift) return nearest;
-  return Math.abs(value - nearest) <= SNAP_ZONE ? nearest : value;
 }
 
 /** Moves one corner of `box` by `(dx, dy)`, keeping the opposite corner fixed and staying in bounds. */
@@ -173,8 +165,9 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
     startY: number;
     startPan: { x: number; y: number };
   } | null>(null);
-  const shiftRef = useRef(false);
-  const ctrlRef = useRef(false);
+  // Held-Shift drives the rotation slider's `step` (45° hard-snap); tracked as
+  // state (not a ref) so the input re-renders with the new step immediately.
+  const [shiftHeld, setShiftHeld] = useState(false);
   const historyRef = useRef(history);
   useEffect(() => {
     historyRef.current = history;
@@ -341,8 +334,7 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      shiftRef.current = event.shiftKey;
-      ctrlRef.current = event.ctrlKey || event.metaKey;
+      setShiftHeld(event.shiftKey);
 
       const target = event.target as HTMLElement | null;
       const isTypingTarget =
@@ -374,8 +366,7 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
       }
     }
     function onKeyUp(event: KeyboardEvent) {
-      shiftRef.current = event.shiftKey;
-      ctrlRef.current = event.ctrlKey || event.metaKey;
+      setShiftHeld(event.shiftKey);
     }
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -476,18 +467,18 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
     }
   }
 
-  // Mirrors each toolbar button's `disabled` expression, in JSX order, so the
-  // render-time active index can be corrected away from a disabled button
-  // (a disabled button can't receive focus, so leaving tabIndex=0 on it would
-  // make the whole toolbar unreachable by keyboard — see toolbarTabIndex).
+  // Mirrors each utility-toolbar button's `disabled` expression, in JSX order
+  // (undo, redo, reset, zoom out, zoom in), so the render-time active index can
+  // be corrected away from a disabled button (a disabled button can't receive
+  // focus, so leaving tabIndex=0 on it would make the toolbar unreachable by
+  // keyboard — see toolbarTabIndex). The rotate-90 buttons live in the Rotate
+  // card as plain Tab stops, not part of this roving group.
   const toolbarEnabled = [
-    !busy,
-    !busy,
-    !(busy || zoom <= ZOOM_MIN),
-    !(busy || zoom >= ZOOM_MAX),
     !(busy || !canUndo),
     !(busy || !canRedo),
     !(busy || isOriginal),
+    !(busy || zoom <= ZOOM_MIN),
+    !(busy || zoom >= ZOOM_MAX),
   ];
   const effectiveToolbarIndex = toolbarEnabled[toolbarActiveIndex]
     ? toolbarActiveIndex
@@ -605,120 +596,110 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
           ref={toolbarRef}
           className={styles.toolbar}
           role="toolbar"
-          aria-label="Image editing tools"
+          aria-label="History and zoom"
           onKeyDown={handleToolbarKeyDown}
         >
-          <button
-            type="button"
-            className={styles.toolButton}
-            disabled={busy}
-            tabIndex={toolbarTabIndex(0)}
-            onFocus={() => setToolbarActiveIndex(0)}
-            onClick={() => void rotate90(-90)}
-            title="Rotate left 90° (Shift+R)"
-          >
-            <RotateLeftIcon />
-            <span className={styles.toolButtonLabel}>Rotate left</span>
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            disabled={busy}
-            tabIndex={toolbarTabIndex(1)}
-            onFocus={() => setToolbarActiveIndex(1)}
-            onClick={() => void rotate90(90)}
-            title="Rotate right 90° (R)"
-          >
-            <RotateRightIcon />
-            <span className={styles.toolButtonLabel}>Rotate right</span>
-          </button>
-
-          <div className={styles.zoomGroup}>
+          <div className={styles.toolRow}>
             <button
               type="button"
-              className={styles.zoomButton}
-              disabled={busy || zoom <= ZOOM_MIN}
+              className={styles.toolButton}
+              disabled={busy || !canUndo}
+              tabIndex={toolbarTabIndex(0)}
+              onFocus={() => setToolbarActiveIndex(0)}
+              onClick={undo}
+              title="Undo (Ctrl/Cmd+Z)"
+            >
+              <UndoIcon />
+              <span className={styles.toolButtonLabel}>Undo</span>
+            </button>
+            <button
+              type="button"
+              className={styles.toolButton}
+              disabled={busy || !canRedo}
+              tabIndex={toolbarTabIndex(1)}
+              onFocus={() => setToolbarActiveIndex(1)}
+              onClick={redo}
+              title="Redo (Ctrl/Cmd+Shift+Z)"
+            >
+              <RedoIcon />
+              <span className={styles.toolButtonLabel}>Redo</span>
+            </button>
+            <button
+              type="button"
+              className={styles.toolButton}
+              disabled={busy || isOriginal}
               tabIndex={toolbarTabIndex(2)}
               onFocus={() => setToolbarActiveIndex(2)}
-              onClick={() => zoomBy(1 / ZOOM_STEP)}
-              title="Zoom out"
-              aria-label="Zoom out"
+              onClick={() => void reset()}
+              title="Reset to original"
             >
-              <ZoomOutIcon />
-            </button>
-            <span className={`${styles.zoomLabel} mono`}>
-              {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
-            </span>
-            <button
-              type="button"
-              className={styles.zoomButton}
-              disabled={busy || zoom >= ZOOM_MAX}
-              tabIndex={toolbarTabIndex(3)}
-              onFocus={() => setToolbarActiveIndex(3)}
-              onClick={() => zoomBy(ZOOM_STEP)}
-              title="Zoom in"
-              aria-label="Zoom in"
-            >
-              <ZoomInIcon />
+              <ResetIcon />
+              <span className={styles.toolButtonLabel}>Reset</span>
             </button>
           </div>
 
-          <button
-            type="button"
-            className={styles.toolButton}
-            disabled={busy || !canUndo}
-            tabIndex={toolbarTabIndex(4)}
-            onFocus={() => setToolbarActiveIndex(4)}
-            onClick={undo}
-            title="Undo (Ctrl/Cmd+Z)"
-          >
-            <UndoIcon />
-            <span className={styles.toolButtonLabel}>Undo</span>
-          </button>
-          <button
-            type="button"
-            className={styles.toolButton}
-            disabled={busy || !canRedo}
-            tabIndex={toolbarTabIndex(5)}
-            onFocus={() => setToolbarActiveIndex(5)}
-            onClick={redo}
-            title="Redo (Ctrl/Cmd+Shift+Z)"
-          >
-            <RedoIcon />
-            <span className={styles.toolButtonLabel}>Redo</span>
-          </button>
-          <button
-            tabIndex={toolbarTabIndex(6)}
-            onFocus={() => setToolbarActiveIndex(6)}
-            type="button"
-            className={styles.toolButton}
-            disabled={busy || isOriginal}
-            onClick={() => void reset()}
-            title="Reset to original"
-          >
-            <ResetIcon />
-            <span className={styles.toolButtonLabel}>Reset</span>
-          </button>
+          <div className={styles.toolRow}>
+            <span className={styles.rowLabel}>Zoom</span>
+            <div className={styles.zoomGroup}>
+              <button
+                type="button"
+                className={styles.zoomButton}
+                disabled={busy || zoom <= ZOOM_MIN}
+                tabIndex={toolbarTabIndex(3)}
+                onFocus={() => setToolbarActiveIndex(3)}
+                onClick={() => zoomBy(1 / ZOOM_STEP)}
+                title="Zoom out"
+                aria-label="Zoom out"
+              >
+                <ZoomOutIcon />
+              </button>
+              <span className={`${styles.zoomLabel} mono`}>
+                {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
+              </span>
+              <button
+                type="button"
+                className={styles.zoomButton}
+                disabled={busy || zoom >= ZOOM_MAX}
+                tabIndex={toolbarTabIndex(4)}
+                onFocus={() => setToolbarActiveIndex(4)}
+                onClick={() => zoomBy(ZOOM_STEP)}
+                title="Zoom in"
+                aria-label="Zoom in"
+              >
+                <ZoomInIcon />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {(isCropped || rotating) && (
-          <p className={styles.unappliedHint} role="status">
-            {isCropped && rotating
-              ? "Unapplied crop and rotation — use Apply to keep them"
-              : isCropped
-                ? "Unapplied crop — use Apply to keep it"
-                : "Unapplied rotation — use Apply to keep it"}
-          </p>
-        )}
-
-        <div className={styles.controls}>
-          <div className={styles.rotateHead}>
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
             <span className={styles.groupLabel}>
-              <CropIcon /> Crop &amp; rotate
+              <RotateRightIcon /> Rotate
             </span>
-            <span className={`${styles.cropDims} mono`}>
-              {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
-            </span>
+          </div>
+
+          <div className={styles.rotateButtons}>
+            <button
+              type="button"
+              className={styles.toolButton}
+              disabled={busy}
+              onClick={() => void rotate90(-90)}
+              title="Rotate left 90° (Shift+R)"
+            >
+              <RotateLeftIcon />
+              <span className={styles.toolButtonLabel}>Rotate left</span>
+            </button>
+            <button
+              type="button"
+              className={styles.toolButton}
+              disabled={busy}
+              onClick={() => void rotate90(90)}
+              title="Rotate right 90° (R)"
+            >
+              <RotateRightIcon />
+              <span className={styles.toolButtonLabel}>Rotate right</span>
+            </button>
           </div>
 
           <div className={styles.sliderWrap}>
@@ -726,15 +707,12 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
               type="range"
               min={-180}
               max={180}
-              step={1}
+              step={shiftHeld ? SNAP_STEP : 1}
               value={angle}
               disabled={busy}
               aria-label="Rotation angle"
-              onInput={(event) =>
-                setAngle(
-                  snapAngle(Number(event.currentTarget.value), shiftRef.current, ctrlRef.current),
-                )
-              }
+              title="Hold Shift to snap to 45° marks"
+              onInput={(event) => setAngle(Number(event.currentTarget.value))}
             />
             <div className={styles.ticks} aria-hidden="true">
               {ANGLE_MARKS.map((t) => (
@@ -762,14 +740,6 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
             <span className={`${styles.angleValue} mono`}>{angle}°</span>
             <button
               type="button"
-              className={styles.ghostButton}
-              onClick={() => void applyCrop()}
-              disabled={busy || !isCropped}
-            >
-              Apply crop
-            </button>
-            <button
-              type="button"
               className={styles.primaryButton}
               onClick={() => void applyAngle()}
               disabled={busy || !rotating}
@@ -777,6 +747,42 @@ export function Editor({ image, originalImage, imageIsOriginal, onChange }: Edit
               Apply rotation
             </button>
           </div>
+
+          {rotating && (
+            <p className={styles.unappliedHint} role="status">
+              Unapplied rotation — Apply to keep it
+            </p>
+          )}
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <span className={styles.groupLabel}>
+              <CropIcon /> Crop
+            </span>
+            <span className={`${styles.cropDims} mono`}>
+              {Math.round(cropBox.width)} × {Math.round(cropBox.height)}
+            </span>
+          </div>
+
+          <p className={styles.cropHint}>Drag the corner handles on the image.</p>
+
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.ghostButton}
+              onClick={() => void applyCrop()}
+              disabled={busy || !isCropped}
+            >
+              Apply crop
+            </button>
+          </div>
+
+          {isCropped && (
+            <p className={styles.unappliedHint} role="status">
+              Unapplied crop — Apply to keep it
+            </p>
+          )}
         </div>
       </div>
     </div>
