@@ -10,7 +10,7 @@ import styles from "./TweakPanel.module.css";
 // image before the trace (see lib/quantize.ts): 1 is a black-&-white silhouette
 // (Otsu binarize), 2..16 reduce to that many colors, Auto lets VTracer cluster
 // on its own.
-const PALETTE_OPTIONS: PaletteSize[] = [1, 2, 3, 4, 6, 8, 12, 16, "auto"];
+export const PALETTE_OPTIONS: PaletteSize[] = [1, 2, 3, 4, 6, 8, 12, 16, "auto"];
 
 function paletteLabel(preset: PaletteSize): string {
   if (preset === "auto") return "Auto";

@@ -60,9 +60,6 @@ trace. Memoized on the baked image; recomputed when the image/transform
 changes. These are a visual guide; the exact fills in the traced result derive
 from the same algorithm on the full preview image, so they match closely.
 
-`paletteSize` stays `number | "auto"` on `TraceParams`; the number's meaning
-changes from "bits proxy" to "literal color count", and `1` now means binary.
-
 VTracer has no "exactly N colors" knob, so N is enforced on our side by
 pre-quantizing the pixels. `paletteSize` stays `number | "auto"` on
 `TraceParams`; the number's meaning changes from "bits proxy" to "literal

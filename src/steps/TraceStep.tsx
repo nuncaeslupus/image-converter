@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
-import { TweakPanel } from "../components/TweakPanel/TweakPanel";
+import { TweakPanel, PALETTE_OPTIONS } from "../components/TweakPanel/TweakPanel";
 import { Preview } from "../components/Preview/Preview";
 import {
   createTweakPipeline,
@@ -25,9 +25,23 @@ import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
 
-// The color counts that get a swatch preview (B&W and Auto render their own
-// label instead). Kept in sync with PALETTE_OPTIONS in TweakPanel.
-const PREVIEW_COUNTS = [2, 3, 4, 6, 8, 12, 16] as const;
+// The color counts that get a swatch preview — derived from PALETTE_OPTIONS so
+// the two can never drift (B&W and Auto render their own label, not swatches).
+const PREVIEW_COUNTS = PALETTE_OPTIONS.filter((p): p is number => typeof p === "number" && p >= 2);
+
+/** A 2D context on the widest-supported canvas — OffscreenCanvas where present,
+ * else a plain <canvas> (older Safari / environments without OffscreenCanvas),
+ * so the swatch sampling still works instead of being silently skipped. */
+function get2dContext(
+  w: number,
+  h: number,
+): OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h).getContext("2d");
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  return canvas.getContext("2d");
+}
 
 interface PaletteInfo {
   /** Real swatch colors per option count ("2".."16"). */
@@ -50,11 +64,11 @@ function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
   const w = Math.max(1, Math.round(bitmap.width * scale));
   const h = Math.max(1, Math.round(bitmap.height * scale));
   try {
-    const canvas = new OffscreenCanvas(w, h);
-    const ctx = canvas.getContext("2d");
+    const ctx = get2dContext(w, h);
     if (!ctx) return undefined;
     ctx.drawImage(bitmap, 0, 0, w, h);
-    const rgba = new Uint8Array(ctx.getImageData(0, 0, w, h).data.buffer);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    const rgba = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     const previews: Record<string, string[]> = {};
     for (const n of PREVIEW_COUNTS) {
       previews[String(n)] = medianCutPalette(rgba, n).map(rgbToHex);
