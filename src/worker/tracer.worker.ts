@@ -29,17 +29,55 @@ export const stubTracer: Tracer = {
 };
 
 /**
+ * Worker-side supersede guard: last-tweak-wins (src/lib/traceProtocol.ts's
+ * `TraceDispatcher`) is enforced only on the main thread today, which drops
+ * *stale responses* but still makes the worker spend the full ~1s tracing
+ * every queued request, delaying the one result anybody actually wants. This
+ * guard tracks the newest `requestId` the worker has SEEN (not a numeric
+ * ordering — request ids aren't guaranteed sortable, e.g. the
+ * `crypto.randomUUID()` case), so a request can be skipped once a newer one
+ * has arrived before its expensive trace has started.
+ */
+export interface SupersedeGuard {
+  /** Call as soon as a request is received, before deciding whether to trace it. */
+  observe(requestId: string): void;
+  /** True once `requestId` is no longer the newest request observed. */
+  isSuperseded(requestId: string): boolean;
+}
+
+export function createSupersedeGuard(): SupersedeGuard {
+  let latestRequestId: string | null = null;
+  return {
+    observe(requestId: string): void {
+      latestRequestId = requestId;
+    },
+    isSuperseded(requestId: string): boolean {
+      return requestId !== latestRequestId;
+    },
+  };
+}
+
+/**
  * Runs a single trace request against the given Tracer and returns the typed
- * response (success or error). Pure orchestration — no worker globals — so it
- * is directly unit-testable.
+ * response (success or error), or `null` if `isSuperseded` reports the
+ * request is already stale — in which case nothing should be posted back (the
+ * main-thread dispatcher would drop it anyway, see `acceptResponse`) and the
+ * request's bitmap is released here since the tracer never gets to close it.
+ * Pure orchestration — no worker globals — so it is directly unit-testable.
  */
 export async function handleTraceMessage(
   request: TraceRequest,
   tracer: Tracer,
-): Promise<TraceResponse> {
+  isSuperseded?: (requestId: string) => boolean,
+): Promise<TraceResponse | null> {
+  if (isSuperseded?.(request.requestId)) {
+    request.image.bitmap.close();
+    return null;
+  }
   const start = performance.now();
   try {
     const { svg, pathCount } = await tracer.trace(request.image.bitmap, request.params);
+    if (isSuperseded?.(request.requestId)) return null;
     return {
       type: "trace-result",
       requestId: request.requestId,
@@ -72,9 +110,12 @@ const workerScope: WorkerScope | undefined =
 
 if (workerScope) {
   const tracer = createVtracerTracer();
+  const guard = createSupersedeGuard();
   workerScope.onmessage = (event: MessageEvent<TraceRequest>) => {
-    void handleTraceMessage(event.data, tracer).then((response) =>
-      workerScope.postMessage(response),
-    );
+    const request = event.data;
+    guard.observe(request.requestId);
+    void handleTraceMessage(request, tracer, guard.isSuperseded).then((response) => {
+      if (response) workerScope.postMessage(response);
+    });
   };
 }

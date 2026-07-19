@@ -20,9 +20,18 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
     );
   }
 
+  // A crop/rotate/undo/redo replaces the working image, which invalidates any
+  // previously traced SVG still sitting in `wizard.svg` — otherwise the stale
+  // pre-edit trace remains reachable/exportable (App.tsx's `stepReachable`
+  // gates Export purely on `!!wizard.svg`).
+  function handleChange(next: ImageBitmap) {
+    wizard.setImage(next);
+    wizard.setSvg(null);
+  }
+
   return (
     <section className={styles.root}>
-      <Editor image={wizard.image} onChange={wizard.setImage} />
+      <Editor image={wizard.image} onChange={handleChange} />
     </section>
   );
 }

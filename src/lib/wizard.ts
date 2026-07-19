@@ -1,4 +1,5 @@
 import { useState } from "preact/hooks";
+import type { TweakValues } from "./tweakPipeline";
 
 export const WIZARD_STEPS = ["upload", "edit", "trace", "export"] as const;
 
@@ -27,6 +28,15 @@ export interface Wizard {
   svg: string | null;
   /** Replaces the current traced SVG — called on every trace result / cheap edit. */
   setSvg: (svg: string | null) => void;
+  /**
+   * The tweak panel's last-used values (T6), lifted here so they survive
+   * Trace <-> Export navigation — `TraceStep` mounts/unmounts with the step,
+   * so component-local state would reset to defaults on every revisit.
+   * `null` until the user (or the initial trace) has produced a first value.
+   */
+  tweakValues: TweakValues | null;
+  /** Replaces the current tweak values — called on every tweak-panel change. */
+  setTweakValues: (values: TweakValues | null) => void;
 }
 
 /**
@@ -37,6 +47,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   const [step, setStep] = useState<WizardStep>(initial);
   const [image, setImage] = useState<ImageBitmap | null>(null);
   const [svg, setSvg] = useState<string | null>(null);
+  const [tweakValues, setTweakValues] = useState<TweakValues | null>(null);
   const stepIndex = WIZARD_STEPS.indexOf(step);
 
   return {
@@ -49,5 +60,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     setImage,
     svg,
     setSvg,
+    tweakValues,
+    setTweakValues,
   };
 }
