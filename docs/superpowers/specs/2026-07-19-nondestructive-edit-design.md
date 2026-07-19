@@ -78,11 +78,12 @@ tilted.
 
 - **Rotate handle** — a small circular handle on a short stalk above the
   image's top-centre (Figma/Canva style). Drag it to orbit the image around
-  its centre. **Shift** snaps the result to the nearest 45°; **Ctrl/Cmd** =
-  free/fine (no snap). The handle is the top hit-priority target.
-- **Grid overlay** — a rule-of-thirds grid drawn over the image while the
-  rotate handle is being dragged (and optionally whenever `rotation ≠ 0`), to
-  help level the horizon.
+  its centre. Default is **free** in 1° steps; **Shift** snaps to the nearest
+  45°; **Ctrl/Cmd** = fine (fractional degrees) for precise levelling. The
+  handle is the top hit-priority target.
+- **Grid overlay** — a fine grid (double the rule-of-thirds: 4 internal lines
+  per axis, a 5×5 field) drawn over the image **only while the rotate handle is
+  being dragged**, to help level the horizon.
 - **Crop frame** — a screen-axis-aligned rectangle with four corner handles,
   drawn over the rotated image; dragging a corner trims the frame. Stored
   normalized to the rotated bounding box. Always visible (no modality); the
@@ -150,9 +151,10 @@ because nothing is baked until trace.
 - Auto-fill straightening (image scales to keep a fixed frame full). We use
   natural-scale rotate + manual crop instead.
 
-## Open questions
+## Resolved (from review)
 
-- Grid: rule-of-thirds only, or a denser fine grid while straightening?
-- Show the grid only while dragging the handle, or whenever `rotation ≠ 0`?
-- Rotate-handle default (no modifier): free 1° or a light snap? (Shift = hard
-  45° snap, Ctrl/Cmd = free are fixed.)
+- **Grid**: a fine grid, ~double the rule-of-thirds (4 internal lines per axis,
+  a 5×5 field).
+- **Grid visibility**: shown only while the rotate handle is being dragged.
+- **Rotate handle**: default free in 1° steps; **Shift** = hard 45° snap;
+  **Ctrl/Cmd** = fine (fractional degrees).
