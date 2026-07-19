@@ -107,19 +107,27 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
 
     async function runRetrace(params: TraceParams) {
       setBusy(true);
-      // A fresh copy per retrace: the worker transfers (and closes) the
-      // bitmap it receives, so the wizard's own working image must never be
-      // transferred directly, or every later retrace would find it detached.
-      // Downscaled to a bounded preview resolution before tracing (T11) —
-      // tracing at full source resolution can blow the ~5s preview budget by
-      // an order of magnitude on typical camera/phone photos.
-      const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage));
-      const request = createTraceRequest(
-        { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
-        params,
-      );
-      dispatcherRef.current.registerSent(request.requestId);
-      worker.postMessage(request, [bitmapCopy]);
+      try {
+        // A fresh copy per retrace: the worker transfers (and closes) the
+        // bitmap it receives, so the wizard's own working image must never be
+        // transferred directly, or every later retrace would find it detached.
+        // Downscaled to a bounded preview resolution before tracing (T11) —
+        // tracing at full source resolution can blow the ~5s preview budget by
+        // an order of magnitude on typical camera/phone photos.
+        const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage));
+        const request = createTraceRequest(
+          { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
+          params,
+        );
+        dispatcherRef.current.registerSent(request.requestId);
+        worker.postMessage(request, [bitmapCopy]);
+      } catch {
+        // createImageBitmap/downscale can reject (closed bitmap, resource
+        // pressure); without this the rejection escapes the void call and
+        // `busy` sticks at true with the controls disabled forever.
+        setBusy(false);
+        setError("Couldn't prepare the image for tracing. Please try again.");
+      }
     }
 
     retryRef.current = () => void runRetrace(toTraceParams(valuesRef.current));

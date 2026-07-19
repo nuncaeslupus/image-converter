@@ -84,30 +84,38 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
     const params = toTraceParams(tweakValues ?? DEFAULT_TWEAK_VALUES);
 
     void (async () => {
-      // Clone rather than transfer `wizard.image` itself — the worker
-      // transfers (and closes) whatever bitmap it receives, and the wizard's
-      // working image must stay usable afterwards (e.g. if the user goes
-      // Back to Trace/Edit again).
-      const bitmapCopy = await createImageBitmap(image);
-      if (cancelled) {
-        bitmapCopy.close();
-        return;
+      try {
+        // Clone rather than transfer `wizard.image` itself — the worker
+        // transfers (and closes) whatever bitmap it receives, and the wizard's
+        // working image must stay usable afterwards (e.g. if the user goes
+        // Back to Trace/Edit again).
+        const bitmapCopy = await createImageBitmap(image);
+        if (cancelled) {
+          bitmapCopy.close();
+          return;
+        }
+        const request = createTraceRequest(
+          { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
+          params,
+        );
+        dispatcherRef.current.registerSent(request.requestId);
+        worker.postMessage(request, [bitmapCopy]);
+      } catch {
+        // createImageBitmap can reject (closed/detached bitmap, resource
+        // pressure); without this the rejection escapes the void IIFE and
+        // `preparing` sticks at true with no fallback ever shown.
+        failWithNotice();
       }
-      const request = createTraceRequest(
-        { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
-        params,
-      );
-      dispatcherRef.current.registerSent(request.requestId);
-      worker.postMessage(request, [bitmapCopy]);
     })();
 
     return () => {
       cancelled = true;
       worker.terminate();
     };
-    // Runs once per mount for the current image/preview pair — the tweak
-    // values are read once, at that point, not re-run on every render.
-  }, [image, previewSvg]);
+    // Re-runs only when its actual inputs change; while this step is
+    // mounted the tweak values cannot change (the tweak panel lives on the
+    // Trace step), so in practice this fires once per visit.
+  }, [image, previewSvg, tweakValues]);
 
   if (!previewSvg) {
     return (
