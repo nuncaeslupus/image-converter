@@ -79,6 +79,22 @@ describe("svgExport", () => {
     expect(ensureViewBox("<svg><path/></svg>")).toBe("<svg><path/></svg>");
   });
 
+  it("test_ensureViewBox_toleratesQuotesSpacesAndUnits", () => {
+    // Single quotes, spaces around `=`, and a `px` unit must still be parsed.
+    expect(ensureViewBox(`<svg width='300px' height = "200"><path/></svg>`)).toContain(
+      'viewBox="0 0 300 200"',
+    );
+    // An existing single-quoted viewBox is respected — no duplicate added.
+    const out = ensureViewBox(`<svg viewBox='0 0 5 5' width="5" height="5"><path/></svg>`);
+    expect(out.match(/viewBox/g)?.length).toBe(1);
+  });
+
+  it("test_applyViewBoxOverride_singleQuotedSource_replacesNotDuplicates", () => {
+    const out = applyViewBoxOverride(`<svg width='100' height='50'></svg>`, { width: 200 });
+    expect(out).toContain('width="200"');
+    expect(out.match(/width/g)?.length).toBe(1);
+  });
+
   it("test_applyViewBoxOverride_valueWithDollarSign_insertsLiterally", () => {
     // A `$&`/`$1` in the value must not be treated as a String.replace pattern.
     const out = applyViewBoxOverride(SAMPLE_SVG, { viewBox: "0 0 $& 5" });

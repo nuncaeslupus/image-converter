@@ -13,7 +13,11 @@ export interface ViewBoxOverride {
 }
 
 function setAttr(openTag: string, name: string, value: string): string {
-  const attrRegex = new RegExp(`\\s${name}="[^"]*"`);
+  // Tolerate single/double quotes and spaces around `=` (all valid SVG); a
+  // stricter `name="..."` pattern would miss those forms and append a second
+  // copy of the attribute, producing invalid duplicate-attribute markup. The
+  // name stays case-sensitive on purpose — SVG attribute names are (`viewBox`).
+  const attrRegex = new RegExp(`\\s${name}\\s*=\\s*["'][^"']*["']`);
   // Function replacers so a `$`/`$&`/`$1` in `value` is inserted verbatim, not
   // interpreted as a String.replace substitution pattern (a viewBox override
   // string could contain one and corrupt the tag otherwise).
@@ -35,9 +39,11 @@ export function ensureViewBox(svg: string): string {
   const match = /<svg[^>]*>/.exec(svg);
   if (!match) return svg;
   const openTag = match[0];
-  if (/\sviewBox="/.test(openTag)) return svg;
-  const width = /\swidth="([\d.]+)"/.exec(openTag)?.[1];
-  const height = /\sheight="([\d.]+)"/.exec(openTag)?.[1];
+  // Same quote/space tolerance as setAttr, plus an optional `px` unit on the
+  // dimensions (the derived viewBox is always unitless user-space).
+  if (/\sviewBox\s*=\s*["']/.test(openTag)) return svg;
+  const width = /\swidth\s*=\s*["']([\d.]+)(?:px)?["']/.exec(openTag)?.[1];
+  const height = /\sheight\s*=\s*["']([\d.]+)(?:px)?["']/.exec(openTag)?.[1];
   if (!width || !height) return svg;
   const withViewBox = openTag.replace(/^<svg/, () => `<svg viewBox="0 0 ${width} ${height}"`);
   return svg.slice(0, match.index) + withViewBox + svg.slice(match.index + openTag.length);
