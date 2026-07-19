@@ -12,8 +12,8 @@
 }
 
 .controls {
-  flex: 0 0 340px;
-  width: 340px;
+  flex: 0 0 var(--panel-width);
+  width: var(--panel-width);
   overflow-y: auto;
 }
 

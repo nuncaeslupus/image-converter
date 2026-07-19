@@ -499,12 +499,29 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 <button
                   type="button"
                   className={styles.rotateHandle}
-                  aria-label="Rotate image"
-                  title="Drag to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
+                  aria-label="Rotate image (arrow keys, Shift = 45°, Ctrl/Cmd = fine)"
+                  title="Drag or arrow keys to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
                   onPointerDown={onRotateDown}
                   onPointerMove={onRotateMove}
                   onPointerUp={onRotateUp}
                   onPointerCancel={onRotateUp}
+                  onKeyDown={(event) => {
+                    const step = event.shiftKey
+                      ? SNAP_STEP
+                      : event.ctrlKey || event.metaKey
+                        ? 0.1
+                        : 1;
+                    const dir =
+                      event.key === "ArrowLeft" || event.key === "ArrowDown"
+                        ? -1
+                        : event.key === "ArrowRight" || event.key === "ArrowUp"
+                          ? 1
+                          : 0;
+                    if (dir === 0) return;
+                    event.preventDefault();
+                    const next = (((committed.rotation + dir * step) % 360) + 360) % 360;
+                    commit({ rotation: Math.round(next * 10) / 10, crop: committed.crop });
+                  }}
                 >
                   <RotateRightIcon />
                 </button>
@@ -548,46 +565,48 @@ export function Editor({ image, transform, onChange }: EditorProps) {
           </button>
         </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardHead}>
-            <span className={styles.groupLabel}>
-              <RotateRightIcon /> Rotate
-            </span>
-            <span className={`${styles.angleValue} mono`}>{Math.round(rotation)}°</span>
+        <div className={styles.editCards}>
+          <div className={styles.card}>
+            <div className={styles.cardHead}>
+              <span className={styles.groupLabel}>
+                <RotateRightIcon /> Rotate
+              </span>
+              <span className={`${styles.angleValue} mono`}>{Math.round(rotation)}°</span>
+            </div>
+            <div className={styles.rotateButtons}>
+              <button
+                type="button"
+                className={styles.toolButton}
+                onClick={() => rotate90(-90)}
+                title="Rotate left 90° (Shift+R)"
+              >
+                <RotateLeftIcon />
+                <span className={styles.toolButtonLabel}>90° left</span>
+              </button>
+              <button
+                type="button"
+                className={styles.toolButton}
+                onClick={() => rotate90(90)}
+                title="Rotate right 90° (R)"
+              >
+                <RotateRightIcon />
+                <span className={styles.toolButtonLabel}>90° right</span>
+              </button>
+            </div>
+            <p className={styles.hint}>Drag the handle above the image to straighten.</p>
           </div>
-          <div className={styles.rotateButtons}>
-            <button
-              type="button"
-              className={styles.toolButton}
-              onClick={() => rotate90(-90)}
-              title="Rotate left 90° (Shift+R)"
-            >
-              <RotateLeftIcon />
-              <span className={styles.toolButtonLabel}>90° left</span>
-            </button>
-            <button
-              type="button"
-              className={styles.toolButton}
-              onClick={() => rotate90(90)}
-              title="Rotate right 90° (R)"
-            >
-              <RotateRightIcon />
-              <span className={styles.toolButtonLabel}>90° right</span>
-            </button>
-          </div>
-          <p className={styles.hint}>Drag the handle above the image to straighten.</p>
-        </div>
 
-        <div className={styles.card}>
-          <div className={styles.cardHead}>
-            <span className={styles.groupLabel}>
-              <CropIcon /> Crop
-            </span>
-            <span className={`${styles.cropDims} mono`}>
-              {outW} × {outH}
-            </span>
+          <div className={styles.card}>
+            <div className={styles.cardHead}>
+              <span className={styles.groupLabel}>
+                <CropIcon /> Crop
+              </span>
+              <span className={`${styles.cropDims} mono`}>
+                {outW} × {outH}
+              </span>
+            </div>
+            <p className={styles.hint}>Drag the corners or edges on the image.</p>
           </div>
-          <p className={styles.hint}>Drag the corners or edges on the image.</p>
         </div>
       </div>
     </div>

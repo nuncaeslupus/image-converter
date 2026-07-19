@@ -123,21 +123,12 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
   return (
     <section className={styles.step}>
-      <div className={styles.head}>
-        <h2 className={styles.heading}>
-          {image ? "Image ready to vectorize" : "Add an image to vectorize"}
-        </h2>
-        <p className={styles.subtext}>
-          It’s traced right here in your browser — nothing is uploaded anywhere.
-        </p>
-      </div>
-
       {image ? (
         <div className={styles.ready}>
           <div className={styles.previewCol}>
             <div className={styles.previewCard}>
               <div className={styles.previewHead}>
-                <h3 className={styles.previewTitle}>Your image</h3>
+                <h2 className={styles.previewTitle}>Your image</h2>
               </div>
               <div className={styles.thumbWrap}>
                 <canvas
@@ -151,11 +142,19 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
             </div>
           </div>
           <div className={styles.controls}>
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Dimensions</span>
-              <span className={`${styles.dims} mono`}>
-                {image.width} × {image.height}
-              </span>
+            <div className={styles.info}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>File name</span>
+                <span className={`${styles.infoValue} mono`} title={wizard.fileName ?? undefined}>
+                  {wizard.fileName ?? "—"}
+                </span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Dimensions</span>
+                <span className={`${styles.infoValue} mono`}>
+                  {image.width} × {image.height}
+                </span>
+              </div>
             </div>
             <button
               type="button"
@@ -172,35 +171,43 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className={styles.dropzone}
-          onClick={() => !isDecoding && inputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          data-drag-over={isDragOver || undefined}
-          disabled={isDecoding}
-          aria-busy={isDecoding}
-        >
-          <span className={styles.tile}>
-            <UploadTrayIcon size={28} />
-          </span>
-          <span>
-            <span className={styles.cta}>
-              {status.kind === "decoding" ? (
-                `Decoding ${status.fileName}…`
-              ) : (
-                <>
-                  Drop an image here, or <span>browse</span>
-                </>
-              )}
+        <>
+          <div className={styles.head}>
+            <h2 className={styles.heading}>Add an image to vectorize</h2>
+            <p className={styles.subtext}>
+              It’s traced right here in your browser — nothing is uploaded anywhere.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.dropzone}
+            onClick={() => !isDecoding && inputRef.current?.click()}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            data-drag-over={isDragOver || undefined}
+            disabled={isDecoding}
+            aria-busy={isDecoding}
+          >
+            <span className={styles.tile}>
+              <UploadTrayIcon size={28} />
             </span>
-            <span className={styles.formats}>
-              PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
+            <span>
+              <span className={styles.cta}>
+                {status.kind === "decoding" ? (
+                  `Decoding ${status.fileName}…`
+                ) : (
+                  <>
+                    Drop an image here, or <span>browse</span>
+                  </>
+                )}
+              </span>
+              <span className={styles.formats}>
+                PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+        </>
       )}
 
       <input

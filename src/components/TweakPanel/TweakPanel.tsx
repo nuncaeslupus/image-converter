@@ -192,6 +192,7 @@ export function TweakPanel({
       </fieldset>
 
       <fieldset className={styles.group}>
+        <legend className={styles.srOnly}>Trace adjustments</legend>
         {SLIDERS.map(({ key, label, min, max, def, hint }) => (
           <div key={key} className={styles.slider}>
             <div className={styles.sliderHead}>

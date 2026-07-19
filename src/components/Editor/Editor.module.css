@@ -9,12 +9,21 @@
 }
 
 .sidebar {
-  flex: 0 0 300px;
-  width: 300px;
+  flex: 0 0 var(--panel-width);
+  width: var(--panel-width);
   display: flex;
   flex-direction: column;
   gap: 12px;
   overflow-y: auto;
+}
+
+/* Rotate/Crop sit toward the bottom, clearly separated from the Undo/Redo/Reset
+   row at the top now that the sidebar is lighter (Zoom moved into the header). */
+.editCards {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 @media (max-width: 720px) {
@@ -51,6 +60,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: var(--step-head-min);
 }
 .stageTitle {
   margin: 0;
