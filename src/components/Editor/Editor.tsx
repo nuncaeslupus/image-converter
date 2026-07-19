@@ -385,87 +385,131 @@ export function Editor({ image, transform, onChange }: EditorProps) {
 
   return (
     <div className={styles.editor}>
-      <div
-        ref={stageRef}
-        className={`${styles.stage} ${panning ? styles.stagePannable : ""}`}
-        onPointerDown={onStageDown}
-        onPointerMove={onStageMove}
-        onPointerUp={onStageUp}
-        onPointerCancel={onStageUp}
-      >
-        <div
-          className={styles.view}
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
-        >
-          <div
-            ref={bboxRef}
-            className={styles.bbox}
-            style={{ width: `${dispW}px`, height: `${dispH}px` }}
-          >
-            <canvas
-              ref={canvasRef}
-              className={styles.canvas}
-              style={
-                fit > 0
-                  ? {
-                      width: `${image.width * fit}px`,
-                      height: `${image.height * fit}px`,
-                      transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-                    }
-                  : { display: "none" }
-              }
-              data-testid="editor-canvas"
-            />
-
-            {rotatingLive && (
-              <div className={styles.grid} aria-hidden="true">
-                {gridLines.map((p) => (
-                  <div key={`v${p}`} className={styles.gridV} style={{ left: `${p}%` }} />
-                ))}
-                {gridLines.map((p) => (
-                  <div key={`h${p}`} className={styles.gridH} style={{ top: `${p}%` }} />
-                ))}
-              </div>
-            )}
-
-            <div
-              className={`${styles.cropFrame} ${isCropped(crop) ? styles.cropScrim : ""}`}
-              style={{
-                left: `${cropRect.x * 100}%`,
-                top: `${cropRect.y * 100}%`,
-                width: `${cropRect.w * 100}%`,
-                height: `${cropRect.h * 100}%`,
-              }}
-            >
-              {HANDLES.map((handle) => (
-                <div
-                  key={handle}
-                  className={styles.cropHandle}
-                  style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
-                  role="button"
-                  aria-label={`Crop ${HANDLE_LABEL[handle]}`}
-                  onPointerDown={(event) => onCropDown(handle, event)}
-                  onPointerMove={onCropMove}
-                  onPointerUp={onCropUp}
-                  onPointerCancel={onCropUp}
-                />
-              ))}
-            </div>
-
-            {fit > 0 && (
+      <div className={styles.stageCol}>
+        <div className={styles.stageHead}>
+          <h2 className={styles.stageTitle}>Straighten &amp; crop</h2>
+          <div className={styles.zoomRow}>
+            <div className={styles.zoomGroup}>
               <button
                 type="button"
-                className={styles.rotateHandle}
-                aria-label="Rotate image"
-                title="Drag to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
-                onPointerDown={onRotateDown}
-                onPointerMove={onRotateMove}
-                onPointerUp={onRotateUp}
-                onPointerCancel={onRotateUp}
+                className={styles.zoomButton}
+                disabled={zoom <= ZOOM_MIN}
+                onClick={() => zoomBy(1 / ZOOM_STEP)}
+                aria-label="Zoom out"
+                title="Zoom out"
               >
-                <RotateRightIcon />
+                <ZoomOutIcon />
               </button>
-            )}
+              <span className={`${styles.zoomLabel} mono ${atFit ? styles.zoomAtFit : ""}`}>
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                className={styles.zoomButton}
+                disabled={zoom >= ZOOM_MAX}
+                onClick={() => zoomBy(ZOOM_STEP)}
+                aria-label="Zoom in"
+                title="Zoom in"
+              >
+                <ZoomInIcon />
+              </button>
+            </div>
+            <button
+              type="button"
+              className={styles.fitButton}
+              disabled={atFit}
+              onClick={() => {
+                setZoom(1);
+                setPan({ x: 0, y: 0 });
+              }}
+              title="Fit the whole image to the view"
+            >
+              Fit
+            </button>
+          </div>
+        </div>
+        <div
+          ref={stageRef}
+          className={`${styles.stage} ${panning ? styles.stagePannable : ""}`}
+          onPointerDown={onStageDown}
+          onPointerMove={onStageMove}
+          onPointerUp={onStageUp}
+          onPointerCancel={onStageUp}
+        >
+          <div
+            className={styles.view}
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+          >
+            <div
+              ref={bboxRef}
+              className={styles.bbox}
+              style={{ width: `${dispW}px`, height: `${dispH}px` }}
+            >
+              <canvas
+                ref={canvasRef}
+                className={styles.canvas}
+                style={
+                  fit > 0
+                    ? {
+                        width: `${image.width * fit}px`,
+                        height: `${image.height * fit}px`,
+                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+                      }
+                    : { display: "none" }
+                }
+                data-testid="editor-canvas"
+              />
+
+              {rotatingLive && (
+                <div className={styles.grid} aria-hidden="true">
+                  {gridLines.map((p) => (
+                    <div key={`v${p}`} className={styles.gridV} style={{ left: `${p}%` }} />
+                  ))}
+                  {gridLines.map((p) => (
+                    <div key={`h${p}`} className={styles.gridH} style={{ top: `${p}%` }} />
+                  ))}
+                </div>
+              )}
+
+              <div
+                className={`${styles.cropFrame} ${isCropped(crop) ? styles.cropScrim : ""}`}
+                style={{
+                  left: `${cropRect.x * 100}%`,
+                  top: `${cropRect.y * 100}%`,
+                  width: `${cropRect.w * 100}%`,
+                  height: `${cropRect.h * 100}%`,
+                }}
+              >
+                {HANDLES.map((handle) => (
+                  <div
+                    key={handle}
+                    className={styles.cropHandle}
+                    style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
+                    role="button"
+                    aria-label={`Crop ${HANDLE_LABEL[handle]}`}
+                    onPointerDown={(event) => onCropDown(handle, event)}
+                    onPointerMove={onCropMove}
+                    onPointerUp={onCropUp}
+                    onPointerCancel={onCropUp}
+                  />
+                ))}
+              </div>
+
+              {fit > 0 && (
+                <button
+                  type="button"
+                  className={styles.rotateHandle}
+                  aria-label="Rotate image"
+                  title="Drag to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
+                  onPointerDown={onRotateDown}
+                  onPointerMove={onRotateMove}
+                  onPointerUp={onRotateUp}
+                  onPointerCancel={onRotateUp}
+                >
+                  <RotateRightIcon />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -502,52 +546,6 @@ export function Editor({ image, transform, onChange }: EditorProps) {
             <ResetIcon />
             <span className={styles.toolButtonLabel}>Reset</span>
           </button>
-        </div>
-
-        <div className={styles.card}>
-          <div className={styles.cardHead}>
-            <span className={styles.groupLabel}>
-              <ZoomInIcon /> Zoom
-            </span>
-          </div>
-          <div className={styles.zoomRow}>
-            <div className={styles.zoomGroup}>
-              <button
-                type="button"
-                className={styles.zoomButton}
-                disabled={zoom <= ZOOM_MIN}
-                onClick={() => zoomBy(1 / ZOOM_STEP)}
-                aria-label="Zoom out"
-                title="Zoom out"
-              >
-                <ZoomOutIcon />
-              </button>
-              <span className={`${styles.zoomLabel} mono ${atFit ? styles.zoomAtFit : ""}`}>
-                {Math.round(zoom * 100)}%
-              </span>
-              <button
-                type="button"
-                className={styles.zoomButton}
-                disabled={zoom >= ZOOM_MAX}
-                onClick={() => zoomBy(ZOOM_STEP)}
-                aria-label="Zoom in"
-                title="Zoom in"
-              >
-                <ZoomInIcon />
-              </button>
-            </div>
-            <button
-              type="button"
-              className={styles.toolButton}
-              onClick={() => {
-                setZoom(1);
-                setPan({ x: 0, y: 0 });
-              }}
-              title="Fit the whole image to the view"
-            >
-              Fit
-            </button>
-          </div>
         </div>
 
         <div className={styles.card}>
