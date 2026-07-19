@@ -20,6 +20,13 @@ import { resizeImage } from "./imageEdit";
  * of large images freezing the tab on low-end/mobile devices.) */
 export const PREVIEW_MAX_DIMENSION = 512;
 
+/** Long-edge cap for the black-&-white preview trace. B&W is pre-binarized to a
+ * single color, so VTracer emits very few paths and tracing stays cheap even at
+ * a much higher resolution than the full-color cap — which is what a crisp,
+ * precise silhouette contour needs (the 512 cap softens edges into a wobble).
+ * Colored palettes keep {@link PREVIEW_MAX_DIMENSION} for speed. */
+export const BW_PREVIEW_MAX_DIMENSION = 1536;
+
 /** Long-edge cap for the one-off full-resolution export trace (ExportStep). Far
  * above the preview cap, so any realistic photo still exports at (near-)source
  * resolution, but bounds the worst case: an unbounded trace of a 100MP source

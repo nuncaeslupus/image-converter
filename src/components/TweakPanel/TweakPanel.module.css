@@ -35,6 +35,12 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Cap the list to ~5 rows with its own scroll so the full 1..16/Auto set
+     stays available without pushing Smoothness/Detail/Contrast off-screen. */
+  max-height: 208px;
+  overflow-y: auto;
+  /* Room so swatches don't sit under the scrollbar when it appears. */
+  padding-right: 2px;
 }
 
 .paletteRow {

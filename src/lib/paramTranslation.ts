@@ -69,8 +69,15 @@ export function translateParams(params: TraceParams): VtracerConfig {
   const filterSpeckle = clampRound(((100 - detail) / 100) * 16, VTRACER_RANGES.filterSpeckle);
   const pathPrecision = clampRound(1 + (detail / 100) * 7, VTRACER_RANGES.pathPrecision);
 
-  // Higher smoothness treats wider angles as smooth (fewer corners).
-  const cornerThreshold = clampRound((smoothness / 100) * 180, VTRACER_RANGES.cornerThreshold);
+  // Higher smoothness treats wider angles as smooth (fewer corners). Black &
+  // white wants precise, faithful contours, so its corner threshold is capped
+  // low: even at max Smoothness the silhouette keeps its corners instead of
+  // melting into wobble. Colored palettes use the full 0–180 range.
+  const cornerCap = paletteSize === 1 ? 45 : 180;
+  const cornerThreshold = clampRound(
+    (smoothness / 100) * cornerCap,
+    VTRACER_RANGES.cornerThreshold,
+  );
 
   // Contrast centers on VTracer's default layer difference (16) and widens/
   // narrows layer separation: higher contrast -> finer layers.

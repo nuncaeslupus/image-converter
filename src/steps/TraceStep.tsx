@@ -16,7 +16,7 @@ import {
   isTraceResponse,
   type TraceParams,
 } from "../lib/traceProtocol";
-import { downscaleForPreview } from "../lib/previewDownscale";
+import { downscaleForPreview, BW_PREVIEW_MAX_DIMENSION } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
 import { medianCutPalette, rgbToHex } from "../lib/quantize";
 import { estimateSvg, countPaths, countSvgColors } from "../lib/svgExport";
@@ -158,8 +158,11 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         // transferred directly, or every later retrace would find it detached.
         // Downscaled to a bounded preview resolution before tracing (T11) —
         // tracing at full source resolution can blow the ~5s preview budget by
-        // an order of magnitude on typical camera/phone photos.
-        const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage));
+        // an order of magnitude on typical camera/phone photos. B&W is
+        // pre-binarized to one color (few paths, cheap), so it uses a higher cap
+        // for a crisp, precise contour instead of the softened 512 default.
+        const cap = params.paletteSize === 1 ? BW_PREVIEW_MAX_DIMENSION : undefined;
+        const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage), cap);
         const request = createTraceRequest(
           { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
           params,
