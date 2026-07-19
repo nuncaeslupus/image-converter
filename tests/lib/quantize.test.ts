@@ -4,6 +4,7 @@ import {
   medianCutPalette,
   quantizeRgba,
   rgbToHex,
+  significantColorCount,
   type Rgb,
 } from "../../src/lib/quantize";
 
@@ -86,6 +87,18 @@ describe("quantize", () => {
     const before = Array.from(input);
     quantizeRgba(input, 2);
     expect(Array.from(input)).toEqual(before);
+  });
+
+  it("significantColorCount ignores tiny (antialiasing) color populations", () => {
+    // A black-on-white icon: two dominant colors plus a few negligible edge
+    // grays. Should report 2, so the Colors control doesn't offer 16 steps.
+    const pixels: Rgb[] = [];
+    for (let i = 0; i < 60; i++) pixels.push([250, 250, 250]); // white background
+    for (let i = 0; i < 38; i++) pixels.push([10, 10, 10]); // black shape
+    pixels.push([130, 130, 130], [90, 90, 90]); // ~1% edge grays — below threshold
+    expect(significantColorCount(rgba(pixels), 0.02)).toBe(2);
+    // A four-cluster image reports all four as significant.
+    expect(significantColorCount(rgba(FIXTURE))).toBe(4);
   });
 
   it("rgbToHex formats lowercase 6-digit hex with zero padding", () => {

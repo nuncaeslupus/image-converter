@@ -18,7 +18,7 @@ import {
 } from "../lib/traceProtocol";
 import { downscaleForPreview, BW_PREVIEW_MAX_DIMENSION } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
-import { medianCutPalette, rgbToHex } from "../lib/quantize";
+import { medianCutPalette, rgbToHex, significantColorCount } from "../lib/quantize";
 import { estimateSvg, countPaths, countSvgColors } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
@@ -29,14 +29,22 @@ const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
 // label instead). Kept in sync with PALETTE_OPTIONS in TweakPanel.
 const PREVIEW_COUNTS = [2, 3, 4, 6, 8, 12, 16] as const;
 
+interface PaletteInfo {
+  /** Real swatch colors per option count ("2".."16"). */
+  previews: Record<string, string[]>;
+  /** How many colors the image meaningfully has (caps the offered counts). */
+  maxColors: number;
+}
+
 /**
  * Samples the image down to a small RGBA buffer and derives each palette
  * option's real colors via median cut — the same algorithm the worker uses to
- * quantize before tracing, so the swatches match the rendered result closely.
- * Cheap (palette only, no trace) and computed once per baked image. Returns
- * `undefined` where there's no canvas (jsdom) so the panel just omits swatches.
+ * quantize before tracing, so the swatches match the rendered result closely —
+ * plus the image's significant color count. Cheap (palette only, no trace) and
+ * computed once per baked image. Returns `undefined` where there's no canvas
+ * (jsdom) so the panel just omits swatches.
  */
-function computePalettePreviews(bitmap: ImageBitmap): Record<string, string[]> | undefined {
+function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
   const CAP = 64;
   const scale = Math.min(1, CAP / Math.max(bitmap.width, bitmap.height));
   const w = Math.max(1, Math.round(bitmap.width * scale));
@@ -51,7 +59,7 @@ function computePalettePreviews(bitmap: ImageBitmap): Record<string, string[]> |
     for (const n of PREVIEW_COUNTS) {
       previews[String(n)] = medianCutPalette(rgba, n).map(rgbToHex);
     }
-    return previews;
+    return { previews, maxColors: significantColorCount(rgba) };
   } catch {
     return undefined;
   }
@@ -93,13 +101,11 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   // fresh upright bitmap, re-baked when the source or transform changes.
   const image = useBakedImage(wizard.image, wizard.transform);
 
-  // Real per-palette swatches for the Colors control, sampled from the current
-  // baked image (recomputed only when it changes).
-  const [palettePreviews, setPalettePreviews] = useState<Record<string, string[]> | undefined>(
-    undefined,
-  );
+  // Real per-palette swatches + significant color count for the Colors control,
+  // sampled from the current baked image (recomputed only when it changes).
+  const [paletteInfo, setPaletteInfo] = useState<PaletteInfo | undefined>(undefined);
   useEffect(() => {
-    setPalettePreviews(image ? computePalettePreviews(image) : undefined);
+    setPaletteInfo(image ? computePaletteInfo(image) : undefined);
   }, [image]);
 
   // Publish the current traced SVG up to the wizard so ExportStep (T9) reads
@@ -270,7 +276,8 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
             values={values}
             onChange={handleChange}
             busy={busy}
-            palettePreviews={palettePreviews}
+            palettePreviews={paletteInfo?.previews}
+            maxColors={paletteInfo?.maxColors}
             autoColorCount={
               values.paletteSize === "auto" && tracedSvg ? countSvgColors(tracedSvg) : undefined
             }

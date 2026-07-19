@@ -75,6 +75,22 @@ function buildBuckets(rgba: Uint8Array): Bucket[] {
   return [...map.values()];
 }
 
+/**
+ * How many colors an image *meaningfully* has — the count of color buckets that
+ * each cover at least `minFraction` of the opaque pixels. Antialiasing fringe
+ * shades sit below the threshold and don't count, so a black-on-white icon
+ * reports 2, not "2 plus a dozen edge grays". The Colors control uses this to
+ * avoid offering more palette steps than an image can actually fill (a pure B&W
+ * icon only needs "Black & white" and "2 colors").
+ */
+export function significantColorCount(rgba: Uint8Array, minFraction = 0.01): number {
+  const buckets = buildBuckets(rgba);
+  let total = 0;
+  for (const b of buckets) total += b.count;
+  if (total === 0) return 0;
+  return buckets.filter((b) => b.count / total >= minFraction).length;
+}
+
 function channelRange(buckets: Bucket[], channel: 0 | 1 | 2): number {
   let min = 255;
   let max = 0;

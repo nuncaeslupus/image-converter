@@ -2,13 +2,14 @@ import type { JSX } from "preact";
 import type { TweakValues, BackgroundMode } from "../../lib/tweakPipeline";
 import type { PaletteSize } from "../../lib/traceProtocol";
 import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
+import { ResetIcon } from "../Editor/icons";
 import styles from "./TweakPanel.module.css";
 
 // Literal color counts, low-dense (posterization is most expressive at the low
-// end) plus Auto. paletteSize is now an exact palette cap enforced by
-// pre-quantizing the image before the trace (see lib/quantize.ts): 1 is a
-// black-&-white silhouette (VTracer binary mode), 2..16 reduce to that many
-// colors, Auto lets VTracer cluster on its own.
+// end) plus Auto. paletteSize is an exact palette cap enforced by reducing the
+// image before the trace (see lib/quantize.ts): 1 is a black-&-white silhouette
+// (Otsu binarize), 2..16 reduce to that many colors, Auto lets VTracer cluster
+// on its own.
 const PALETTE_OPTIONS: PaletteSize[] = [1, 2, 3, 4, 6, 8, 12, 16, "auto"];
 
 function paletteLabel(preset: PaletteSize): string {
@@ -16,6 +17,34 @@ function paletteLabel(preset: PaletteSize): string {
   if (preset === 1) return "Black & white";
   return `${preset} colors`;
 }
+
+// The three retrace sliders, with their reset-to defaults (the midpoints).
+const SLIDERS = [
+  {
+    key: "smoothness",
+    label: "Smoothness",
+    min: 0,
+    max: 100,
+    def: 50,
+    hint: "Rounds off jagged edges.",
+  },
+  {
+    key: "detail",
+    label: "Detail",
+    min: 0,
+    max: 100,
+    def: 50,
+    hint: "Keeps small features and fine lines.",
+  },
+  {
+    key: "contrast",
+    label: "Contrast",
+    min: -100,
+    max: 100,
+    def: 0,
+    hint: "Splits colors into more or fewer layers.",
+  },
+] as const;
 
 /**
  * "Removed" used to be a third option here, but it rendered byte-identically
@@ -47,6 +76,13 @@ export interface TweakPanelProps {
    * result); `undefined` otherwise, in which case the row shows nothing.
    */
   autoColorCount?: number;
+  /**
+   * How many colors the image *meaningfully* has. Colored palette counts above
+   * this are hidden — a pure black-on-white icon (2) only offers "Black & white"
+   * and "2 colors", not a dozen steps that would all collapse to the same
+   * result. `undefined` before it's computed → all counts shown.
+   */
+  maxColors?: number;
 }
 
 /**
@@ -61,10 +97,23 @@ export function TweakPanel({
   busy = false,
   palettePreviews,
   autoColorCount,
+  maxColors,
 }: TweakPanelProps) {
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
   }
+
+  // Only offer color counts the image can actually fill. B&W (1), 2 colors, and
+  // Auto always apply, so they're the floor; 3+ appear only when the image has
+  // that many meaningful colors. Until the sample is in, show every option.
+  const paletteOptions = PALETTE_OPTIONS.filter(
+    (preset) =>
+      preset === 1 ||
+      preset === 2 ||
+      preset === "auto" ||
+      maxColors === undefined ||
+      (typeof preset === "number" && preset <= maxColors),
+  );
 
   // WAI-ARIA radiogroup keyboard pattern: arrow keys move *and select* the
   // next/previous radio (wrapping), independent of which one currently has
@@ -90,24 +139,24 @@ export function TweakPanel({
     return palettePreviews?.[String(preset)] ?? [];
   }
 
-  const paletteIndex = PALETTE_OPTIONS.findIndex((p) => p === values.paletteSize);
+  const paletteIndex = paletteOptions.findIndex((p) => p === values.paletteSize);
 
   return (
     <div className={styles.panel}>
       <fieldset className={styles.group} disabled={busy}>
         <legend className={styles.label}>Colors</legend>
-        <p className={styles.hint}>How many colors to keep. 1 is black &amp; white.</p>
+        <p className={styles.hint}>How many colors to keep.</p>
         <div
           className={styles.paletteList}
           role="radiogroup"
           aria-label="Number of colors"
           onKeyDown={(event) =>
-            handleRadioKeyDown(event, PALETTE_OPTIONS, paletteIndex, (option) =>
+            handleRadioKeyDown(event, paletteOptions, paletteIndex, (option) =>
               set("paletteSize", option),
             )
           }
         >
-          {PALETTE_OPTIONS.map((preset) => {
+          {paletteOptions.map((preset) => {
             const selected = values.paletteSize === preset;
             const swatches = swatchesFor(preset);
             return (
@@ -123,7 +172,9 @@ export function TweakPanel({
                 <span className={styles.paletteName}>{paletteLabel(preset)}</span>
                 {preset === "auto" ? (
                   <span className={styles.paletteAuto}>
-                    {autoColorCount ? `${autoColorCount} colors` : ""}
+                    {autoColorCount
+                      ? `${autoColorCount} color${autoColorCount === 1 ? "" : "s"}`
+                      : ""}
                   </span>
                 ) : (
                   <span className={styles.swatches} aria-hidden="true">
@@ -143,51 +194,36 @@ export function TweakPanel({
       </fieldset>
 
       <fieldset className={styles.group} disabled={busy}>
-        <div className={styles.slider}>
-          <div className={styles.sliderHead}>
-            <span className={styles.sliderName}>Smoothness</span>
-            <span className={`${styles.value} mono`}>{values.smoothness}</span>
+        {SLIDERS.map(({ key, label, min, max, def, hint }) => (
+          <div key={key} className={styles.slider}>
+            <div className={styles.sliderHead}>
+              <span className={styles.sliderName}>{label}</span>
+              <span className={styles.sliderMeta}>
+                <span className={`${styles.value} mono`}>{values[key]}</span>
+                {values[key] !== def && (
+                  <button
+                    type="button"
+                    className={styles.sliderReset}
+                    onClick={() => set(key, def)}
+                    aria-label={`Reset ${label}`}
+                    title={`Reset ${label} to ${def}`}
+                  >
+                    <ResetIcon />
+                  </button>
+                )}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={min}
+              max={max}
+              value={values[key]}
+              aria-label={label}
+              onInput={(event) => set(key, Number(event.currentTarget.value))}
+            />
+            <p className={styles.hint}>{hint}</p>
           </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={values.smoothness}
-            aria-label="Smoothness"
-            onInput={(event) => set("smoothness", Number(event.currentTarget.value))}
-          />
-          <p className={styles.hint}>Rounds off jagged edges.</p>
-        </div>
-        <div className={styles.slider}>
-          <div className={styles.sliderHead}>
-            <span className={styles.sliderName}>Detail</span>
-            <span className={`${styles.value} mono`}>{values.detail}</span>
-          </div>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={values.detail}
-            aria-label="Detail"
-            onInput={(event) => set("detail", Number(event.currentTarget.value))}
-          />
-          <p className={styles.hint}>Keeps small features and fine lines.</p>
-        </div>
-        <div className={styles.slider}>
-          <div className={styles.sliderHead}>
-            <span className={styles.sliderName}>Contrast</span>
-            <span className={`${styles.value} mono`}>{values.contrast}</span>
-          </div>
-          <input
-            type="range"
-            min={-100}
-            max={100}
-            value={values.contrast}
-            aria-label="Contrast"
-            onInput={(event) => set("contrast", Number(event.currentTarget.value))}
-          />
-          <p className={styles.hint}>Splits colors into more or fewer layers.</p>
-        </div>
+        ))}
       </fieldset>
 
       <fieldset className={styles.group}>
