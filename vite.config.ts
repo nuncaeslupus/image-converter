@@ -10,13 +10,33 @@ export default defineConfig(({ command }) => ({
     VitePWA({
       registerType: "autoUpdate",
       // wasm isn't in workbox's default glob; the tracer won't work offline without it.
-      workbox: { globPatterns: ["**/*.{js,css,html,svg,wasm}"] },
+      workbox: { globPatterns: ["**/*.{js,css,html,svg,wasm,png}"] },
       manifest: {
-        name: "image-converter — raster to SVG",
-        short_name: "image-converter",
-        description: "Free, browser-based raster-to-SVG converter. Everything runs client-side.",
-        theme_color: "#ffffff",
-        icons: [],
+        name: "Halftone — raster to SVG converter",
+        short_name: "Halftone",
+        description:
+          "Free, browser-based raster-to-SVG converter. Runs entirely client-side — your images never leave your device.",
+        theme_color: "#f2f5fa",
+        icons: [
+          {
+            src: "pwa-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "pwa-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "pwa-maskable-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
+        ],
       },
     }),
   ],

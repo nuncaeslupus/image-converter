@@ -85,8 +85,6 @@ function moveCorner(
 export interface EditorProps {
   /** The current working image. */
   image: ImageBitmap;
-  /** The untouched, originally-decoded image (kept for API compatibility). */
-  originalImage: ImageBitmap;
   /** Called with the replacement image whenever an edit is applied/undone/redone. */
   onChange: (image: ImageBitmap) => void;
 }

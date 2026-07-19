@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import type { JSX } from "preact";
 import type { Wizard } from "../lib/wizard";
-import { decodeImage, ImageDecodeError } from "../lib/imageDecode";
+import { decodeImage, ImageDecodeError, SUPPORTED_IMAGE_MIME_TYPES } from "../lib/imageDecode";
 import { LockIcon, ReplaceIcon, UploadTrayIcon, XIcon } from "../components/shellIcons";
 import styles from "./UploadStep.module.css";
 
@@ -200,7 +200,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         type="file"
         className={styles.hiddenInput}
         aria-label="Choose file"
-        accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/avif"
+        accept={SUPPORTED_IMAGE_MIME_TYPES.join(",")}
         onChange={handleInputChange}
         tabIndex={-1}
         disabled={isDecoding}
