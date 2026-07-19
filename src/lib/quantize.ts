@@ -76,19 +76,32 @@ function buildBuckets(rgba: Uint8Array): Bucket[] {
 }
 
 /**
- * How many colors an image *meaningfully* has — the count of color buckets that
- * each cover at least `minFraction` of the opaque pixels. Antialiasing fringe
- * shades sit below the threshold and don't count, so a black-on-white icon
- * reports 2, not "2 plus a dozen edge grays". The Colors control uses this to
- * avoid offering more palette steps than an image can actually fill (a pure B&W
- * icon only needs "Black & white" and "2 colors").
+ * How many colors an image *meaningfully* has — the number of its most-common
+ * color buckets needed to cover `coverage` of the opaque pixels. A black-on-
+ * white icon reports 2 (two colors already cover ~99%); a photo or gradient
+ * needs many buckets to reach the same coverage and reports a large number.
+ * This separates "genuinely 2-3 colors" from "lots of colors, each thin"
+ * far better than a flat per-color threshold, which undercounts rich images
+ * (their colors are individually small) while still catching antialiasing
+ * fringe on an icon (it's a tiny tail beyond the coverage cutoff). The Colors
+ * control uses it to avoid offering more palette steps than an image can fill.
  */
-export function significantColorCount(rgba: Uint8Array, minFraction = 0.01): number {
-  const buckets = buildBuckets(rgba);
+export function significantColorCount(rgba: Uint8Array, coverage = 0.95): number {
+  const counts = buildBuckets(rgba)
+    .map((b) => b.count)
+    .sort((a, b) => b - a);
   let total = 0;
-  for (const b of buckets) total += b.count;
+  for (const c of counts) total += c;
   if (total === 0) return 0;
-  return buckets.filter((b) => b.count / total >= minFraction).length;
+  const target = total * coverage;
+  let acc = 0;
+  let n = 0;
+  for (const c of counts) {
+    acc += c;
+    n += 1;
+    if (acc >= target) break;
+  }
+  return n;
 }
 
 function channelRange(buckets: Bucket[], channel: 0 | 1 | 2): number {

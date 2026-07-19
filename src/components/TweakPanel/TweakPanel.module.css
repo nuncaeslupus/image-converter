@@ -1,13 +1,15 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  /* Roomy spacing between sections — the panel scrolls, so breathing room is
+     cheap and the controls read far less cramped. */
+  gap: 26px;
 }
 
 .group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   border: none;
   padding: 0;
   margin: 0;
@@ -103,7 +105,7 @@
 .slider {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 9px;
 }
 
 .sliderHead {
