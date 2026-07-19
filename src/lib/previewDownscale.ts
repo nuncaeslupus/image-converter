@@ -20,6 +20,13 @@ import { resizeImage } from "./imageEdit";
  * of large images freezing the tab on low-end/mobile devices.) */
 export const PREVIEW_MAX_DIMENSION = 512;
 
+/** Long-edge cap for the one-off full-resolution export trace (ExportStep). Far
+ * above the preview cap, so any realistic photo still exports at (near-)source
+ * resolution, but bounds the worst case: an unbounded trace of a 100MP source
+ * allocates hundreds of MB of RGBA in the worker and can OOM/hang the tab. The
+ * 25MB input cap does not bound pixel dimensions, so this is the real ceiling. */
+export const EXPORT_MAX_DIMENSION = 4096;
+
 /** Computes the aspect-ratio-preserving size for `width`x`height` capped to
  * `maxDimension` on its longest edge. No-op (returns the input unchanged)
  * when already within the cap. */

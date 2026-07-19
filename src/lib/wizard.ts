@@ -60,7 +60,19 @@ export interface Wizard {
    * and it manages its own history's lifecycle independently; see
    * `setImage` above). Pass `(null, null)` to clear both.
    */
-  replaceImage: (next: ImageBitmap | null, original: ImageBitmap | null) => void;
+  replaceImage: (
+    next: ImageBitmap | null,
+    original: ImageBitmap | null,
+    fileName: string | null,
+  ) => void;
+  /**
+   * The uploaded source's original file name (e.g. "logo.png"), or `null` when
+   * no image is loaded. Set alongside the image via `replaceImage` (the same
+   * choke point that owns the image lifecycle), so it can never drift from the
+   * current source. Export uses it to default the download name to
+   * `<basename>.svg`.
+   */
+  fileName: string | null;
   /**
    * The current traced SVG markup (T6/T8), threaded to Export (T9) — see
    * status/plan.md "Data flow" step 8. `null` until Trace & Tweak produces a
@@ -91,6 +103,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   const [imageIsOriginal, setImageIsOriginal] = useState(true);
   const [svg, setSvg] = useState<string | null>(null);
   const [tweakValues, setTweakValues] = useState<TweakValues | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
   const stepIndex = WIZARD_STEPS.indexOf(step);
 
   // Closes whatever `image`/`originalImage` previously pointed at (unless
@@ -98,7 +111,11 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   // practice for real callers, but keeps this safe to call idempotently)
   // before publishing the replacement. See the `replaceImage` doc comment
   // on the `Wizard` interface for why this is only safe outside the Editor.
-  function replaceImage(next: ImageBitmap | null, original: ImageBitmap | null) {
+  function replaceImage(
+    next: ImageBitmap | null,
+    original: ImageBitmap | null,
+    nextFileName: string | null,
+  ) {
     // Close the outgoing bitmaps OUTSIDE the state updaters — updaters must
     // stay pure (double-invocation under strict/concurrent rendering would
     // close the replacement's predecessor twice). replaceImage only runs
@@ -108,6 +125,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     setImage(next);
     setOriginalImage(original);
     setImageIsOriginal(true);
+    setFileName(nextFileName);
   }
 
   return {
@@ -122,6 +140,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     imageIsOriginal,
     setImageIsOriginal,
     replaceImage,
+    fileName,
     svg,
     setSvg,
     tweakValues,

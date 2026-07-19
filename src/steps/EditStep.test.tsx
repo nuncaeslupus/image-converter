@@ -27,6 +27,7 @@ function Harness({ image, originalImage }: { image: ImageBitmap; originalImage: 
   const [imageIsOriginal, setImageIsOriginal] = useState(true);
   const [svg, setSvg] = useState<string | null>(null);
   const [tweakValues, setTweakValues] = useState<TweakValues | null>(null);
+  const [fileName, setFileName] = useState<string | null>("fixture.png");
 
   const wizard: Wizard = {
     step,
@@ -39,13 +40,15 @@ function Harness({ image, originalImage }: { image: ImageBitmap; originalImage: 
     originalImage: wizardOriginalImage,
     imageIsOriginal,
     setImageIsOriginal,
-    replaceImage: (next, original) => {
+    replaceImage: (next, original, nextFileName) => {
       if (wizardImage && wizardImage !== next) wizardImage.close();
       if (wizardOriginalImage && wizardOriginalImage !== original) wizardOriginalImage.close();
       setWizardImage(next);
       setWizardOriginalImage(original);
       setImageIsOriginal(true);
+      setFileName(nextFileName);
     },
+    fileName,
     svg,
     setSvg,
     tweakValues,

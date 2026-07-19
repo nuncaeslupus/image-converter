@@ -58,6 +58,10 @@ export function translateParams(params: TraceParams): VtracerConfig {
 
   // paletteSize (colors) -> colorPrecision (bits/channel). "auto" keeps
   // VTracer's default of 6 bits.
+  // ponytail: colorPrecision is bits/channel, not a hard color count — VTracer
+  // has no "exactly N colors" knob, so this is a coarse richness scale, not a
+  // literal palette cap. Upgrade path: pre-quantize the RGBA to N colors before
+  // tracing if a true palette-size guarantee is ever needed.
   const colorPrecision =
     paletteSize === "auto"
       ? 6

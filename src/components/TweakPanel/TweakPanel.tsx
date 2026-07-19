@@ -4,8 +4,12 @@ import type { PaletteSize } from "../../lib/traceProtocol";
 import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import styles from "./TweakPanel.module.css";
 
-/** Quick-select palette sizes (status/specification.md Goals: "1, 2, 3, 4, 8, 16…") + Auto. */
-const PALETTE_PRESETS: (PaletteSize | "auto")[] = [1, 2, 3, 4, 8, 16, "auto"];
+// Palette presets + Auto. Powers of two because paletteSize maps to VTracer's
+// colorPrecision via log2 (see lib/paramTranslation.ts): the old [1,2,3,4,8,16]
+// set collapsed onto duplicate precisions (1&2 → 1 bit, 3&4 → 2 bits), so
+// clicking "3" then "4" produced byte-identical output. These six each map to a
+// distinct precision (1–6 bits/channel), so every chip does something.
+const PALETTE_PRESETS: (PaletteSize | "auto")[] = [2, 4, 8, 16, 32, 64, "auto"];
 
 /**
  * "Removed" used to be a third option here, but it rendered byte-identically

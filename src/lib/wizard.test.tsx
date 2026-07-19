@@ -27,13 +27,13 @@ function Harness({ wizardBox }: { wizardBox: { current: Wizard | null } }) {
           void (async () => {
             const bitmap = await makeBitmap();
             const original = await makeBitmap();
-            wizard.replaceImage(bitmap, original);
+            wizard.replaceImage(bitmap, original, "fixture.png");
           })();
         }}
       >
         load
       </button>
-      <button type="button" onClick={() => wizard.replaceImage(null, null)}>
+      <button type="button" onClick={() => wizard.replaceImage(null, null, null)}>
         clear
       </button>
     </div>

@@ -50,7 +50,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
           bitmap.close();
           throw err;
         }
-        wizard.replaceImage(bitmap, original);
+        wizard.replaceImage(bitmap, original, file.name);
         // A fresh source invalidates any previously traced SVG.
         wizard.setSvg(null);
         setStatus({ kind: "idle" });
@@ -130,7 +130,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
   function removeImage() {
     // Closes the outgoing image + original — safe here because the Editor
     // is never mounted on the Upload step (see `replaceImage`'s doc comment).
-    wizard.replaceImage(null, null);
+    wizard.replaceImage(null, null, null);
     wizard.setSvg(null);
   }
 

@@ -26,7 +26,7 @@ function stubClipboard(writeText: (text: string) => Promise<void>): void {
 describe("Export", () => {
   it("test_export_zeroWidth_ignoredAndMarkedInvalid", async () => {
     const user = userEvent.setup();
-    render(<Export svg={SAMPLE_SVG} />);
+    render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     const widthInput = screen.getByLabelText("Width");
     await user.clear(widthInput);
@@ -38,7 +38,7 @@ describe("Export", () => {
 
   it("test_export_negativeHeight_ignoredAndMarkedInvalid", async () => {
     const user = userEvent.setup();
-    render(<Export svg={SAMPLE_SVG} />);
+    render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     const heightInput = screen.getByLabelText("Height");
     await user.clear(heightInput);
@@ -52,7 +52,7 @@ describe("Export", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     stubClipboard(writeText);
-    render(<Export svg={SAMPLE_SVG} />);
+    render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     const widthInput = screen.getByLabelText("Width");
     await user.clear(widthInput);
@@ -73,7 +73,7 @@ describe("Export", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
     stubClipboard(writeText);
-    render(<Export svg={SAMPLE_SVG} />);
+    render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
@@ -84,7 +84,7 @@ describe("Export", () => {
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     const user = userEvent.setup();
     stubClipboard(writeText);
-    render(<Export svg={SAMPLE_SVG} />);
+    render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
@@ -96,7 +96,7 @@ describe("Export", () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     const user = userEvent.setup();
     stubClipboard(writeText);
-    const { unmount } = render(<Export svg={SAMPLE_SVG} />);
+    const { unmount } = render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
     await waitFor(() => expect(screen.getByText("Copied!")).toBeInTheDocument());
