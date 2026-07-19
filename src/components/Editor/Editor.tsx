@@ -507,8 +507,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
             </div>
             <button
               type="button"
-              className={styles.fitButton}
-              aria-pressed={atFit}
+              className={styles.toolButton}
               onClick={() => {
                 setZoom(1);
                 setPan({ x: 0, y: 0 });

@@ -253,27 +253,6 @@
   gap: 10px;
 }
 
-.fitButton {
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--fg);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  padding: 8px 14px;
-  cursor: pointer;
-}
-.fitButton:hover {
-  filter: brightness(0.97);
-}
-/* Pressed = the view is currently at Fit: the visual "you're fully fit" hint. */
-.fitButton[aria-pressed="true"] {
-  color: var(--accent-fg);
-  background: var(--accent-soft);
-  border-color: var(--accent);
-}
-
 /* Rotate / Crop cards. */
 .card {
   flex: 0 0 auto;
