@@ -111,6 +111,25 @@ export function countPaths(svg: string): number {
   return (svg.match(/<path[\s/>]/g) ?? []).length;
 }
 
+/**
+ * Counts the distinct `fill` colors in traced SVG markup — used to label the
+ * "Auto" palette row with how many colors VTracer actually produced. Ignores
+ * `fill="none"` and the tweak-panel background rect (which isn't part of the
+ * traced palette).
+ */
+export function countSvgColors(svg: string): number {
+  const colors = new Set<string>();
+  // Drop the tweak-panel background rect so a solid background doesn't inflate
+  // the count by one (it's not part of the traced palette).
+  const traced = svg.replace(/<rect[^>]*data-tweak-background[^>]*\/>/g, "");
+  for (const match of traced.matchAll(/fill\s*=\s*["']([^"']+)["']/g)) {
+    const value = match[1].trim().toLowerCase();
+    if (value === "none") continue;
+    colors.add(value);
+  }
+  return colors.size;
+}
+
 /** Byte size and `<path>` count of the given SVG markup, for a pre-export estimate. */
 export function estimateSvg(svg: string): SvgEstimate {
   return {

@@ -109,4 +109,15 @@ describe("vtracer worker engine", () => {
       }
     }
   });
+
+  it("test_paramTranslation_blackAndWhite_keepsCornersSharp", () => {
+    // B&W (paletteSize 1) caps the corner threshold low so the silhouette keeps
+    // precise contours instead of melting; a colored palette at the same
+    // Smoothness smooths far more aggressively.
+    const bw = translateParams({ paletteSize: 1, smoothness: 100, detail: 50, contrast: 0 });
+    const color = translateParams({ paletteSize: 8, smoothness: 100, detail: 50, contrast: 0 });
+    expect(bw.colorMode).toBe("color"); // pre-binarized upstream, not VTracer binary
+    expect(bw.cornerThreshold).toBeLessThanOrEqual(45);
+    expect(bw.cornerThreshold).toBeLessThan(color.cornerThreshold);
+  });
 });

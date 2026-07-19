@@ -118,7 +118,7 @@
   border-radius: 3px;
   background: var(--accent);
   border: 2px solid #fff;
-  cursor: grab;
+  /* cursor is a direction-matched resize arrow, set inline per handle. */
   touch-action: none;
 }
 .cropHandle:focus-visible {
@@ -126,12 +126,13 @@
   outline-offset: 2px;
 }
 
-/* ---- rotate handle (straddles the image's top-centre edge) ---- */
+/* ---- rotate handle (floats above the image's top-centre edge, clear of the
+   top crop handle that now sits on that edge) ---- */
 .rotateHandle {
   position: absolute;
   left: 50%;
   top: 0;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -100%);
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -164,6 +165,10 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+/* Reset sits apart from Undo/Redo, pushed to the right edge of the row. */
+.resetRight {
+  margin-left: auto;
 }
 
 .toolButton {

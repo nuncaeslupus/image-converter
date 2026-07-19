@@ -18,13 +18,40 @@ import {
 } from "./icons";
 import styles from "./Editor.module.css";
 
-type Handle = "nw" | "ne" | "sw" | "se";
-const HANDLES: Handle[] = ["nw", "ne", "sw", "se"];
+type Handle = "nw" | "ne" | "sw" | "se" | "n" | "e" | "s" | "w";
+const HANDLES: Handle[] = ["nw", "ne", "sw", "se", "n", "e", "s", "w"];
+
+/** Percentage offset of a handle within the crop frame (corner or edge midpoint). */
+function handleOffset(handle: Handle): { left: string; top: string } {
+  return {
+    left: handle.includes("w") ? "0%" : handle.includes("e") ? "100%" : "50%",
+    top: handle.includes("n") ? "0%" : handle.includes("s") ? "100%" : "50%",
+  };
+}
+
+/** Resize cursor matching the drag axis of each handle. */
+function handleCursor(handle: Handle): string {
+  if (handle === "n" || handle === "s") return "ns-resize";
+  if (handle === "e" || handle === "w") return "ew-resize";
+  if (handle === "nw" || handle === "se") return "nwse-resize";
+  return "nesw-resize"; // ne, sw
+}
+
+const HANDLE_LABEL: Record<Handle, string> = {
+  nw: "top-left corner",
+  ne: "top-right corner",
+  sw: "bottom-left corner",
+  se: "bottom-right corner",
+  n: "top edge",
+  e: "right edge",
+  s: "bottom edge",
+  w: "left edge",
+};
 
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 8;
 const ZOOM_STEP = 1.25;
-const STAGE_PAD = 22; // leaves room for the rotate handle straddling the top edge
+const STAGE_PAD = 46; // room for the rotate handle floating above the top edge, clear of the top crop handle
 const SNAP_STEP = 45; // Shift snaps rotation to these marks
 const MIN_CROP = 0.05; // smallest crop, as a fraction of the rotated bounding box
 const GRID_LINES = 4; // internal grid lines per axis (a 5×5 field ≈ 2× rule-of-thirds)
@@ -50,8 +77,9 @@ function rotatedBounds(w: number, h: number, deg: number): { w: number; h: numbe
   return { w: w * cos + h * sin, h: w * sin + h * cos };
 }
 
-/** Moves one corner of a normalized crop rect, keeping it inside [0,1]. */
-function moveCropCorner(
+/** Moves the edge(s) a handle controls, keeping the crop rect inside [0,1].
+ * Corner handles move two edges; edge handles ("n"/"e"/"s"/"w") move one. */
+function moveCropHandle(
   rect: NormalizedRect,
   handle: Handle,
   dxN: number,
@@ -61,10 +89,10 @@ function moveCropCorner(
   let top = rect.y;
   let right = rect.x + rect.w;
   let bottom = rect.y + rect.h;
-  if (handle === "nw" || handle === "sw") left = clamp(left + dxN, 0, right - MIN_CROP);
-  else right = clamp(right + dxN, left + MIN_CROP, 1);
-  if (handle === "nw" || handle === "ne") top = clamp(top + dyN, 0, bottom - MIN_CROP);
-  else bottom = clamp(bottom + dyN, top + MIN_CROP, 1);
+  if (handle.includes("w")) left = clamp(left + dxN, 0, right - MIN_CROP);
+  if (handle.includes("e")) right = clamp(right + dxN, left + MIN_CROP, 1);
+  if (handle.includes("n")) top = clamp(top + dyN, 0, bottom - MIN_CROP);
+  if (handle.includes("s")) bottom = clamp(bottom + dyN, top + MIN_CROP, 1);
   return { x: left, y: top, w: right - left, h: bottom - top };
 }
 
@@ -307,7 +335,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
     if (!d || d.pointerId !== event.pointerId) return;
     const dxN = dispW ? (event.clientX - d.startX) / (dispW * zoom) : 0;
     const dyN = dispH ? (event.clientY - d.startY) / (dispH * zoom) : 0;
-    setDraftCrop(moveCropCorner(d.startRect, d.handle, dxN, dyN));
+    setDraftCrop(moveCropHandle(d.startRect, d.handle, dxN, dyN));
   }
   function onCropUp(event: JSX.TargetedPointerEvent<HTMLDivElement>) {
     const d = cropDragRef.current;
@@ -413,12 +441,9 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 <div
                   key={handle}
                   className={styles.cropHandle}
-                  style={{
-                    left: handle.includes("w") ? "0%" : "100%",
-                    top: handle.includes("n") ? "0%" : "100%",
-                  }}
+                  style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
                   role="button"
-                  aria-label={`Crop ${handle} corner`}
+                  aria-label={`Crop ${HANDLE_LABEL[handle]}`}
                   onPointerDown={(event) => onCropDown(handle, event)}
                   onPointerMove={onCropMove}
                   onPointerUp={onCropUp}
@@ -469,7 +494,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
           </button>
           <button
             type="button"
-            className={styles.toolButton}
+            className={`${styles.toolButton} ${styles.resetRight}`}
             disabled={isIdentityTransform(committed)}
             onClick={reset}
             title="Reset to original"
@@ -564,7 +589,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
               {outW} × {outH}
             </span>
           </div>
-          <p className={styles.hint}>Drag the corner handles on the image.</p>
+          <p className={styles.hint}>Drag the corners or edges on the image.</p>
         </div>
       </div>
     </div>

@@ -56,23 +56,28 @@ function clampRound(value: number, [min, max]: readonly [number, number]): numbe
 export function translateParams(params: TraceParams): VtracerConfig {
   const { paletteSize, smoothness, detail, contrast } = params;
 
-  // paletteSize (colors) -> colorPrecision (bits/channel). "auto" keeps
-  // VTracer's default of 6 bits.
-  // ponytail: colorPrecision is bits/channel, not a hard color count — VTracer
-  // has no "exactly N colors" knob, so this is a coarse richness scale, not a
-  // literal palette cap. Upgrade path: pre-quantize the RGBA to N colors before
-  // tracing if a true palette-size guarantee is ever needed.
-  const colorPrecision =
-    paletteSize === "auto"
-      ? 6
-      : clampRound(Math.log2(Math.max(1, paletteSize)), VTRACER_RANGES.colorPrecision);
+  // paletteSize is a LITERAL color count enforced upstream by reducing the RGBA
+  // before the trace (see lib/quantize.ts + traceRgba): N=1 is pre-binarized to
+  // black-on-transparent, N>=2 is pre-quantized to N colors. VTracer therefore
+  // always runs in color mode; this function only sets colorPrecision so it
+  // preserves the already-reduced palette (8 bits) rather than clustering
+  // further, except for "auto" which does no pre-reduction and keeps VTracer's
+  // default 6-bit clustering.
+  const colorPrecision = paletteSize === "auto" ? 6 : 8;
 
   // Higher detail keeps smaller specks (lower filter) and finer coordinates.
   const filterSpeckle = clampRound(((100 - detail) / 100) * 16, VTRACER_RANGES.filterSpeckle);
   const pathPrecision = clampRound(1 + (detail / 100) * 7, VTRACER_RANGES.pathPrecision);
 
-  // Higher smoothness treats wider angles as smooth (fewer corners).
-  const cornerThreshold = clampRound((smoothness / 100) * 180, VTRACER_RANGES.cornerThreshold);
+  // Higher smoothness treats wider angles as smooth (fewer corners). Black &
+  // white wants precise, faithful contours, so its corner threshold is capped
+  // low: even at max Smoothness the silhouette keeps its corners instead of
+  // melting into wobble. Colored palettes use the full 0–180 range.
+  const cornerCap = paletteSize === 1 ? 45 : 180;
+  const cornerThreshold = clampRound(
+    (smoothness / 100) * cornerCap,
+    VTRACER_RANGES.cornerThreshold,
+  );
 
   // Contrast centers on VTracer's default layer difference (16) and widens/
   // narrows layer separation: higher contrast -> finer layers.

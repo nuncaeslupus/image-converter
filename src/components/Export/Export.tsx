@@ -6,25 +6,29 @@ import {
   downloadSvg,
   estimateSvg,
 } from "../../lib/svgExport";
-import { ExportStepIcon, CopyIcon } from "../shellIcons";
+import { ExportStepIcon, CopyIcon, LinkIcon } from "../shellIcons";
 import styles from "./Export.module.css";
 
 function formatBytes(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-/** A blank field means "auto" (fall back to intrinsic) — anything else must parse as >= 1. */
-function isInvalidSize(value: string): boolean {
-  if (value.trim() === "") return false;
+type Unit = "px" | "%";
+
+/**
+ * Parses a size field into an absolute pixel value, or `undefined` if it can't.
+ * In `%` mode the number is a percentage of `base`; in `px` mode it's literal.
+ */
+function parsePx(value: string, base: number, unit: Unit): number | undefined {
   const n = Number(value);
-  return !(Number.isFinite(n) && n >= 1);
+  if (!Number.isFinite(n)) return undefined;
+  if (unit === "%") return n > 0 ? Math.max(1, Math.round((base * n) / 100)) : undefined;
+  return n >= 1 ? Math.round(n) : undefined;
 }
 
-/** Parses a size field into a positive-integer override, or `undefined` for blank/invalid (caller falls back to intrinsic). */
-function parseSizeOverride(value: string): number | undefined {
-  if (value.trim() === "") return undefined;
-  const n = Number(value);
-  return Number.isFinite(n) && n >= 1 ? Math.round(n) : undefined;
+/** Formats an absolute pixel value for display in the current unit. */
+function displayIn(px: number, base: number, unit: Unit): string {
+  return unit === "%" ? String(Math.round((px / base) * 100)) : String(px);
 }
 
 /** How long the "Copied!" / "Copy failed" feedback stays visible before reverting to the idle label. */
@@ -35,6 +39,10 @@ export interface ExportProps {
   svg: string;
   /** Pre-filled download name (source name with a `.svg` extension). */
   defaultFileName: string;
+  /** Original (post-edit) image width — the default output size and the `%` base. */
+  defaultWidth?: number;
+  /** Original (post-edit) image height — the default output size and the `%` base. */
+  defaultHeight?: number;
 }
 
 /**
@@ -70,40 +78,46 @@ function intrinsicSize(svg: string): { width: string; height: string; viewBox: s
  * rewrite (`applyViewBoxOverride`) applied on every render — never a tracer
  * call — so it's reflected instantly in the estimate, download, and copy.
  */
-export function Export({ svg, defaultFileName }: ExportProps) {
-  // Pre-fill the download name from the source; re-seed if the default changes
-  // (new source while mounted). A blank field falls back to the default, and a
-  // `.svg` extension is enforced at download time.
+export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: ExportProps) {
+  // Pre-fill the download name from the source; re-seed if the default changes.
   const [fileName, setFileName] = useState(defaultFileName);
   useEffect(() => setFileName(defaultFileName), [defaultFileName]);
 
-  // DOMParser + a viewBox regex/TextEncoder pass over potentially hundreds
-  // of KB of markup — memoized so it only reruns when its actual inputs
-  // change, not on every render/keystroke (finding: recomputes heavy work
-  // every render).
   const intrinsic = useMemo(() => intrinsicSize(svg), [svg]);
-  // Pre-fill the override fields with the SVG's own dimensions so the user sees
-  // the current size and can edit from there (blank falls back to intrinsic).
-  const [width, setWidth] = useState(intrinsic.width);
-  const [height, setHeight] = useState(intrinsic.height);
-  // The last value in each field that actually validated — Download/Copy/the
-  // estimate always use these, never a currently-invalid typed value, so a
-  // stray "0" or "-5" can never produce an invisible `width="0"` SVG.
-  const [lastValidWidth, setLastValidWidth] = useState(intrinsic.width);
-  const [lastValidHeight, setLastValidHeight] = useState(intrinsic.height);
+  // The base the `%` unit and the default size are relative to: the original
+  // (post-edit) image dimensions when known, else the SVG's intrinsic size.
+  const base = useMemo(() => {
+    const w = defaultWidth ?? Number(intrinsic.width);
+    const h = defaultHeight ?? Number(intrinsic.height);
+    return {
+      w: Number.isFinite(w) && w >= 1 ? Math.round(w) : 1,
+      h: Number.isFinite(h) && h >= 1 ? Math.round(h) : 1,
+    };
+  }, [defaultWidth, defaultHeight, intrinsic]);
+  const aspect = base.w / base.h;
 
-  // Re-seed the fields if the SVG itself is replaced while this component
-  // stays mounted (`intrinsic` is memoized on `svg`, so its identity only
-  // changes with a genuinely new document) — without this, stale dimensions
-  // from the previous SVG would keep overriding the new one's.
+  const [unit, setUnit] = useState<Unit>("px");
+  const [keepRatio, setKeepRatio] = useState(true);
+  // Canonical output size in px (always valid); the fields display it in `unit`.
+  const [pxW, setPxW] = useState(base.w);
+  const [pxH, setPxH] = useState(base.h);
+  // Raw field text (may be mid-edit / invalid); px only updates on a valid value,
+  // so a stray "0"/"-5" can never produce an invisible width="0" SVG.
+  const [wStr, setWStr] = useState(String(base.w));
+  const [hStr, setHStr] = useState(String(base.h));
+
+  // Re-seed to the original size (in px) whenever the image/base changes — a
+  // new source starts from its own dimensions at 100%.
   useEffect(() => {
-    setWidth(intrinsic.width);
-    setHeight(intrinsic.height);
-    setLastValidWidth(intrinsic.width);
-    setLastValidHeight(intrinsic.height);
-  }, [intrinsic]);
+    setUnit("px");
+    setPxW(base.w);
+    setPxH(base.h);
+    setWStr(String(base.w));
+    setHStr(String(base.h));
+  }, [base]);
 
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const [showMarkup, setShowMarkup] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clears the pending "revert to idle" timeout on unmount — otherwise
@@ -115,16 +129,14 @@ export function Export({ svg, defaultFileName }: ExportProps) {
     };
   }, []);
 
-  const widthInvalid = isInvalidSize(width);
-  const heightInvalid = isInvalidSize(height);
+  const widthInvalid = parsePx(wStr, base.w, unit) === undefined;
+  const heightInvalid = parsePx(hStr, base.h, unit) === undefined;
 
+  // Download/Copy/estimate always use the canonical px size, never a
+  // currently-invalid typed value.
   const effectiveSvg = useMemo(
-    () =>
-      applyViewBoxOverride(svg, {
-        width: parseSizeOverride(lastValidWidth),
-        height: parseSizeOverride(lastValidHeight),
-      }),
-    [svg, lastValidWidth, lastValidHeight],
+    () => applyViewBoxOverride(svg, { width: pxW, height: pxH }),
+    [svg, pxW, pxH],
   );
   const estimate = useMemo(() => estimateSvg(effectiveSvg), [effectiveSvg]);
 
@@ -141,16 +153,38 @@ export function Export({ svg, defaultFileName }: ExportProps) {
     copyTimeoutRef.current = setTimeout(() => setCopyState("idle"), COPY_FEEDBACK_MS);
   }
 
+  // Switching units keeps the actual size fixed, just re-displaying it (px ↔ %).
+  function changeUnit(next: Unit) {
+    if (next === unit) return;
+    setWStr(displayIn(pxW, base.w, next));
+    setHStr(displayIn(pxH, base.h, next));
+    setUnit(next);
+  }
+
   function handleWidthInput(event: JSX.TargetedEvent<HTMLInputElement>) {
     const value = event.currentTarget.value;
-    setWidth(value);
-    if (!isInvalidSize(value)) setLastValidWidth(value);
+    setWStr(value);
+    const px = parsePx(value, base.w, unit);
+    if (px === undefined) return;
+    setPxW(px);
+    if (keepRatio) {
+      const nh = Math.max(1, Math.round(px / aspect));
+      setPxH(nh);
+      setHStr(displayIn(nh, base.h, unit));
+    }
   }
 
   function handleHeightInput(event: JSX.TargetedEvent<HTMLInputElement>) {
     const value = event.currentTarget.value;
-    setHeight(value);
-    if (!isInvalidSize(value)) setLastValidHeight(value);
+    setHStr(value);
+    const px = parsePx(value, base.h, unit);
+    if (px === undefined) return;
+    setPxH(px);
+    if (keepRatio) {
+      const nw = Math.max(1, Math.round(px * aspect));
+      setPxW(nw);
+      setWStr(displayIn(nw, base.w, unit));
+    }
   }
 
   function handleDownload() {
@@ -178,28 +212,58 @@ export function Export({ svg, defaultFileName }: ExportProps) {
       </div>
 
       <div>
-        <div className={styles.label}>Output size</div>
+        <div className={styles.sizeHead}>
+          <div className={styles.label}>Output size</div>
+          <div className={styles.unitToggle} role="group" aria-label="Size unit">
+            <button
+              type="button"
+              className={styles.unitButton}
+              aria-pressed={unit === "px"}
+              onClick={() => changeUnit("px")}
+            >
+              px
+            </button>
+            <button
+              type="button"
+              className={styles.unitButton}
+              aria-pressed={unit === "%"}
+              onClick={() => changeUnit("%")}
+            >
+              %
+            </button>
+          </div>
+        </div>
         <div className={styles.sizeRow}>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Width</span>
             <input
               type="number"
               min={1}
-              placeholder="auto"
               className="mono"
-              value={width}
+              value={wStr}
+              aria-label="Width"
               aria-invalid={widthInvalid ? "true" : undefined}
               onInput={handleWidthInput}
             />
           </label>
+          <button
+            type="button"
+            className={styles.chain}
+            aria-pressed={keepRatio}
+            aria-label="Keep aspect ratio"
+            title={keepRatio ? "Aspect ratio locked" : "Aspect ratio unlocked"}
+            onClick={() => setKeepRatio((v) => !v)}
+          >
+            <LinkIcon />
+          </button>
           <label className={styles.field}>
             <span className={styles.fieldLabel}>Height</span>
             <input
               type="number"
               min={1}
-              placeholder="auto"
               className="mono"
-              value={height}
+              value={hStr}
+              aria-label="Height"
               aria-invalid={heightInvalid ? "true" : undefined}
               onInput={handleHeightInput}
             />
@@ -234,10 +298,33 @@ export function Export({ svg, defaultFileName }: ExportProps) {
         <ExportStepIcon size={17} />
         Download .svg
       </button>
-      <button type="button" className={styles.secondary} onClick={() => void handleCopy()}>
+
+      <button
+        type="button"
+        className={styles.secondary}
+        onClick={() => setShowMarkup((v) => !v)}
+        aria-expanded={showMarkup}
+      >
         <CopyIcon />
-        <span aria-live="polite">{copyLabel}</span>
+        {showMarkup ? "Hide SVG markup" : "View SVG markup"}
       </button>
+
+      {showMarkup && (
+        <div className={styles.markup}>
+          <textarea
+            className={`${styles.markupText} mono`}
+            readOnly
+            value={effectiveSvg}
+            aria-label="SVG markup"
+            spellcheck={false}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <button type="button" className={styles.markupCopy} onClick={() => void handleCopy()}>
+            <CopyIcon />
+            <span aria-live="polite">{copyLabel}</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

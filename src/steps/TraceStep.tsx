@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Wizard } from "../lib/wizard";
-import { TweakPanel } from "../components/TweakPanel/TweakPanel";
+import { TweakPanel, PALETTE_OPTIONS } from "../components/TweakPanel/TweakPanel";
 import { Preview } from "../components/Preview/Preview";
 import {
   createTweakPipeline,
@@ -16,13 +16,68 @@ import {
   isTraceResponse,
   type TraceParams,
 } from "../lib/traceProtocol";
-import { downscaleForPreview } from "../lib/previewDownscale";
+import { downscaleForPreview, BW_PREVIEW_MAX_DIMENSION } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
-import { estimateSvg, countPaths } from "../lib/svgExport";
+import { medianCutPalette, rgbToHex, significantColorCount } from "../lib/quantize";
+import { estimateSvg, countPaths, countSvgColors } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
+
+// The color counts that get a swatch preview — derived from PALETTE_OPTIONS so
+// the two can never drift (B&W and Auto render their own label, not swatches).
+const PREVIEW_COUNTS = PALETTE_OPTIONS.filter((p): p is number => typeof p === "number" && p >= 2);
+
+/** A 2D context on the widest-supported canvas — OffscreenCanvas where present,
+ * else a plain <canvas> (older Safari / environments without OffscreenCanvas),
+ * so the swatch sampling still works instead of being silently skipped. */
+function get2dContext(
+  w: number,
+  h: number,
+): OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(w, h).getContext("2d");
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  return canvas.getContext("2d");
+}
+
+interface PaletteInfo {
+  /** Real swatch colors per option count ("2".."16"). */
+  previews: Record<string, string[]>;
+  /** How many colors the image meaningfully has (caps the offered counts). */
+  maxColors: number;
+}
+
+/**
+ * Samples the image down to a small RGBA buffer and derives each palette
+ * option's real colors via median cut — the same algorithm the worker uses to
+ * quantize before tracing, so the swatches match the rendered result closely —
+ * plus the image's significant color count. Cheap (palette only, no trace) and
+ * computed once per baked image. Returns `undefined` where there's no canvas
+ * (jsdom) so the panel just omits swatches.
+ */
+function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
+  const CAP = 64;
+  const scale = Math.min(1, CAP / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  try {
+    const ctx = get2dContext(w, h);
+    if (!ctx) return undefined;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    const rgba = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    const previews: Record<string, string[]> = {};
+    for (const n of PREVIEW_COUNTS) {
+      previews[String(n)] = medianCutPalette(rgba, n).map(rgbToHex);
+    }
+    return { previews, maxColors: significantColorCount(rgba) };
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Wizard step 3 — the live tweak panel driving the two-tier retrace/
@@ -59,6 +114,13 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   // The image to trace is the source with Edit's crop/rotate baked in — a
   // fresh upright bitmap, re-baked when the source or transform changes.
   const image = useBakedImage(wizard.image, wizard.transform);
+
+  // Real per-palette swatches + significant color count for the Colors control,
+  // sampled from the current baked image (recomputed only when it changes).
+  const [paletteInfo, setPaletteInfo] = useState<PaletteInfo | undefined>(undefined);
+  useEffect(() => {
+    setPaletteInfo(image ? computePaletteInfo(image) : undefined);
+  }, [image]);
 
   // Publish the current traced SVG up to the wizard so ExportStep (T9) reads
   // it. Only publish real results — the initial local state is seeded from
@@ -116,8 +178,11 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         // transferred directly, or every later retrace would find it detached.
         // Downscaled to a bounded preview resolution before tracing (T11) —
         // tracing at full source resolution can blow the ~5s preview budget by
-        // an order of magnitude on typical camera/phone photos.
-        const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage));
+        // an order of magnitude on typical camera/phone photos. B&W is
+        // pre-binarized to one color (few paths, cheap), so it uses a higher cap
+        // for a crisp, precise contour instead of the softened 512 default.
+        const cap = params.paletteSize === 1 ? BW_PREVIEW_MAX_DIMENSION : undefined;
+        const bitmapCopy = await downscaleForPreview(await createImageBitmap(workingImage), cap);
         const request = createTraceRequest(
           { bitmap: bitmapCopy, width: bitmapCopy.width, height: bitmapCopy.height },
           params,
@@ -202,6 +267,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
               tracedSvg={tracedSvg}
               originalImage={image}
               caption={caption}
+              busy={busy}
             />
           ) : (
             <div className={styles.loading} role={error ? "alert" : "status"}>
@@ -220,14 +286,18 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         </div>
 
         <div className={styles.controls}>
-          <TweakPanel values={values} onChange={handleChange} busy={busy} />
+          <TweakPanel
+            values={values}
+            onChange={handleChange}
+            busy={busy}
+            palettePreviews={paletteInfo?.previews}
+            maxColors={paletteInfo?.maxColors}
+            autoColorCount={
+              values.paletteSize === "auto" && tracedSvg ? countSvgColors(tracedSvg) : undefined
+            }
+          />
         </div>
       </div>
-      {tracedSvg && busy && (
-        <p className={styles.retracing} role="status">
-          Retracing…
-        </p>
-      )}
       {tracedSvg && error && (
         <p className={styles.error} role="alert">
           {error}

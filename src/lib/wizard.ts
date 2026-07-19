@@ -74,11 +74,19 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   // pure (double-invocation under strict/concurrent rendering would close the
   // replacement's predecessor twice). replaceImage only runs from event
   // handlers, so `image` is current here.
+  //
+  // A new source is a clean slate: besides the transform, the traced SVG and
+  // the tweak-panel values (palette/smoothness/detail/contrast/background) are
+  // reset too, so a fresh image — or "Start over" — never inherits the previous
+  // image's Trace settings. This is the single place the source changes, so
+  // every caller (upload / replace / remove / start over) gets the reset.
   function replaceImage(next: ImageBitmap | null, nextFileName: string | null) {
     if (image && image !== next) image.close();
     setImage(next);
     setTransform(IDENTITY_TRANSFORM);
     setFileName(nextFileName);
+    setSvg(null);
+    setTweakValues(null);
   }
 
   return {
