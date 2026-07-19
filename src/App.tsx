@@ -75,7 +75,10 @@ export function App() {
   }, [wizard.step, current]);
 
   function startOver() {
-    wizard.setImage(null);
+    // Closes the outgoing image + original — safe here because "Start over"
+    // is only reachable from the last (Export) step, where the Editor is
+    // unmounted (see `Wizard.replaceImage`'s doc comment).
+    wizard.replaceImage(null, null);
     wizard.setSvg(null);
     wizard.goTo("upload");
   }

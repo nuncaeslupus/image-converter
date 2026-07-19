@@ -36,7 +36,21 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
       setStatus({ kind: "decoding", fileName: file.name });
       try {
         const bitmap = await decodeImage(file);
-        wizard.setImage(bitmap);
+        // A distinct clone becomes the pristine `originalImage`, kept apart
+        // from `bitmap` (which becomes `wizard.image` and, once Edit is
+        // visited, lives in the Editor's undo history) — see the
+        // `replaceImage` doc comment on `Wizard` for why these must never be
+        // the same object. If the clone fails (resource pressure), close the
+        // already-decoded bitmap before rethrowing — otherwise the full-res
+        // decode would leak with no owner.
+        let original: ImageBitmap;
+        try {
+          original = await createImageBitmap(bitmap);
+        } catch (err) {
+          bitmap.close();
+          throw err;
+        }
+        wizard.replaceImage(bitmap, original);
         // A fresh source invalidates any previously traced SVG.
         wizard.setSvg(null);
         setStatus({ kind: "idle" });
@@ -114,7 +128,9 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
   const handleDragLeave = () => setIsDragOver(false);
 
   function removeImage() {
-    wizard.setImage(null);
+    // Closes the outgoing image + original — safe here because the Editor
+    // is never mounted on the Upload step (see `replaceImage`'s doc comment).
+    wizard.replaceImage(null, null);
     wizard.setSvg(null);
   }
 
