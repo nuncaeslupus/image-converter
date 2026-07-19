@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import { render, screen } from "@testing-library/preact";
 import { bitmapFromPixels } from "../lib/imageEdit";
 import { WIZARD_STEPS, type Wizard, type WizardStep } from "../lib/wizard";
+import type { TweakValues } from "../lib/tweakPipeline";
 import { EditStep } from "./EditStep";
 
 async function makeFixtureBitmap(): Promise<ImageBitmap> {
@@ -22,6 +23,7 @@ function Harness({ image }: { image: ImageBitmap }) {
   const [step, setStep] = useState<WizardStep>("edit");
   const [wizardImage, setWizardImage] = useState<ImageBitmap | null>(image);
   const [svg, setSvg] = useState<string | null>(null);
+  const [tweakValues, setTweakValues] = useState<TweakValues | null>(null);
 
   const wizard: Wizard = {
     step,
@@ -33,6 +35,8 @@ function Harness({ image }: { image: ImageBitmap }) {
     setImage: setWizardImage,
     svg,
     setSvg,
+    tweakValues,
+    setTweakValues,
   };
 
   return (

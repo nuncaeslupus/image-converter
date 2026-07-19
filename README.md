@@ -17,8 +17,9 @@ walks through a 4-step wizard — Upload → Edit → Trace → Export:
 - **Hosting:** 100% static site (GitHub Pages) — $0 backend.
 - **Fast tweaking:** two-tier pipeline — cheap SVG-only edits (background, fill,
   scale) never retrace; only color/detail/curve changes re-run the tracer.
-- **Device-safe:** traces run on a preview downscaled to a 512px long edge,
-  keeping tweaking snappy on phones/tablets.
+- **Device-safe:** tweaking traces a preview downscaled to a 512px long edge,
+  keeping it snappy on phones/tablets; export re-traces once at full source
+  resolution.
 - Tracer sits behind a `bitmap → SVG` interface, leaving room for an AI tracer later.
 
 ## Development
