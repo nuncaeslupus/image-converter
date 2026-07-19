@@ -1,7 +1,10 @@
 .step {
   display: flex;
   flex-direction: column;
-  padding: 6px 0 4px;
+  /* No padding — the loaded card must fill the section height exactly like
+     Trace/Export/Edit so all four steps' cards are identical in size. */
+  height: 100%;
+  min-height: 0;
 }
 
 /* On short/narrow viewports the dropzone/thumbnail's own min-height (240px)
@@ -155,8 +158,8 @@
 }
 
 .thumb {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: 3px;
 }

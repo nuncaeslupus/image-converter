@@ -3,10 +3,11 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   applyViewBoxOverride,
   copySvgToClipboard,
+  countSvgColors,
   downloadSvg,
   estimateSvg,
 } from "../../lib/svgExport";
-import { ExportStepIcon, CopyIcon, LinkIcon } from "../shellIcons";
+import { ExportStepIcon, CopyIcon, CodeIcon, LinkIcon } from "../shellIcons";
 import styles from "./Export.module.css";
 
 function formatBytes(bytes: number): string {
@@ -139,6 +140,7 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
     [svg, pxW, pxH],
   );
   const estimate = useMemo(() => estimateSvg(effectiveSvg), [effectiveSvg]);
+  const colorCount = useMemo(() => countSvgColors(effectiveSvg), [effectiveSvg]);
 
   async function handleCopy() {
     try {
@@ -192,11 +194,27 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
     downloadSvg(effectiveSvg, /\.svg$/i.test(name) ? name : `${name}.svg`);
   }
 
-  const copyLabel =
-    copyState === "copied" ? "Copied!" : copyState === "failed" ? "Copy failed" : "Copy SVG markup";
+  const copyLabel = copyState === "copied" ? "Copied!" : copyState === "failed" ? "Failed" : "Copy";
 
   return (
     <div className={styles.export}>
+      <div className={styles.estimate}>
+        <div className={styles.estimateRow}>
+          <span className={styles.estimateLabel}>Estimated size</span>
+          <span className={`${styles.estimateValue} mono`}>{formatBytes(estimate.bytes)}</span>
+        </div>
+        <div className={styles.estimateRow}>
+          <span className={styles.estimateLabel}>Path count</span>
+          <span className={`${styles.estimateValue} mono`}>
+            {estimate.pathCount.toLocaleString()}
+          </span>
+        </div>
+        <div className={styles.estimateRow}>
+          <span className={styles.estimateLabel}>Colors</span>
+          <span className={`${styles.estimateValue} mono`}>{colorCount.toLocaleString()}</span>
+        </div>
+      </div>
+
       <div>
         <div className={styles.label}>File name</div>
         <label className={styles.field}>
@@ -281,19 +299,6 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         <div className={`${styles.viewBox} mono`}>viewBox {intrinsic.viewBox}</div>
       </div>
 
-      <div className={styles.estimate}>
-        <div className={styles.estimateRow}>
-          <span className={styles.estimateLabel}>Estimated size</span>
-          <span className={`${styles.estimateValue} mono`}>{formatBytes(estimate.bytes)}</span>
-        </div>
-        <div className={styles.estimateRow}>
-          <span className={styles.estimateLabel}>Path count</span>
-          <span className={`${styles.estimateValue} mono`}>
-            {estimate.pathCount.toLocaleString()}
-          </span>
-        </div>
-      </div>
-
       <button type="button" className={styles.primary} onClick={handleDownload}>
         <ExportStepIcon size={17} />
         Download .svg
@@ -305,7 +310,7 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         onClick={() => setShowMarkup((v) => !v)}
         aria-expanded={showMarkup}
       >
-        <CopyIcon />
+        <CodeIcon />
         {showMarkup ? "Hide SVG markup" : "View SVG markup"}
       </button>
 
@@ -319,8 +324,13 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
             spellcheck={false}
             onFocus={(event) => event.currentTarget.select()}
           />
-          <button type="button" className={styles.markupCopy} onClick={() => void handleCopy()}>
-            <CopyIcon />
+          <button
+            type="button"
+            className={styles.markupCopy}
+            onClick={() => void handleCopy()}
+            aria-label="Copy SVG markup"
+          >
+            <CopyIcon size={14} />
             <span aria-live="polite">{copyLabel}</span>
           </button>
         </div>

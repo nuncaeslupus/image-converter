@@ -154,6 +154,16 @@ export function CopyIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Angle brackets — "view markup" / code affordance. */
+export function CodeIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Stroke size={size}>
+      <path d="m8 16-4-4 4-4" />
+      <path d="m16 8 4 4-4 4" />
+    </Stroke>
+  );
+}
+
 /** Chain-link — the "keep aspect ratio" toggle between width and height. */
 export function LinkIcon({ size = 15 }: { size?: number }) {
   return (

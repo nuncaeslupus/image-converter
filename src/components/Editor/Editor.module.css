@@ -17,10 +17,10 @@
   overflow-y: auto;
 }
 
-/* Rotate/Crop sit toward the bottom, clearly separated from the Undo/Redo/Reset
-   row at the top now that the sidebar is lighter (Zoom moved into the header). */
+/* Rotate/Crop sit a little below the Undo/Redo/Reset row, clearly separated
+   but not pushed all the way to the bottom. */
 .editCards {
-  margin-top: auto;
+  margin-top: 10px;
   display: flex;
   flex-direction: column;
   gap: 12px;

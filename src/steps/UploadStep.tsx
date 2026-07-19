@@ -81,7 +81,10 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
     if (!image) return;
     const canvas = thumbRef.current;
     if (!canvas) return;
-    const MAX = 400;
+    // Backing-store cap: large enough that the preview fills the card box
+    // crisply (like Edit), still bounded so a huge photo doesn't allocate a
+    // full-resolution canvas just for a preview.
+    const MAX = 1024;
     const scale = Math.min(1, MAX / Math.max(image.width, image.height));
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));

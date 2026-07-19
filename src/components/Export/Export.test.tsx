@@ -91,7 +91,7 @@ describe("Export", () => {
     await user.click(screen.getByRole("button", { name: /view svg markup/i }));
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
-    await waitFor(() => expect(screen.getByText("Copy failed")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Failed")).toBeInTheDocument());
   });
 
   it("test_export_unmountShortlyAfterCopy_doesNotWarnAboutSetStateAfterUnmount", async () => {
