@@ -8,7 +8,7 @@ import { DEFAULT_TWEAK_VALUES, type TweakValues, type BackgroundMode } from "./t
 
 export const STORAGE_KEY = "image-converter:last-settings:v1";
 
-const BACKGROUND_MODES: readonly BackgroundMode[] = ["transparent", "solid", "removed"];
+const BACKGROUND_MODES: readonly BackgroundMode[] = ["transparent", "solid"];
 
 function isValidConfig(value: unknown): value is TweakValues {
   if (typeof value !== "object" || value === null) return false;

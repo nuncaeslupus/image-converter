@@ -1,14 +1,23 @@
+import { useRef } from "preact/hooks";
+import type { JSX } from "preact";
 import type { TweakValues, BackgroundMode } from "../../lib/tweakPipeline";
 import type { PaletteSize } from "../../lib/traceProtocol";
+import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import styles from "./TweakPanel.module.css";
 
 /** Quick-select palette sizes (status/specification.md Goals: "1, 2, 3, 4, 8, 16…") + Auto. */
 const PALETTE_PRESETS: (PaletteSize | "auto")[] = [1, 2, 3, 4, 8, 16, "auto"];
 
+/**
+ * "Removed" used to be a third option here, but it rendered byte-identically
+ * to "Transparent" (see tweakPipeline.ts `applyBackground`) — a real
+ * "detected background removed" mode needs pixel-level background detection
+ * that doesn't exist yet, so the option was removed rather than ship a
+ * control that silently does nothing.
+ */
 const BACKGROUND_OPTIONS: { value: BackgroundMode; label: string }[] = [
   { value: "transparent", label: "Transparent" },
   { value: "solid", label: "Solid" },
-  { value: "removed", label: "Removed" },
 ];
 
 export interface TweakPanelProps {
@@ -26,8 +35,30 @@ export interface TweakPanelProps {
  * is `tweakPipeline.ts`'s job, not this component's.
  */
 export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) {
+  const segmentRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
+  }
+
+  // WAI-ARIA radiogroup keyboard pattern: arrow keys move *and select* the
+  // next/previous radio (wrapping), independent of which one currently has
+  // focus — see the roving tabIndex on each `.segment` button below.
+  function handleBackgroundKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
+    const currentIndex = BACKGROUND_OPTIONS.findIndex(
+      (option) => option.value === values.background,
+    );
+    const nextIndex = nextRovingIndex(
+      event.key,
+      currentIndex,
+      BACKGROUND_OPTIONS.length,
+      RADIOGROUP_KEYS,
+    );
+    if (nextIndex === null) return;
+    event.preventDefault();
+    const option = BACKGROUND_OPTIONS[nextIndex];
+    set("background", option.value);
+    segmentRefs.current[nextIndex]?.focus();
   }
 
   return (
@@ -85,8 +116,8 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
           </div>
           <input
             type="range"
-            min={-50}
-            max={50}
+            min={-100}
+            max={100}
             value={values.contrast}
             aria-label="Contrast"
             onInput={(event) => set("contrast", Number(event.currentTarget.value))}
@@ -96,14 +127,25 @@ export function TweakPanel({ values, onChange, busy = false }: TweakPanelProps) 
 
       <fieldset className={styles.group}>
         <legend className={styles.label}>Background</legend>
-        <div className={styles.segmented} role="radiogroup" aria-label="Background handling">
-          {BACKGROUND_OPTIONS.map((option) => (
+        <div
+          className={styles.segmented}
+          role="radiogroup"
+          aria-label="Background handling"
+          onKeyDown={handleBackgroundKeyDown}
+        >
+          {BACKGROUND_OPTIONS.map((option, index) => (
             <button
               key={option.value}
+              ref={(el) => {
+                segmentRefs.current[index] = el;
+              }}
               type="button"
               className={styles.segment}
               role="radio"
               aria-checked={values.background === option.value}
+              // Roving tabindex: only the checked radio is a Tab stop; arrow
+              // keys (handled above) move between the others.
+              tabIndex={values.background === option.value ? 0 : -1}
               onClick={() => set("background", option.value)}
             >
               {option.label}

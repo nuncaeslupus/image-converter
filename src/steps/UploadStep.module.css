@@ -4,6 +4,18 @@
   padding: 6px 0 4px;
 }
 
+/* On short/narrow viewports the dropzone/thumbnail's own min-height (240px)
+   plus the heading/privacy-note text can exceed the card's constant-height
+   box. `.step` already gets flex:1/min-height:0 from `.body > section`
+   (App.module.css), so it has a bounded height — scroll rather than let the
+   card's overflow:hidden clip the Replace/Remove controls. */
+@media (max-width: 720px) {
+  .step {
+    overflow-y: auto;
+    min-height: 0;
+  }
+}
+
 .head {
   flex: 0 0 auto;
 }
@@ -120,8 +132,8 @@
   cursor: pointer;
 }
 .remove:hover {
-  color: #d64545;
-  border-color: #d64545;
+  color: var(--danger);
+  border-color: var(--danger);
 }
 
 .readyActions {
@@ -177,7 +189,7 @@
 .error {
   text-align: center;
   font-size: 13px;
-  color: #d64545;
+  color: var(--danger);
   margin-top: 12px;
 }
 

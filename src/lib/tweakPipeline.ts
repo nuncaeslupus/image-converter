@@ -11,7 +11,7 @@
 import type { TraceParams } from "./traceProtocol";
 
 /** Background handling — see spec §5 local-storage contract. Cheap edit only, never retraces. */
-export type BackgroundMode = "transparent" | "solid" | "removed";
+export type BackgroundMode = "transparent" | "solid";
 
 /** Every value the tweak panel exposes: the four retrace params plus background. */
 export interface TweakValues extends TraceParams {
@@ -102,10 +102,12 @@ const BACKGROUND_RECT_REGEX = new RegExp(`<rect[^>]*${BACKGROUND_RECT_MARKER}[^>
  * Cheap SVG-only background edit — mutates the already-traced SVG string
  * directly, never re-runs the tracer.
  *
- * ponytail: "transparent" and "removed" both render as no background rect —
- * a real "detected background removed" mode needs pixel-level background
- * detection in the tracer itself (out of scope here); upgrade this to a
- * distinct code path if/when that heuristic lands.
+ * There used to be a third "Removed" option here, but it rendered
+ * byte-identically to "Transparent" (no background rect either way) — a real
+ * "detected background removed" mode needs pixel-level background detection
+ * in the tracer itself, which was never implemented. Rather than ship a
+ * control that silently does nothing different from Transparent, it was
+ * removed; reintroduce it as a distinct code path once that heuristic lands.
  */
 export function applyBackground(svg: string, background: BackgroundMode): string {
   const stripped = svg.replace(BACKGROUND_RECT_REGEX, "");

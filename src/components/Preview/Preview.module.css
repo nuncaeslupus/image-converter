@@ -73,6 +73,15 @@
   height: auto;
 }
 
+/* Both `.svg` (display:flex) and `.canvas` set their own `display`, which
+   ties the UA stylesheet's `[hidden] { display: none }` on specificity —
+   and author styles win ties over UA styles, so the `hidden` attribute alone
+   would silently do nothing here without this explicit override. */
+.svg[hidden],
+.canvas[hidden] {
+  display: none;
+}
+
 .caption {
   font-size: 11.5px;
   color: var(--fg-3);

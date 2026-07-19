@@ -16,6 +16,7 @@ import {
   ExportStepIcon,
 } from "./components/shellIcons";
 import { Fragment, type FunctionComponent } from "preact";
+import { useEffect, useRef, useState } from "preact/hooks";
 import styles from "./App.module.css";
 
 const STEP_META: {
@@ -41,6 +42,37 @@ export function App() {
   const wizard = useWizard();
   const { theme, toggle } = useTheme();
   const current = wizard.stepIndex;
+  const mainRef = useRef<HTMLElement>(null);
+  const mountedRef = useRef(false);
+  const [announcement, setAnnouncement] = useState("");
+
+  // A file dropped anywhere outside the Upload step's dropzone otherwise
+  // navigates the tab to the raw file (destroying all in-memory work — the
+  // image, edits, and traced SVG are never persisted anywhere). Mounted for
+  // the app's whole lifetime so it's never possible to "miss" re-arming it
+  // on a step change.
+  useEffect(() => {
+    function preventDefault(event: DragEvent) {
+      event.preventDefault();
+    }
+    window.addEventListener("dragover", preventDefault);
+    window.addEventListener("drop", preventDefault);
+    return () => {
+      window.removeEventListener("dragover", preventDefault);
+      window.removeEventListener("drop", preventDefault);
+    };
+  }, []);
+
+  // Move focus to the step region and announce the change on every step
+  // transition (but not on first mount — there's nothing to announce yet).
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    mainRef.current?.focus();
+    setAnnouncement(`Step ${current + 1} of ${WIZARD_STEPS.length}: ${STEP_META[current].label}`);
+  }, [wizard.step]);
 
   function startOver() {
     wizard.setImage(null);
@@ -66,7 +98,7 @@ export function App() {
         <header className={styles.topbar}>
           <div className={styles.brand}>
             <LogoMark size={52} />
-            <span className={styles.wordmark}>Halftone</span>
+            <h1 className={styles.wordmark}>Halftone</h1>
           </div>
           <div className={styles.topActions}>
             <span className={styles.badge}>
@@ -78,7 +110,7 @@ export function App() {
               className={styles.themeToggle}
               onClick={toggle}
               title="Toggle theme"
-              aria-label="Toggle theme"
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             >
               {theme === "dark" ? <SunIcon /> : <MoonIcon />}
             </button>
@@ -135,12 +167,16 @@ export function App() {
             })}
           </nav>
 
-          <main className={styles.body}>
+          <main className={styles.body} tabIndex={-1} ref={mainRef}>
             {wizard.step === "upload" && <UploadStep wizard={wizard} />}
             {wizard.step === "edit" && <EditStep wizard={wizard} />}
             {wizard.step === "trace" && <TraceStep wizard={wizard} />}
             {wizard.step === "export" && <ExportStep wizard={wizard} />}
           </main>
+
+          <div className={styles.visuallyHidden} aria-live="polite">
+            {announcement}
+          </div>
 
           <footer className={styles.footer}>
             {current > 0 ? (
