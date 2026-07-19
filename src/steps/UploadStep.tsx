@@ -134,28 +134,29 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
       {image ? (
         <div className={styles.ready}>
-          <div className={styles.thumbWrap}>
-            <canvas
-              ref={thumbRef}
-              className={styles.thumb}
-              data-testid="upload-thumb"
-              role="img"
-              aria-label="Uploaded image preview"
-            />
-            <button
-              type="button"
-              className={styles.remove}
-              onClick={removeImage}
-              title="Remove image"
-              aria-label="Remove image"
-            >
-              <XIcon size={16} />
-            </button>
+          <div className={styles.previewCol}>
+            <div className={styles.previewCard}>
+              <div className={styles.previewHead}>
+                <h3 className={styles.previewTitle}>Your image</h3>
+              </div>
+              <div className={styles.thumbWrap}>
+                <canvas
+                  ref={thumbRef}
+                  className={styles.thumb}
+                  data-testid="upload-thumb"
+                  role="img"
+                  aria-label="Uploaded image preview"
+                />
+              </div>
+            </div>
           </div>
-          <div className={styles.readyActions}>
-            <span className={`${styles.dims} mono`}>
-              {image.width} × {image.height}
-            </span>
+          <div className={styles.controls}>
+            <div className={styles.infoRow}>
+              <span className={styles.infoLabel}>Dimensions</span>
+              <span className={`${styles.dims} mono`}>
+                {image.width} × {image.height}
+              </span>
+            </div>
             <button
               type="button"
               className={styles.replace}
@@ -163,6 +164,10 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
             >
               <ReplaceIcon size={15} />
               Replace image
+            </button>
+            <button type="button" className={styles.removeBtn} onClick={removeImage}>
+              <XIcon size={15} />
+              Remove image
             </button>
           </div>
         </div>
