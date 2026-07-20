@@ -99,6 +99,9 @@
   background: var(--surface-2);
   overflow: hidden;
   touch-action: none;
+  /* Anchors the rotate handle (a direct child) to the stage viewport rather
+     than the zoom/pan layer, so it stays put and grabbable at any zoom. */
+  position: relative;
 }
 .stagePannable {
   cursor: grab;
@@ -182,13 +185,16 @@
   outline-offset: 2px;
 }
 
-/* ---- rotate handle (floats above the image's top-centre edge, clear of the
-   top crop handle that now sits on that edge) ---- */
+/* ---- rotate handle: pinned to the top-centre of the stage viewport (not the
+   image), so it stays visible and grabbable at any zoom/pan. The drag pivots on
+   the image (bbox) centre + pointer, so its resting position is just an
+   affordance and can live outside the zoom layer. ---- */
 .rotateHandle {
   position: absolute;
   left: 50%;
-  top: 0;
-  transform: translate(-50%, -100%);
+  top: 10px;
+  transform: translateX(-50%);
+  z-index: 2;
   width: 30px;
   height: 30px;
   border-radius: 50%;

@@ -495,7 +495,18 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                   <div
                     key={handle}
                     className={styles.cropHandle}
-                    style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
+                    style={{
+                      ...handleOffset(handle),
+                      cursor: handleCursor(handle),
+                      // Counter the stage's scale(zoom) so the grab targets keep
+                      // a constant on-screen size instead of ballooning when
+                      // zoomed in. Origin is the handle's center (it's already
+                      // centered on its corner via margin), so its anchor point
+                      // is unchanged — only the visual size is neutralized. Only
+                      // when zoomed: a bare scale(1) at fit needlessly promotes a
+                      // layer and can soften the handle's edges.
+                      ...(zoom !== 1 && { transform: `scale(${1 / zoom})` }),
+                    }}
                     role="button"
                     aria-label={m.cropHandleLabel(m[HANDLE_LABEL_KEY[handle]])}
                     onPointerDown={(event) => onCropDown(handle, event)}
@@ -505,40 +516,39 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                   />
                 ))}
               </div>
-
-              {fit > 0 && (
-                <button
-                  type="button"
-                  className={styles.rotateHandle}
-                  aria-label={m.rotateHandleLabel}
-                  title={m.rotateHandleTitle}
-                  onPointerDown={onRotateDown}
-                  onPointerMove={onRotateMove}
-                  onPointerUp={onRotateUp}
-                  onPointerCancel={onRotateUp}
-                  onKeyDown={(event) => {
-                    const step = event.shiftKey
-                      ? SNAP_STEP
-                      : event.ctrlKey || event.metaKey
-                        ? 0.1
-                        : 1;
-                    const dir =
-                      event.key === "ArrowLeft" || event.key === "ArrowDown"
-                        ? -1
-                        : event.key === "ArrowRight" || event.key === "ArrowUp"
-                          ? 1
-                          : 0;
-                    if (dir === 0) return;
-                    event.preventDefault();
-                    const next = (((committed.rotation + dir * step) % 360) + 360) % 360;
-                    commit({ rotation: Math.round(next * 10) / 10, crop: committed.crop });
-                  }}
-                >
-                  <RotateRightIcon />
-                </button>
-              )}
             </div>
           </div>
+
+          {/* Pinned to the stage viewport (not the zoomed image), so it stays
+              visible and grabbable at any zoom — the drag pivots on the image
+              centre + pointer, so its resting spot is only an affordance. */}
+          {fit > 0 && (
+            <button
+              type="button"
+              className={styles.rotateHandle}
+              aria-label={m.rotateHandleLabel}
+              title={m.rotateHandleTitle}
+              onPointerDown={onRotateDown}
+              onPointerMove={onRotateMove}
+              onPointerUp={onRotateUp}
+              onPointerCancel={onRotateUp}
+              onKeyDown={(event) => {
+                const step = event.shiftKey ? SNAP_STEP : event.ctrlKey || event.metaKey ? 0.1 : 1;
+                const dir =
+                  event.key === "ArrowLeft" || event.key === "ArrowDown"
+                    ? -1
+                    : event.key === "ArrowRight" || event.key === "ArrowUp"
+                      ? 1
+                      : 0;
+                if (dir === 0) return;
+                event.preventDefault();
+                const next = (((committed.rotation + dir * step) % 360) + 360) % 360;
+                commit({ rotation: Math.round(next * 10) / 10, crop: committed.crop });
+              }}
+            >
+              <RotateRightIcon />
+            </button>
+          )}
         </div>
       </div>
 
