@@ -227,6 +227,12 @@
   margin-left: auto;
 }
 
+/* Icon-only toolbar buttons (Undo/Redo/Reset) — square so all three fit on one
+   row regardless of the labels' translated width. */
+.iconOnly {
+  padding: 9px;
+}
+
 .toolButton {
   display: inline-flex;
   align-items: center;

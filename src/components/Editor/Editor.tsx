@@ -544,35 +544,37 @@ export function Editor({ image, transform, onChange }: EditorProps) {
 
       <div className={styles.sidebar}>
         <div className={styles.toolRow}>
+          {/* Icon-only so all three fit on one row in any language (labels vary
+              in width); the label lives in the tooltip + accessible name. */}
           <button
             type="button"
-            className={styles.toolButton}
+            className={`${styles.toolButton} ${styles.iconOnly}`}
             disabled={!canUndo}
             onClick={undo}
             title={m.undoTitle}
+            aria-label={m.undo}
           >
             <UndoIcon />
-            <span className={styles.toolButtonLabel}>{m.undo}</span>
           </button>
           <button
             type="button"
-            className={styles.toolButton}
+            className={`${styles.toolButton} ${styles.iconOnly}`}
             disabled={!canRedo}
             onClick={redo}
             title={m.redoTitle}
+            aria-label={m.redo}
           >
             <RedoIcon />
-            <span className={styles.toolButtonLabel}>{m.redo}</span>
           </button>
           <button
             type="button"
-            className={`${styles.toolButton} ${styles.resetRight}`}
+            className={`${styles.toolButton} ${styles.iconOnly} ${styles.resetRight}`}
             disabled={isIdentityTransform(committed)}
             onClick={reset}
             title={m.resetToOriginal}
+            aria-label={m.reset}
           >
             <ResetIcon />
-            <span className={styles.toolButtonLabel}>{m.reset}</span>
           </button>
         </div>
 
