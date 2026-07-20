@@ -15,6 +15,7 @@ import {
   TraceStepIcon,
   ExportStepIcon,
   GitHubIcon,
+  RestartIcon,
 } from "./components/shellIcons";
 import { Fragment, type FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -38,12 +39,9 @@ export function App() {
   const wizard = useWizard();
   const { theme, toggle } = useTheme();
   const { m } = useI18n();
-  const primaryLabels: string[] = [
-    m.continueToEdit,
-    m.continueToTrace,
-    m.continueToExport,
-    m.startOver,
-  ];
+  // One per non-final step; the final step renders its own de-emphasized
+  // "Start over" button instead of an accent primary (see the footer).
+  const primaryLabels: string[] = [m.continueToEdit, m.continueToTrace, m.continueToExport];
   const current = wizard.stepIndex;
   const mainRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(false);
@@ -65,6 +63,21 @@ export function App() {
       window.removeEventListener("drop", preventDefault);
     };
   }, []);
+
+  // Warn before a reload / tab close once there's in-memory work to lose — the
+  // image, edits, and traced SVG live only in memory (see the drop guard
+  // above), so an accidental reload silently drops everything. Armed only while
+  // there's something to lose; browsers show their own generic prompt text.
+  useEffect(() => {
+    if (!wizard.image && !wizard.svg) return;
+    function warnOnUnload(event: BeforeUnloadEvent) {
+      // Legacy signal first, then the modern one last so it has the final say.
+      event.returnValue = "";
+      event.preventDefault();
+    }
+    window.addEventListener("beforeunload", warnOnUnload);
+    return () => window.removeEventListener("beforeunload", warnOnUnload);
+  }, [wizard.image, wizard.svg]);
 
   // Move focus to the step region and announce the change on every step
   // transition (but not on first mount — there's nothing to announce yet).
@@ -197,14 +210,25 @@ export function App() {
             ) : (
               <span />
             )}
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              onClick={current === WIZARD_STEPS.length - 1 ? startOver : wizard.next}
-              disabled={primaryDisabled}
-            >
-              {primaryLabels[current]}
-            </button>
+            {current === WIZARD_STEPS.length - 1 ? (
+              // Last step: the forward action is Download (in the Export panel),
+              // so "Start over" is deliberately de-emphasized here — a muted,
+              // icon-led button, not the accent primary — so it doesn't read as
+              // the next logical step and get clicked instead of Download.
+              <button type="button" className={styles.btnStartOver} onClick={startOver}>
+                <RestartIcon size={15} />
+                {m.startOver}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={wizard.next}
+                disabled={primaryDisabled}
+              >
+                {primaryLabels[current]}
+              </button>
+            )}
           </footer>
         </div>
 
