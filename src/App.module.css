@@ -89,6 +89,9 @@
   display: flex;
   align-items: center;
   gap: 11px;
+  /* It's an <a> to the tool home — keep it looking like the brand, not a link. */
+  text-decoration: none;
+  color: inherit;
 }
 
 .brandText {

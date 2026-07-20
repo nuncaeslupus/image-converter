@@ -11,11 +11,14 @@ import { LogoMark, SunIcon, MoonIcon, GitHubIcon } from "./shellIcons";
 import styles from "../App.module.css";
 
 export function SiteHeader() {
-  const { m } = useI18n();
+  const { m, lang } = useI18n();
   const { theme, toggle } = useTheme();
+  // The brand links to the tool in the current language — on the tool that's
+  // "home", on the FAQ pages it's the way back.
+  const toolHref = `${import.meta.env.BASE_URL}${lang === "es" ? "es/" : ""}`;
   return (
     <header className={styles.topbar}>
-      <div className={styles.brand}>
+      <a className={styles.brand} href={toolHref}>
         <LogoMark size={52} />
         <div className={styles.brandText}>
           <div className={styles.wordmarkRow}>
@@ -24,7 +27,7 @@ export function SiteHeader() {
           </div>
           <span className={styles.tagline}>{m.tagline}</span>
         </div>
-      </div>
+      </a>
       <div className={styles.topActions}>
         <LanguageSelect />
         <button
