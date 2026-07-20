@@ -52,23 +52,36 @@ interface PaletteInfo {
 }
 
 /**
- * Samples the image down to a small RGBA buffer and derives each palette
- * option's real colors via median cut — the same algorithm the worker uses to
- * quantize before tracing, so the swatches match the rendered result closely —
- * plus the image's significant color count. Cheap (palette only, no trace) and
- * computed once per baked image. Returns `undefined` where there's no canvas
- * (jsdom) so the panel just omits swatches.
+ * Derives each palette option's real colors via median cut — the same algorithm
+ * the worker uses to quantize before tracing — plus the image's significant
+ * color count. Returns `undefined` where there's no canvas (jsdom) so the panel
+ * just omits swatches.
+ *
+ * The swatches must MATCH the rendered result, so this quantizes the exact same
+ * buffer the color trace does: the baked image downscaled to
+ * PREVIEW_MAX_DIMENSION by nearest-neighbor (`downscaleForPreview`, precisely
+ * what `runRetrace` feeds VTracer for paletteSize >= 2). The old approach
+ * sampled a 64px bilinear thumbnail, which invented blended colors (e.g. a face
+ * averaging to orange) that never appear in the nearest-neighbor trace output —
+ * the swatch↔result color mismatch.
+ *
+ * ponytail: this re-downscales the image the trace also downscales, once per
+ * baked image. Share one buffer if it ever shows up on a profile.
  */
-function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
-  const CAP = 64;
-  const scale = Math.min(1, CAP / Math.max(bitmap.width, bitmap.height));
-  const w = Math.max(1, Math.round(bitmap.width * scale));
-  const h = Math.max(1, Math.round(bitmap.height * scale));
+async function computePaletteInfo(bitmap: ImageBitmap): Promise<PaletteInfo | undefined> {
+  let scaled: ImageBitmap;
   try {
-    const ctx = get2dContext(w, h);
+    // Clone first — downscaleForPreview closes the bitmap it downscales, and
+    // `bitmap` is the shared baked image the trace also reads.
+    scaled = await downscaleForPreview(await createImageBitmap(bitmap));
+  } catch {
+    return undefined;
+  }
+  try {
+    const ctx = get2dContext(scaled.width, scaled.height);
     if (!ctx) return undefined;
-    ctx.drawImage(bitmap, 0, 0, w, h);
-    const { data } = ctx.getImageData(0, 0, w, h);
+    ctx.drawImage(scaled, 0, 0);
+    const { data } = ctx.getImageData(0, 0, scaled.width, scaled.height);
     const rgba = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
     const previews: Record<string, string[]> = {};
     for (const n of PREVIEW_COUNTS) {
@@ -77,6 +90,8 @@ function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
     return { previews, maxColors: significantColorCount(rgba) };
   } catch {
     return undefined;
+  } finally {
+    scaled.close();
   }
 }
 
@@ -125,7 +140,17 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   // sampled from the current baked image (recomputed only when it changes).
   const [paletteInfo, setPaletteInfo] = useState<PaletteInfo | undefined>(undefined);
   useEffect(() => {
-    setPaletteInfo(image ? computePaletteInfo(image) : undefined);
+    if (!image) {
+      setPaletteInfo(undefined);
+      return;
+    }
+    let cancelled = false;
+    void computePaletteInfo(image).then((info) => {
+      if (!cancelled) setPaletteInfo(info);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [image]);
 
   // Publish the current traced SVG up to the wizard so ExportStep (T9) reads
