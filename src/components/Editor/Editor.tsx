@@ -502,8 +502,10 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                       // a constant on-screen size instead of ballooning when
                       // zoomed in. Origin is the handle's center (it's already
                       // centered on its corner via margin), so its anchor point
-                      // is unchanged — only the visual size is neutralized.
-                      transform: `scale(${1 / zoom})`,
+                      // is unchanged — only the visual size is neutralized. Only
+                      // when zoomed: a bare scale(1) at fit needlessly promotes a
+                      // layer and can soften the handle's edges.
+                      ...(zoom !== 1 && { transform: `scale(${1 / zoom})` }),
                     }}
                     role="button"
                     aria-label={m.cropHandleLabel(m[HANDLE_LABEL_KEY[handle]])}
