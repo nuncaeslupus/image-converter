@@ -142,3 +142,95 @@ input[type="range"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }
+
+/* ---- static FAQ pages (/faq, /es/faq) — their own crawlable per-language
+   pages, so the tool page stays a pure full-window card. ---- */
+body.faqPage {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--fg);
+}
+.faqTop,
+.faqMain,
+.faqBottom {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.faqTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
+}
+.faqBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
+}
+.faqLogo {
+  fill: var(--accent);
+}
+.faqWordmark {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.faqNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 14px;
+}
+.faqNav a {
+  color: var(--fg-2);
+  text-decoration: none;
+}
+.faqNav a:hover {
+  color: var(--fg);
+}
+.faqNav .faqCta {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.faqMain {
+  padding: 8px 24px 32px;
+}
+.faqMain h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 12px 0 20px;
+}
+.faqMain section {
+  border-top: 1px solid var(--border);
+  padding: 20px 0;
+}
+.faqMain h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.faqMain p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+.faqBottom {
+  display: flex;
+  gap: 24px;
+  padding: 20px 24px 48px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.faqBottom a {
+  color: var(--fg-3);
+  text-decoration: none;
+}
+.faqBottom a:hover {
+  color: var(--fg);
+  text-decoration: underline;
+}

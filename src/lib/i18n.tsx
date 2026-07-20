@@ -9,7 +9,7 @@
  * entry to `MESSAGES` (TypeScript then forces every key to be translated).
  */
 import { createContext, type ComponentChildren } from "preact";
-import { useCallback, useContext, useMemo, useState } from "preact/hooks";
+import { useContext, useMemo } from "preact/hooks";
 
 export type Lang = "en" | "es";
 
@@ -27,6 +27,7 @@ export interface Messages {
   switchToLight: string;
   switchToDark: string;
   viewSource: string;
+  faq: string;
   language: string;
   wizardSteps: string;
   stepUpload: string;
@@ -154,6 +155,7 @@ const en: Messages = {
   switchToLight: "Switch to light theme",
   switchToDark: "Switch to dark theme",
   viewSource: "View source on GitHub",
+  faq: "FAQ",
   language: "Language",
   wizardSteps: "Wizard steps",
   stepUpload: "Upload",
@@ -275,6 +277,7 @@ const es: Messages = {
   switchToLight: "Cambiar al tema claro",
   switchToDark: "Cambiar al tema oscuro",
   viewSource: "Ver el código en GitHub",
+  faq: "Preguntas frecuentes",
   language: "Idioma",
   wizardSteps: "Pasos del asistente",
   stepUpload: "Subir",
@@ -391,45 +394,34 @@ const es: Messages = {
 
 export const MESSAGES: Record<Lang, Messages> = { en, es };
 
-const STORAGE_KEY = "halftone.lang";
+/**
+ * Language is derived from the URL path — the site ships one static HTML shell
+ * per language (`/` English, `/es/` Spanish; and `/faq/`, `/es/faq/`), each with
+ * its language baked in for crawlers. `/es…` is Spanish, everything else English.
+ * There is no runtime toggle: the picker navigates between the language URLs, so
+ * `lang` is fixed for the life of a page.
+ */
+export function langFromPath(pathname: string): Lang {
+  return /(^|\/)es(\/|$)/.test(pathname) ? "es" : "en";
+}
 
 function initialLang(): Lang {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "en" || saved === "es") return saved;
-  } catch {
-    // localStorage can throw in private-mode/sandboxed contexts — fall through.
-  }
-  return typeof navigator !== "undefined" && navigator.language?.toLowerCase()?.startsWith("es")
-    ? "es"
-    : "en";
+  return typeof location !== "undefined" ? langFromPath(location.pathname) : "en";
 }
 
 interface I18n {
   lang: Lang;
-  setLang: (lang: Lang) => void;
   /** The current language's message object — read `m.key` or call `m.fn(arg)`. */
   m: Messages;
 }
 
 // Default to English so components used outside a provider (e.g. in unit tests)
 // still render — the real <I18nProvider> overrides this for the running app.
-const I18nContext = createContext<I18n>({ lang: "en", setLang: () => {}, m: en });
+const I18nContext = createContext<I18n>({ lang: "en", m: en });
 
 export function I18nProvider({ children }: { children: ComponentChildren }) {
-  const [lang, setLangState] = useState<Lang>(initialLang);
-
-  const setLang = useCallback((next: Lang) => {
-    setLangState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Best-effort persistence; ignore storage failures.
-    }
-    if (typeof document !== "undefined") document.documentElement.lang = next;
-  }, []);
-
-  const value = useMemo<I18n>(() => ({ lang, setLang, m: MESSAGES[lang] }), [lang, setLang]);
+  const lang = initialLang();
+  const value = useMemo<I18n>(() => ({ lang, m: MESSAGES[lang] }), [lang]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

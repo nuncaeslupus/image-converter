@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
+    <link rel="apple-touch-icon" href="%BASE_URL%pwa-192x192.png" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e2e7ef" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101417" />
+
+    <!-- Apply the saved/system theme before first paint — no flash on load or on
+         a language-switch reload. Mirrors initialTheme() in src/lib/theme.ts. -->
+    <script>
+      try {
+        var t = localStorage.getItem("halftone:theme:v1");
+        if (t !== "light" && t !== "dark")
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
+
+    <title>Preguntas frecuentes — Vectorizador de imágenes a SVG gratis | Halftone</title>
+    <meta
+      name="description"
+      content="Respuestas sobre Halftone, el vectorizador de imágenes a SVG gratuito que funciona en tu navegador: si es gratis, si se suben las imágenes, formatos admitidos, qué es vectorizar y cuánto control tienes."
+    />
+    <link rel="canonical" href="https://nuncaeslupus.github.io/image-converter/es/faq/" />
+
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="https://nuncaeslupus.github.io/image-converter/faq/"
+    />
+    <link
+      rel="alternate"
+      hreflang="es"
+      href="https://nuncaeslupus.github.io/image-converter/es/faq/"
+    />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://nuncaeslupus.github.io/image-converter/faq/"
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Halftone" />
+    <meta
+      property="og:title"
+      content="Preguntas frecuentes — Vectorizador de imágenes a SVG gratis | Halftone"
+    />
+    <meta
+      property="og:description"
+      content="Respuestas sobre Halftone, el vectorizador de imágenes a SVG gratuito y privado que funciona por completo en tu navegador."
+    />
+    <meta property="og:url" content="https://nuncaeslupus.github.io/image-converter/es/faq/" />
+    <meta
+      property="og:image"
+      content="https://nuncaeslupus.github.io/image-converter/og/og-es.png"
+    />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:locale:alternate" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "inLanguage": "es",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "¿Halftone es gratis?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí — totalmente gratis y de código abierto, sin anuncios, sin registro, sin marca de agua y sin límites."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Se suben mis imágenes a un servidor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. La vectorización ocurre por completo en tu navegador con WebAssembly, así que tus imágenes nunca salen de tu dispositivo — no se sube nada a ningún sitio."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué formatos de imagen puedo convertir a SVG?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "PNG, JPEG, WebP, GIF, BMP y AVIF, hasta 25 MB. El resultado es un SVG limpio y escalable."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Qué hace vectorizar (trazar) una imagen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Convierte una imagen ráster hecha de píxeles en un SVG escalable formado por trazados vectoriales, de modo que se mantiene nítida a cualquier tamaño — ideal para logos, iconos y pixel art."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Puedo controlar el resultado?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí — es simple pero completo. Elige una paleta de colores (o blanco y negro) y ajusta el suavizado, el detalle y el contraste, y recorta o rota antes de exportar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "¿Es realmente privado?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Sí. Todo ocurre en el cliente, no hay rastreadores de analítica y tanto tus imágenes como el SVG resultante permanecen en tu equipo."
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body class="faqPage">
+    <header class="faqTop">
+      <a class="faqBrand" href="%BASE_URL%es/" aria-label="Halftone — ir a la herramienta">
+        <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true" class="faqLogo">
+          <circle cx="20" cy="20" r="5" />
+          <circle cx="20" cy="7" r="2.6" />
+          <circle cx="20" cy="33" r="2.6" />
+          <circle cx="7" cy="20" r="2.6" />
+          <circle cx="33" cy="20" r="2.6" />
+          <circle cx="11" cy="11" r="1.8" />
+          <circle cx="29" cy="11" r="1.8" />
+          <circle cx="11" cy="29" r="1.8" />
+          <circle cx="29" cy="29" r="1.8" />
+        </svg>
+        <span class="faqWordmark">Halftone</span>
+      </a>
+      <nav class="faqNav">
+        <a href="%BASE_URL%faq/" hreflang="en">English</a>
+        <a class="faqCta" href="%BASE_URL%es/">Abrir la herramienta →</a>
+      </nav>
+    </header>
+
+    <main class="faqMain">
+      <h1>Preguntas frecuentes</h1>
+
+      <section>
+        <h2>¿Halftone es gratis?</h2>
+        <p>
+          Sí — totalmente gratis y de código abierto, sin anuncios, sin registro, sin marca de agua
+          y sin límites.
+        </p>
+      </section>
+      <section>
+        <h2>¿Se suben mis imágenes a un servidor?</h2>
+        <p>
+          No. La vectorización ocurre por completo en tu navegador con WebAssembly, así que tus
+          imágenes nunca salen de tu dispositivo — no se sube nada a ningún sitio.
+        </p>
+      </section>
+      <section>
+        <h2>¿Qué formatos de imagen puedo convertir a SVG?</h2>
+        <p>
+          PNG, JPEG, WebP, GIF, BMP y AVIF, hasta 25 MB. El resultado es un SVG limpio y escalable.
+        </p>
+      </section>
+      <section>
+        <h2>¿Qué hace vectorizar (trazar) una imagen?</h2>
+        <p>
+          Convierte una imagen ráster hecha de píxeles en un SVG escalable formado por trazados
+          vectoriales, de modo que se mantiene nítida a cualquier tamaño — ideal para logos, iconos
+          y pixel art.
+        </p>
+      </section>
+      <section>
+        <h2>¿Puedo controlar el resultado?</h2>
+        <p>
+          Sí — es simple pero completo. Elige una paleta de colores (o blanco y negro) y ajusta el
+          suavizado, el detalle y el contraste, y recorta o rota antes de exportar.
+        </p>
+      </section>
+      <section>
+        <h2>¿Es realmente privado?</h2>
+        <p>
+          Sí. Todo ocurre en el cliente, no hay rastreadores de analítica y tanto tus imágenes como
+          el SVG resultante permanecen en tu equipo.
+        </p>
+      </section>
+    </main>
+
+    <footer class="faqBottom">
+      <a href="%BASE_URL%es/">← Volver a la herramienta</a>
+      <a
+        href="https://github.com/nuncaeslupus/image-converter"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Ver el código en GitHub</a
+      >
+    </footer>
+
+    <script type="module" src="/src/faq.ts"></script>
+  </body>
+</html>

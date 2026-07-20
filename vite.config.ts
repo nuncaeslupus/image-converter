@@ -5,6 +5,21 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/image-converter/" : "/",
+  build: {
+    // One HTML shell per language + page, so crawlers get each version at its
+    // own URL (a client-side toggle can't change a crawler's view). Vite keeps
+    // each input's directory in the output: es/index.html → dist/es/index.html
+    // → served at /image-converter/es/. Language is read from the path at
+    // runtime (see langFromPath).
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        es: "es/index.html",
+        faq: "faq/index.html",
+        esFaq: "es/faq/index.html",
+      },
+    },
+  },
   plugins: [
     preact(),
     VitePWA({
@@ -12,10 +27,10 @@ export default defineConfig(({ command }) => ({
       // wasm isn't in workbox's default glob; the tracer won't work offline without it.
       workbox: { globPatterns: ["**/*.{js,css,html,svg,wasm,png}"] },
       manifest: {
-        name: "Halftone — raster to SVG converter",
+        name: "Halftone — Free Image to SVG Vectorizer",
         short_name: "Halftone",
         description:
-          "Free, browser-based raster-to-SVG converter. Runs entirely client-side — your images never leave your device.",
+          "Free, private image-to-SVG vectorizer that runs entirely in your browser. No ads, no upload, no sign-up.",
         theme_color: "#f2f5fa",
         icons: [
           {
