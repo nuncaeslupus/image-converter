@@ -243,21 +243,20 @@
   /* Keep longer translated labels (e.g. "Restablecer") on one line — the whole
      button wraps to the next row if needed, but the text never breaks. */
   white-space: nowrap;
-  /* Enabled = actionable: an accent tint + accent text/icon so an available
-     action (Undo/Redo/Reset/Rotate) visibly "lights up". --accent-fg is the
-     token designed for text on --accent-soft. Disabled shares neither, so the
-     two states no longer look alike (they used to differ only by opacity on an
-     identical surface, which read as barely-there). */
-  color: var(--accent-fg);
-  background: var(--accent-soft);
+  color: var(--fg);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 9px 12px;
   cursor: pointer;
 }
+/* Enabled = actionable: a bold, vivid accent-green icon (heavier stroke) that
+   clearly stands out. Disabled drops to a thin, faded gray icon (below) — the
+   icon itself carries the state, so the two no longer look alike. */
 .toolButton :global(svg) {
   color: var(--accent);
   font-size: 16px;
+  stroke-width: 2.5;
 }
 .toolButton:hover:not(:disabled) {
   filter: brightness(0.97);
@@ -267,13 +266,14 @@
   outline-offset: 1px;
 }
 .toolButton:disabled {
-  background: var(--surface);
   color: var(--fg-3);
-  opacity: 0.6;
   cursor: not-allowed;
 }
+/* Faded, thin gray icon — the clear "off" counterpart to the bold green one. */
 .toolButton:disabled :global(svg) {
   color: var(--fg-3);
+  stroke-width: 2;
+  opacity: 0.5;
 }
 
 .toolButtonLabel {
