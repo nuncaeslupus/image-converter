@@ -2,34 +2,34 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://nuncaeslupus.github.io/image-converter/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/image-converter/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/image-converter/es/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/image-converter/"/>
+    <loc>https://nuncaeslupus.github.io/halftone/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/halftone/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/halftone/es/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/halftone/"/>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://nuncaeslupus.github.io/image-converter/es/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/image-converter/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/image-converter/es/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/image-converter/"/>
+    <loc>https://nuncaeslupus.github.io/halftone/es/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/halftone/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/halftone/es/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/halftone/"/>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://nuncaeslupus.github.io/image-converter/faq/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/image-converter/faq/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/image-converter/es/faq/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/image-converter/faq/"/>
+    <loc>https://nuncaeslupus.github.io/halftone/faq/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/halftone/faq/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/halftone/es/faq/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/halftone/faq/"/>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://nuncaeslupus.github.io/image-converter/es/faq/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/image-converter/faq/"/>
-    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/image-converter/es/faq/"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/image-converter/faq/"/>
+    <loc>https://nuncaeslupus.github.io/halftone/es/faq/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/halftone/faq/"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/halftone/es/faq/"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://nuncaeslupus.github.io/halftone/faq/"/>
     <changefreq>yearly</changefreq>
     <priority>0.6</priority>
   </url>

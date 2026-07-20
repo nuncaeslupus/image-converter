@@ -4,12 +4,12 @@ import preact from "@preact/preset-vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ command }) => ({
-  base: command === "build" ? "/image-converter/" : "/",
+  base: command === "build" ? "/halftone/" : "/",
   build: {
     // One HTML shell per language + page, so crawlers get each version at its
     // own URL (a client-side toggle can't change a crawler's view). Vite keeps
     // each input's directory in the output: es/index.html → dist/es/index.html
-    // → served at /image-converter/es/. Language is read from the path at
+    // → served at /halftone/es/. Language is read from the path at
     // runtime (see langFromPath).
     rollupOptions: {
       input: {

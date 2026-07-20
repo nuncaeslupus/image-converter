@@ -1,4 +1,4 @@
-# image-converter
+# halftone
 
 A free, browser-based file converter. Everything runs client-side — files never
 leave your device, and there's no server cost, no upload limits, no paywall.
