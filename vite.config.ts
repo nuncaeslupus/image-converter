@@ -12,10 +12,10 @@ export default defineConfig(({ command }) => ({
       // wasm isn't in workbox's default glob; the tracer won't work offline without it.
       workbox: { globPatterns: ["**/*.{js,css,html,svg,wasm,png}"] },
       manifest: {
-        name: "Halftone — raster to SVG converter",
+        name: "Halftone — Free Image to SVG Vectorizer",
         short_name: "Halftone",
         description:
-          "Free, browser-based raster-to-SVG converter. Runs entirely client-side — your images never leave your device.",
+          "Free, private image-to-SVG vectorizer that runs entirely in your browser. No ads, no upload, no sign-up.",
         theme_color: "#f2f5fa",
         icons: [
           {

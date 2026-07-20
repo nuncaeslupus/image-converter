@@ -144,3 +144,48 @@ input[type="range"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 4px;
 }
+
+/* ---- static SEO FAQ (index.html, below the app) ----
+   Crawlable keyword-rich content the JS app can't provide on its own. Kept
+   quiet and folded by default so it doesn't compete with the tool. */
+.seoFaq {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 24px 56px;
+}
+.seoFaqHeading {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg-2);
+  margin: 0 0 12px;
+}
+.seoFaqItem {
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.seoFaqItem summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+  list-style: none;
+}
+.seoFaqItem summary::-webkit-details-marker {
+  display: none;
+}
+.seoFaqItem summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1em;
+  color: var(--accent-fg);
+  font-weight: 700;
+}
+.seoFaqItem[open] summary::before {
+  content: "–";
+}
+.seoFaqItem p {
+  margin: 8px 0 0 1em;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--fg-2);
+}
