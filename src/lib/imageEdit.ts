@@ -22,7 +22,6 @@
  * re-expanding to the original bounds) reproduce the source exactly — see
  * this task's gate, `edit_roundtrip_pixel_diff_max == 0`.
  */
-import { isFlatColorImage } from "./quantize";
 
 /** A crop region in source-bitmap pixel coordinates. */
 export interface CropBox {
@@ -310,10 +309,16 @@ function denormalizeCrop(rect: NormalizedRect, width: number, height: number): C
  * other angles resample exactly once via the canvas-based
  * {@link rotateImageArbitrary}. Because it always starts from the upright
  * `source`, the result is never cumulative no matter how often it's re-baked.
+ *
+ * `crispRotation` (true for flat / pixel-art sources) makes an off-axis rotation
+ * resample with nearest-neighbor so the exact palette survives. It's passed in —
+ * not detected here — so bake never does a synchronous full-image pixel readback
+ * on the main thread; the source is scanned once, off this path (see the wizard).
  */
 export async function bakeTransform(
   source: ImageBitmap,
   transform: EditTransform,
+  crispRotation = false,
 ): Promise<ImageBitmap> {
   const norm = ((transform.rotation % 360) + 360) % 360;
   const hasRotation = norm !== 0;
@@ -321,14 +326,7 @@ export async function bakeTransform(
   const base = !hasRotation
     ? source
     : arbitrary
-      ? // Only an off-axis rotation resamples (90° turns are lossless), so the
-        // flat-source pixel scan is paid only when it can actually matter.
-        await rotateImageArbitrary(
-          source,
-          transform.rotation,
-          false,
-          isFlatColorImage(bitmapToPixels(source).data),
-        )
+      ? await rotateImageArbitrary(source, transform.rotation, false, crispRotation)
       : await rotateImage(source, norm);
   try {
     if (!transform.crop) {

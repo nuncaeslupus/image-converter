@@ -22,7 +22,7 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
   // Baked source (crop/rotate applied) — used only for its dimensions, which
   // seed the default output size so the export matches the image the user
   // actually uploaded/edited rather than the internal trace resolution.
-  const image = useBakedImage(wizard.image, wizard.transform);
+  const image = useBakedImage(wizard.image, wizard.transform, wizard.isFlatSource);
 
   if (!previewSvg) {
     return (

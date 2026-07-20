@@ -1,6 +1,7 @@
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { TweakValues } from "./tweakPipeline";
-import { type EditTransform, IDENTITY_TRANSFORM } from "./imageEdit";
+import { type EditTransform, IDENTITY_TRANSFORM, readImagePixels } from "./imageEdit";
+import { isFlatColorImage } from "./quantize";
 
 export const WIZARD_STEPS = ["upload", "edit", "trace", "export"] as const;
 
@@ -27,6 +28,13 @@ export interface Wizard {
    * separate pristine copy to keep in sync anymore.
    */
   replaceImage: (next: ImageBitmap | null, fileName: string | null) => void;
+  /**
+   * Whether the source is a flat / pixel-art image (few, well-defined colors).
+   * Computed once per image — not per bake — so the Editor's rotation warning
+   * and Trace/Export's nearest-neighbor rotation both read it without a
+   * per-bake full-image pixel readback. `false` until the scan resolves.
+   */
+  isFlatSource: boolean;
   /**
    * The uploaded source's original file name (e.g. "logo.png"), or `null` when
    * no image is loaded. Export uses it to default the download name.
@@ -68,7 +76,26 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
   const [svg, setSvg] = useState<string | null>(null);
   const [tweakValues, setTweakValues] = useState<TweakValues | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [isFlatSource, setIsFlatSource] = useState(false);
   const stepIndex = WIZARD_STEPS.indexOf(step);
+
+  // Classify the source as flat / pixel-art once, when it changes — the single
+  // full-image pixel read, kept off the per-bake path (see `isFlatSource`).
+  useEffect(() => {
+    if (!image) {
+      setIsFlatSource(false);
+      return;
+    }
+    let cancelled = false;
+    readImagePixels(image)
+      .then(({ data }) => {
+        if (!cancelled) setIsFlatSource(isFlatColorImage(data));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [image]);
 
   // Close the outgoing source OUTSIDE the state updaters — updaters must stay
   // pure (double-invocation under strict/concurrent rendering would close the
@@ -98,6 +125,7 @@ export function useWizard(initial: WizardStep = "upload"): Wizard {
     image,
     replaceImage,
     fileName,
+    isFlatSource,
     transform,
     setTransform,
     svg,

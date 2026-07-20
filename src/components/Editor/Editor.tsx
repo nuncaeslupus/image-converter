@@ -3,11 +3,9 @@ import type { JSX } from "preact";
 import {
   IDENTITY_TRANSFORM,
   isIdentityTransform,
-  readImagePixels,
   type EditTransform,
   type NormalizedRect,
 } from "../../lib/imageEdit";
-import { isFlatColorImage } from "../../lib/quantize";
 import {
   CropIcon,
   RedoIcon,
@@ -118,6 +116,8 @@ export interface EditorProps {
   transform: EditTransform;
   /** Called with the committed transform on any applied change / undo / redo / reset. */
   onChange: (transform: EditTransform) => void;
+  /** Source is flat / pixel-art (from the wizard) — drives the free-rotate warning. */
+  isFlat: boolean;
 }
 
 /**
@@ -129,7 +129,7 @@ export interface EditorProps {
  * frame in over the tilted image. Undo/Redo/Reset ride on `{angle, crop}`
  * snapshots — no bitmap history.
  */
-export function Editor({ image, transform, onChange }: EditorProps) {
+export function Editor({ image, transform, onChange, isFlat }: EditorProps) {
   const { m } = useI18n();
   const [history, setHistory] = useState<{ stack: EditTransform[]; index: number }>(() => ({
     stack: [transform],
@@ -160,22 +160,9 @@ export function Editor({ image, transform, onChange }: EditorProps) {
   const atFit = zoom === 1;
   const panning = zoom > 1;
 
-  // Detect a flat / pixel-art source once per image (off the render path) so the
-  // rotate panel can warn that free rotation trades smooth edges for exact
-  // colors on such images (matching `bakeTransform`'s nearest-neighbor rotate).
-  const [flatSource, setFlatSource] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    readImagePixels(image)
-      .then(({ data }) => {
-        if (!cancelled) setFlatSource(isFlatColorImage(data));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [image]);
-  // A non-orthogonal straighten is the only rotation that resamples.
+  // Warn while free-rotating a flat / pixel-art source: a non-orthogonal
+  // straighten is the only rotation that resamples, and `bakeTransform` keeps
+  // its colors exact by rotating nearest-neighbor (crisp edges, not smoothed).
   const freeRotated = rotation % 90 !== 0;
 
   function commit(next: EditTransform) {
@@ -637,7 +624,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
               </button>
             </div>
             <p className={styles.hint}>{m.straightenHint}</p>
-            {flatSource && freeRotated && (
+            {isFlat && freeRotated && (
               <p className={styles.flatRotateNote} role="note">
                 {m.flatRotateNote}
               </p>

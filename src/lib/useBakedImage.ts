@@ -14,6 +14,7 @@ import { bakeTransform, type EditTransform } from "./imageEdit";
 export function useBakedImage(
   image: ImageBitmap | null,
   transform: EditTransform,
+  crispRotation = false,
 ): ImageBitmap | null {
   const [baked, setBaked] = useState<ImageBitmap | null>(null);
   const bakedRef = useRef<ImageBitmap | null>(null);
@@ -30,7 +31,7 @@ export function useBakedImage(
       return;
     }
     let cancelled = false;
-    bakeTransform(image, transform)
+    bakeTransform(image, transform, crispRotation)
       .then((result) => {
         // Superseded (image/transform changed) or unmounted before we resolved:
         // the effect cleanup set `cancelled`, so drop this result.
@@ -55,7 +56,7 @@ export function useBakedImage(
     return () => {
       cancelled = true;
     };
-  }, [image, transform]);
+  }, [image, transform, crispRotation]);
 
   // Close the last baked bitmap on unmount (the in-flight one, if any, is
   // released by its own `cancelled` guard above).
