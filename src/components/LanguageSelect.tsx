@@ -1,8 +1,10 @@
 import type { JSX } from "preact";
 import { LANGUAGES, useI18n, type Lang } from "../lib/i18n";
+import { ChevronRightIcon } from "./shellIcons";
 import styles from "./LanguageSelect.module.css";
 
-/** Header language picker — a native <select> (per request, not a switch). */
+/** Header language picker — a native <select> (per request, not a switch) with
+ * a custom, theme-aware dropdown chevron so it has proper right padding. */
 export function LanguageSelect() {
   const { lang, setLang, m } = useI18n();
   return (
@@ -22,6 +24,9 @@ export function LanguageSelect() {
           </option>
         ))}
       </select>
+      <span className={styles.chevron} aria-hidden="true">
+        <ChevronRightIcon size={14} />
+      </span>
     </label>
   );
 }

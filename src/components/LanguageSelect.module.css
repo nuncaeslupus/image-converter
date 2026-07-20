@@ -1,16 +1,21 @@
 .wrap {
+  position: relative;
   display: inline-flex;
   align-items: center;
 }
 
 .select {
+  /* Drop the native arrow so the custom chevron (below) can have real padding
+     from the edge instead of sitting cramped against it. */
+  appearance: none;
+  -webkit-appearance: none;
   font: inherit;
   font-size: 13px;
   color: var(--fg-2);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 7px 10px;
+  padding: 7px 32px 7px 12px;
   cursor: pointer;
 }
 .select:hover {
@@ -19,6 +24,18 @@
 .select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* A right-chevron rotated to point down; inherits currentColor so it works in
+   both themes and sits with clear space from the select's right edge. */
+.chevron {
+  position: absolute;
+  right: 11px;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+  display: inline-flex;
+  color: var(--fg-3);
+  pointer-events: none;
 }
 
 .srOnly {

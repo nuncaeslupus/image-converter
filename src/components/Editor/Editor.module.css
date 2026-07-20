@@ -234,6 +234,9 @@
   font: inherit;
   font-size: 13px;
   line-height: 1;
+  /* Keep longer translated labels (e.g. "Restablecer") on one line — the whole
+     button wraps to the next row if needed, but the text never breaks. */
+  white-space: nowrap;
   color: var(--fg);
   background: var(--surface);
   border: 1px solid var(--border);
