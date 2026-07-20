@@ -143,60 +143,32 @@ input[type="range"]:focus-visible {
   outline-offset: 4px;
 }
 
-/* ---- static FAQ pages (/faq, /es/faq) — their own crawlable per-language
-   pages, so the tool page stays a pure full-window card. ---- */
+/* ---- static FAQ pages (/faq, /es/faq) — dedicated per-language pages so the
+   tool page stays a pure full-window card. The header and footer are the SAME
+   components as the tool (SiteHeader/SiteFooter, rendered by faq.tsx into
+   #faqTop/#faqBottom); .faqPage/.faqShell just mirror the tool's .page/.shell
+   framing so those bars sit identically. ---- */
 body.faqPage {
   min-height: 100dvh;
-  background: var(--bg);
-  color: var(--fg);
-}
-.faqTop,
-.faqMain,
-.faqBottom {
-  max-width: 760px;
-  margin: 0 auto;
-}
-.faqTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  margin: 0;
   padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
 }
-.faqBrand {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  text-decoration: none;
-}
-.faqLogo {
-  fill: var(--accent);
-}
-.faqWordmark {
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--fg);
-}
-.faqNav {
-  display: inline-flex;
-  align-items: center;
-  gap: 18px;
-  font-size: 14px;
-}
-.faqNav a {
-  color: var(--fg-2);
-  text-decoration: none;
-}
-.faqNav a:hover {
-  color: var(--fg);
-}
-.faqNav .faqCta {
-  color: var(--accent-fg);
-  font-weight: 600;
+.faqShell {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .faqMain {
-  padding: 8px 24px 32px;
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 6px 40px;
 }
 .faqMain h1 {
   font-size: 30px;
@@ -218,19 +190,4 @@ body.faqPage {
   font-size: 15px;
   line-height: 1.6;
   color: var(--fg-2);
-}
-.faqBottom {
-  display: flex;
-  gap: 24px;
-  padding: 20px 24px 48px;
-  border-top: 1px solid var(--border);
-  font-size: 13.5px;
-}
-.faqBottom a {
-  color: var(--fg-3);
-  text-decoration: none;
-}
-.faqBottom a:hover {
-  color: var(--fg);
-  text-decoration: underline;
 }
