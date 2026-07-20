@@ -514,49 +514,39 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                   />
                 ))}
               </div>
-
-              {fit > 0 && (
-                <button
-                  type="button"
-                  className={styles.rotateHandle}
-                  // Counter the stage's scale(zoom): keep the widget a constant
-                  // size, glued just above the image's top-center edge, instead
-                  // of growing and drifting away as you zoom. Origin at its
-                  // bottom-center (the point touching the edge) keeps that
-                  // anchor fixed while the size is neutralized.
-                  style={{
-                    transform: `translate(-50%, -100%) scale(${1 / zoom})`,
-                    transformOrigin: "50% 100%",
-                  }}
-                  aria-label={m.rotateHandleLabel}
-                  title={m.rotateHandleTitle}
-                  onPointerDown={onRotateDown}
-                  onPointerMove={onRotateMove}
-                  onPointerUp={onRotateUp}
-                  onPointerCancel={onRotateUp}
-                  onKeyDown={(event) => {
-                    const step = event.shiftKey
-                      ? SNAP_STEP
-                      : event.ctrlKey || event.metaKey
-                        ? 0.1
-                        : 1;
-                    const dir =
-                      event.key === "ArrowLeft" || event.key === "ArrowDown"
-                        ? -1
-                        : event.key === "ArrowRight" || event.key === "ArrowUp"
-                          ? 1
-                          : 0;
-                    if (dir === 0) return;
-                    event.preventDefault();
-                    const next = (((committed.rotation + dir * step) % 360) + 360) % 360;
-                    commit({ rotation: Math.round(next * 10) / 10, crop: committed.crop });
-                  }}
-                >
-                  <RotateRightIcon />
-                </button>
-              )}
             </div>
           </div>
+
+          {/* Pinned to the stage viewport (not the zoomed image), so it stays
+              visible and grabbable at any zoom — the drag pivots on the image
+              centre + pointer, so its resting spot is only an affordance. */}
+          {fit > 0 && (
+            <button
+              type="button"
+              className={styles.rotateHandle}
+              aria-label={m.rotateHandleLabel}
+              title={m.rotateHandleTitle}
+              onPointerDown={onRotateDown}
+              onPointerMove={onRotateMove}
+              onPointerUp={onRotateUp}
+              onPointerCancel={onRotateUp}
+              onKeyDown={(event) => {
+                const step = event.shiftKey ? SNAP_STEP : event.ctrlKey || event.metaKey ? 0.1 : 1;
+                const dir =
+                  event.key === "ArrowLeft" || event.key === "ArrowDown"
+                    ? -1
+                    : event.key === "ArrowRight" || event.key === "ArrowUp"
+                      ? 1
+                      : 0;
+                if (dir === 0) return;
+                event.preventDefault();
+                const next = (((committed.rotation + dir * step) % 360) + 360) % 360;
+                commit({ rotation: Math.round(next * 10) / 10, crop: committed.crop });
+              }}
+            >
+              <RotateRightIcon />
+            </button>
+          )}
         </div>
       </div>
 
