@@ -12,6 +12,7 @@
     "dev": "vite",
     "build": "tsc -b --noEmit && vite build",
     "preview": "vite preview",
+    "og": "node scripts/generate-og.mjs",
     "test": "vitest run --exclude tests/build.test.ts",
     "test:watch": "vitest --exclude tests/build.test.ts",
     "test:build": "vitest run tests/build.test.ts",
@@ -26,6 +27,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@preact/preset-vite": "^2.10.5",
+    "@resvg/resvg-js": "^2.6.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/preact": "^3.2.4",
     "@testing-library/user-event": "^14.6.1",

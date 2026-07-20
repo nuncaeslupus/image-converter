@@ -23,7 +23,9 @@
 
     <!-- Open Graph / Twitter. og:url and image URLs must be ABSOLUTE (crawlers
          don't resolve relative paths), so the deploy origin is hardcoded here —
-         update it if the site moves off github.io/image-converter/. -->
+         update it if the site moves off github.io/image-converter/. The share
+         card is per-language (scripts/generate-og.mjs → og/og-<lang>.png); the
+         static HTML serves the English one since crawlers don't run JS. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Halftone" />
     <meta property="og:title" content="Free Image to SVG Vectorizer — in your browser | Halftone" />
@@ -34,7 +36,7 @@
     <meta property="og:url" content="https://nuncaeslupus.github.io/image-converter/" />
     <meta
       property="og:image"
-      content="https://nuncaeslupus.github.io/image-converter/og-image.png"
+      content="https://nuncaeslupus.github.io/image-converter/og/og-en.png"
     />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
