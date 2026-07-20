@@ -15,10 +15,23 @@
  * header (src/lib/i18n.tsx). The card is intentionally standalone (its own copy
  * object) so this build script never imports app source.
  */
-import { Resvg } from "@resvg/resvg-js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// resvg is a native binary that isn't a committed dependency (see the header) —
+// import it lazily so running this without it gives an actionable message, not a
+// cryptic module-resolution stack trace.
+let Resvg;
+try {
+  ({ Resvg } = await import("@resvg/resvg-js"));
+} catch {
+  throw new Error(
+    "@resvg/resvg-js is not installed — it's not a committed dependency (the cards are). " +
+      "Install it ad-hoc to regenerate: " +
+      "npm i -D @resvg/resvg-js && node scripts/generate-og.mjs && npm uninstall @resvg/resvg-js",
+  );
+}
 
 const OUT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../public/og");
 

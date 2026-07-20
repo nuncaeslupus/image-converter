@@ -10,6 +10,17 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e2e7ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101417" />
 
+    <!-- Apply the saved/system theme before first paint — no flash on load or on
+         a language-switch reload. Mirrors initialTheme() in src/lib/theme.ts. -->
+    <script>
+      try {
+        var t = localStorage.getItem("halftone:theme:v1");
+        if (t !== "light" && t !== "dark")
+          t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
+
     <title>Vectorizador de imágenes a SVG gratis — en tu navegador | Halftone</title>
     <meta
       name="description"
