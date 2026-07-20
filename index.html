@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- %BASE_URL% so icons resolve under the GitHub Pages sub-path (base "/image-converter/") too. -->
+    <!-- %BASE_URL% so icons resolve under the GitHub Pages sub-path (base "/image-converter/"). -->
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%pwa-192x192.png" />
     <link rel="apple-touch-icon" href="%BASE_URL%pwa-192x192.png" />
@@ -11,9 +11,6 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e2e7ef" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#101417" />
 
-    <!-- Keyword-forward title/description: the niche is crowded, so lead with
-         what people search ("image to SVG vectorizer", "in your browser",
-         "free"), brand at the end. -->
     <title>Free Image to SVG Vectorizer — in your browser | Halftone</title>
     <meta
       name="description"
@@ -21,11 +18,17 @@
     />
     <link rel="canonical" href="https://nuncaeslupus.github.io/image-converter/" />
 
-    <!-- Open Graph / Twitter. og:url and image URLs must be ABSOLUTE (crawlers
-         don't resolve relative paths), so the deploy origin is hardcoded here —
-         update it if the site moves off github.io/image-converter/. The share
-         card is per-language (scripts/generate-og.mjs → og/og-<lang>.png); the
-         static HTML serves the English one since crawlers don't run JS. -->
+    <!-- One indexable URL per language; reciprocal + x-default so Google serves
+         the right one. Keep in sync with es/index.html. -->
+    <link rel="alternate" hreflang="en" href="https://nuncaeslupus.github.io/image-converter/" />
+    <link rel="alternate" hreflang="es" href="https://nuncaeslupus.github.io/image-converter/es/" />
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href="https://nuncaeslupus.github.io/image-converter/"
+    />
+
+    <!-- Open Graph / Twitter. Absolute URLs (crawlers don't resolve relative). -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Halftone" />
     <meta property="og:title" content="Free Image to SVG Vectorizer — in your browser | Halftone" />
@@ -34,10 +37,7 @@
       content="Vectorize PNG, JPG & WebP to a clean SVG, right in your browser. Free, no ads, no upload, no sign-up — simple, with full control."
     />
     <meta property="og:url" content="https://nuncaeslupus.github.io/image-converter/" />
-    <meta
-      property="og:image"
-      content="https://nuncaeslupus.github.io/image-converter/og/og-en.png"
-    />
+    <meta property="og:image" content="https://nuncaeslupus.github.io/image-converter/og/og-en.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
@@ -47,13 +47,9 @@
     />
     <meta property="og:locale" content="en_US" />
     <meta property="og:locale:alternate" content="es_ES" />
-
-    <!-- Only twitter:card is Twitter/X-specific; title/description/image/alt
-         fall back to the og:* tags above, so they're not duplicated here. -->
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- Structured data, static in the HTML so non-JS crawlers and AI answer
-         engines (which often skip JS) see it before the app mounts. -->
+    <!-- Static structured data, seen before the app mounts. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -76,94 +72,9 @@
         "inLanguage": ["en", "es"]
       }
     </script>
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": [
-          {
-            "@type": "Question",
-            "name": "Is Halftone free?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yes — completely free, with no ads, no sign-up, no watermark and no limits."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Are my images uploaded to a server?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "No. Vectorizing runs entirely in your browser using WebAssembly, so your images never leave your device."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Which image formats can I convert to SVG?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "PNG, JPEG, WebP, GIF, BMP and AVIF, up to 25 MB."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "What does vectorizing (tracing) an image do?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "It turns a raster image made of pixels into a scalable SVG made of vector paths, so it stays sharp at any size."
-            }
-          },
-          {
-            "@type": "Question",
-            "name": "Can I control the result?",
-            "acceptedAnswer": {
-              "@type": "Answer",
-              "text": "Yes — it is simple but complete. Choose a color palette (or black & white) and fine-tune smoothness, detail and contrast, and crop or rotate before you export."
-            }
-          }
-        ]
-      }
-    </script>
   </head>
   <body>
     <div id="app"></div>
-
-    <!-- Static, crawlable FAQ: real keyword-rich text that non-JS crawlers and
-         AI answer engines can read (the app itself is JS-rendered). Mirrors the
-         FAQPage JSON-LD above. Styled by src/index.css (.seoFaq*). -->
-    <section class="seoFaq" aria-labelledby="faqHeading">
-      <h2 id="faqHeading" class="seoFaqHeading">Frequently asked questions</h2>
-      <details class="seoFaqItem">
-        <summary>Is Halftone free?</summary>
-        <p>Yes — completely free, with no ads, no sign-up, no watermark and no limits.</p>
-      </details>
-      <details class="seoFaqItem">
-        <summary>Are my images uploaded to a server?</summary>
-        <p>
-          No. Vectorizing runs entirely in your browser using WebAssembly, so your images never
-          leave your device.
-        </p>
-      </details>
-      <details class="seoFaqItem">
-        <summary>Which image formats can I convert to SVG?</summary>
-        <p>PNG, JPEG, WebP, GIF, BMP and AVIF, up to 25 MB.</p>
-      </details>
-      <details class="seoFaqItem">
-        <summary>What does vectorizing (tracing) an image do?</summary>
-        <p>
-          It turns a raster image made of pixels into a scalable SVG made of vector paths, so it
-          stays sharp at any size.
-        </p>
-      </details>
-      <details class="seoFaqItem">
-        <summary>Can I control the result?</summary>
-        <p>
-          Yes — it is simple but complete. Choose a color palette (or black &amp; white) and
-          fine-tune smoothness, detail and contrast, and crop or rotate before you export.
-        </p>
-      </details>
-    </section>
-
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

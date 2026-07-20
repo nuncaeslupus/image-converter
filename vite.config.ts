@@ -5,6 +5,21 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ command }) => ({
   base: command === "build" ? "/image-converter/" : "/",
+  build: {
+    // One HTML shell per language + page, so crawlers get each version at its
+    // own URL (a client-side toggle can't change a crawler's view). Vite keeps
+    // each input's directory in the output: es/index.html → dist/es/index.html
+    // → served at /image-converter/es/. Language is read from the path at
+    // runtime (see langFromPath).
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        es: "es/index.html",
+        faq: "faq/index.html",
+        esFaq: "es/faq/index.html",
+      },
+    },
+  },
   plugins: [
     preact(),
     VitePWA({

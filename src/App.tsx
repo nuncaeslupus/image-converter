@@ -38,7 +38,7 @@ const STEP_META: {
 export function App() {
   const wizard = useWizard();
   const { theme, toggle } = useTheme();
-  const { m } = useI18n();
+  const { m, lang } = useI18n();
   // One per non-final step; the final step renders its own de-emphasized
   // "Start over" button instead of an accent primary (see the footer).
   const primaryLabels: string[] = [m.continueToEdit, m.continueToTrace, m.continueToExport];
@@ -296,6 +296,12 @@ export function App() {
         </div>
 
         <footer className={styles.siteFooter}>
+          <a
+            className={styles.githubLink}
+            href={`${import.meta.env.BASE_URL}${lang === "es" ? "es/" : ""}faq/`}
+          >
+            {m.faq}
+          </a>
           <a
             className={styles.githubLink}
             href="https://github.com/nuncaeslupus/image-converter"

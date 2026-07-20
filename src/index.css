@@ -145,47 +145,94 @@ input[type="range"]:focus-visible {
   outline-offset: 4px;
 }
 
-/* ---- static SEO FAQ (index.html, below the app) ----
-   Crawlable keyword-rich content the JS app can't provide on its own. Kept
-   quiet and folded by default so it doesn't compete with the tool. */
-.seoFaq {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 8px 24px 56px;
-}
-.seoFaqHeading {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg-2);
-  margin: 0 0 12px;
-}
-.seoFaqItem {
-  border-top: 1px solid var(--border);
-  padding: 12px 0;
-}
-.seoFaqItem summary {
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
+/* ---- static FAQ pages (/faq, /es/faq) — their own crawlable per-language
+   pages, so the tool page stays a pure full-window card. ---- */
+body.faqPage {
+  min-height: 100dvh;
+  background: var(--bg);
   color: var(--fg);
-  list-style: none;
 }
-.seoFaqItem summary::-webkit-details-marker {
-  display: none;
+.faqTop,
+.faqMain,
+.faqBottom {
+  max-width: 760px;
+  margin: 0 auto;
 }
-.seoFaqItem summary::before {
-  content: "+";
-  display: inline-block;
-  width: 1em;
-  color: var(--accent-fg);
-  font-weight: 700;
+.faqTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 24px;
 }
-.seoFaqItem[open] summary::before {
-  content: "–";
+.faqBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  text-decoration: none;
 }
-.seoFaqItem p {
-  margin: 8px 0 0 1em;
-  font-size: 13.5px;
-  line-height: 1.5;
+.faqLogo {
+  fill: var(--accent);
+}
+.faqWordmark {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.faqNav {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 14px;
+}
+.faqNav a {
   color: var(--fg-2);
+  text-decoration: none;
+}
+.faqNav a:hover {
+  color: var(--fg);
+}
+.faqNav .faqCta {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.faqMain {
+  padding: 8px 24px 32px;
+}
+.faqMain h1 {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 12px 0 20px;
+}
+.faqMain section {
+  border-top: 1px solid var(--border);
+  padding: 20px 0;
+}
+.faqMain h2 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.faqMain p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--fg-2);
+}
+.faqBottom {
+  display: flex;
+  gap: 24px;
+  padding: 20px 24px 48px;
+  border-top: 1px solid var(--border);
+  font-size: 13.5px;
+}
+.faqBottom a {
+  color: var(--fg-3);
+  text-decoration: none;
+}
+.faqBottom a:hover {
+  color: var(--fg);
+  text-decoration: underline;
 }
