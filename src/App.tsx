@@ -94,6 +94,28 @@ export function App() {
   // Two-step "Start over" so a stray double-click can't wipe the work: the
   // first click asks to confirm, the second (Yes) actually resets.
   const [confirmingStartOver, setConfirmingStartOver] = useState(false);
+  const startOverBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const confirmWasOpen = useRef(false);
+
+  // Reset the pending confirmation whenever the step changes, so leaving Export
+  // mid-confirm and returning doesn't strand the app in the confirming state.
+  useEffect(() => {
+    setConfirmingStartOver(false);
+  }, [current]);
+
+  // Keep focus sensible when the button swaps to/from the confirmation row
+  // (otherwise it drops to <body>): focus the safe Cancel action on open, and
+  // return focus to the Start-over button on cancel.
+  useEffect(() => {
+    if (confirmingStartOver) {
+      confirmWasOpen.current = true;
+      cancelBtnRef.current?.focus();
+    } else if (confirmWasOpen.current) {
+      confirmWasOpen.current = false;
+      startOverBtnRef.current?.focus();
+    }
+  }, [confirmingStartOver]);
 
   function startOver() {
     // Closes the outgoing image + original — safe here because "Start over"
@@ -224,6 +246,7 @@ export function App() {
                 <div className={styles.confirmRow} role="group" aria-label={m.startOver}>
                   <span className={styles.confirmText}>{m.startOverConfirm}</span>
                   <button
+                    ref={cancelBtnRef}
                     type="button"
                     className={styles.btnBack}
                     onClick={() => setConfirmingStartOver(false)}
@@ -237,6 +260,7 @@ export function App() {
                 </div>
               ) : (
                 <button
+                  ref={startOverBtnRef}
                   type="button"
                   className={styles.btnStartOver}
                   onClick={() => setConfirmingStartOver(true)}
