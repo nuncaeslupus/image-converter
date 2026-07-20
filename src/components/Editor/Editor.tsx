@@ -116,6 +116,8 @@ export interface EditorProps {
   transform: EditTransform;
   /** Called with the committed transform on any applied change / undo / redo / reset. */
   onChange: (transform: EditTransform) => void;
+  /** Source is flat / pixel-art (from the wizard) — drives the free-rotate warning. */
+  isFlat: boolean;
 }
 
 /**
@@ -127,7 +129,7 @@ export interface EditorProps {
  * frame in over the tilted image. Undo/Redo/Reset ride on `{angle, crop}`
  * snapshots — no bitmap history.
  */
-export function Editor({ image, transform, onChange }: EditorProps) {
+export function Editor({ image, transform, onChange, isFlat }: EditorProps) {
   const { m } = useI18n();
   const [history, setHistory] = useState<{ stack: EditTransform[]; index: number }>(() => ({
     stack: [transform],
@@ -157,6 +159,11 @@ export function Editor({ image, transform, onChange }: EditorProps) {
 
   const atFit = zoom === 1;
   const panning = zoom > 1;
+
+  // Warn while free-rotating a flat / pixel-art source: a non-orthogonal
+  // straighten is the only rotation that resamples, and `bakeTransform` keeps
+  // its colors exact by rotating nearest-neighbor (crisp edges, not smoothed).
+  const freeRotated = rotation % 90 !== 0;
 
   function commit(next: EditTransform) {
     setHistory((h) => {
@@ -617,6 +624,11 @@ export function Editor({ image, transform, onChange }: EditorProps) {
               </button>
             </div>
             <p className={styles.hint}>{m.straightenHint}</p>
+            {isFlat && freeRotated && (
+              <p className={styles.flatRotateNote} role="note">
+                {m.flatRotateNote}
+              </p>
+            )}
           </div>
 
           <div className={styles.card}>

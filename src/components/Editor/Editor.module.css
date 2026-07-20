@@ -390,3 +390,16 @@
   font-size: 12px;
   color: var(--fg-3);
 }
+
+/* Flat/pixel-art rotation note — a quiet accent-tinted callout under the
+   straighten hint, only shown while free-rotating such an image. */
+.flatRotateNote {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent-fg);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+}

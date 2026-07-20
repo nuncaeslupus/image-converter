@@ -29,7 +29,12 @@ export function EditStep({ wizard }: { wizard: Wizard }) {
 
   return (
     <section className={styles.root}>
-      <Editor image={wizard.image} transform={wizard.transform} onChange={handleChange} />
+      <Editor
+        image={wizard.image}
+        transform={wizard.transform}
+        onChange={handleChange}
+        isFlat={wizard.isFlatSource}
+      />
     </section>
   );
 }

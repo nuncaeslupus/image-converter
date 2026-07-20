@@ -70,6 +70,7 @@ export interface Messages {
   rotateLeftTitle: string;
   rotateRightTitle: string;
   straightenHint: string;
+  flatRotateNote: string;
   crop: string;
   cropHint: string;
   rotateHandleLabel: string;
@@ -194,6 +195,8 @@ const en: Messages = {
   rotateLeftTitle: "Rotate left 90° (Shift+R)",
   rotateRightTitle: "Rotate right 90° (R)",
   straightenHint: "Drag the handle above the image to straighten.",
+  flatRotateNote:
+    "Flat-color image — free rotation keeps colors exact but edges stay crisp. Use 90° turns for the smoothest result.",
   crop: "Crop",
   cropHint: "Drag the corners or edges on the image.",
   rotateHandleLabel: "Rotate image (arrow keys, Shift = 45°, Ctrl/Cmd = fine)",
@@ -313,6 +316,8 @@ const es: Messages = {
   rotateLeftTitle: "Rotar 90° a la izquierda (Mayús+R)",
   rotateRightTitle: "Rotar 90° a la derecha (R)",
   straightenHint: "Arrastra el tirador sobre la imagen para enderezar.",
+  flatRotateNote:
+    "Imagen de colores planos: la rotación libre conserva los colores exactos pero deja los bordes pixelados. Usa giros de 90° para el resultado más suave.",
   crop: "Recortar",
   cropHint: "Arrastra las esquinas o los bordes en la imagen.",
   rotateHandleLabel: "Rotar la imagen (flechas, Mayús = 45°, Ctrl/Cmd = fino)",

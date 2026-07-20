@@ -219,6 +219,7 @@ export async function rotateImageArbitrary(
   bitmap: ImageBitmap,
   degrees: number,
   fitToFrame = false,
+  crisp = false,
 ): Promise<ImageBitmap> {
   const rad = (degrees * Math.PI) / 180;
   const w = bitmap.width;
@@ -240,7 +241,14 @@ export async function rotateImageArbitrary(
   }
 
   const ctx = getContext2D(outW, outH);
-  ctx.imageSmoothingQuality = "high";
+  // Flat / pixel-art sources: rotate with nearest-neighbor (no smoothing) so the
+  // exact palette survives — smoothing would blend hard color edges into
+  // spurious in-between colors (crisp-but-blocky beats blurred-and-recolored).
+  if (crisp) {
+    ctx.imageSmoothingEnabled = false;
+  } else {
+    ctx.imageSmoothingQuality = "high";
+  }
   ctx.translate(outW / 2, outH / 2);
   ctx.rotate(rad);
   ctx.scale(scale, scale);
@@ -301,18 +309,25 @@ function denormalizeCrop(rect: NormalizedRect, width: number, height: number): C
  * other angles resample exactly once via the canvas-based
  * {@link rotateImageArbitrary}. Because it always starts from the upright
  * `source`, the result is never cumulative no matter how often it's re-baked.
+ *
+ * `crispRotation` (true for flat / pixel-art sources) makes an off-axis rotation
+ * resample with nearest-neighbor so the exact palette survives. It's passed in —
+ * not detected here — so bake never does a synchronous full-image pixel readback
+ * on the main thread; the source is scanned once, off this path (see the wizard).
  */
 export async function bakeTransform(
   source: ImageBitmap,
   transform: EditTransform,
+  crispRotation = false,
 ): Promise<ImageBitmap> {
   const norm = ((transform.rotation % 360) + 360) % 360;
   const hasRotation = norm !== 0;
+  const arbitrary = hasRotation && norm % 90 !== 0;
   const base = !hasRotation
     ? source
-    : norm % 90 === 0
-      ? await rotateImage(source, norm)
-      : await rotateImageArbitrary(source, transform.rotation);
+    : arbitrary
+      ? await rotateImageArbitrary(source, transform.rotation, false, crispRotation)
+      : await rotateImage(source, norm);
   try {
     if (!transform.crop) {
       // No crop: hand off the fresh rotated bitmap, or a copy of the source.

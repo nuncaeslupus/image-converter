@@ -139,7 +139,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
 
   // The image to trace is the source with Edit's crop/rotate baked in — a
   // fresh upright bitmap, re-baked when the source or transform changes.
-  const image = useBakedImage(wizard.image, wizard.transform);
+  const image = useBakedImage(wizard.image, wizard.transform, wizard.isFlatSource);
 
   // Real per-palette swatches + significant color count for the Colors control,
   // sampled from the current baked image (recomputed only when it changes).

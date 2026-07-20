@@ -41,6 +41,7 @@ function Harness({ image }: { image: ImageBitmap }) {
       setFileName(nextFileName);
     },
     fileName,
+    isFlatSource: false,
     transform,
     setTransform,
     svg,
