@@ -91,10 +91,15 @@ export function App() {
     // `m` intentionally omitted — announce on step change, not on language switch.
   }, [wizard.step, current]);
 
+  // Two-step "Start over" so a stray double-click can't wipe the work: the
+  // first click asks to confirm, the second (Yes) actually resets.
+  const [confirmingStartOver, setConfirmingStartOver] = useState(false);
+
   function startOver() {
     // Closes the outgoing image + original — safe here because "Start over"
     // is only reachable from the last (Export) step, where the Editor is
     // unmounted (see `Wizard.replaceImage`'s doc comment).
+    setConfirmingStartOver(false);
     wizard.replaceImage(null, null);
     wizard.setSvg(null);
     wizard.goTo("upload");
@@ -215,10 +220,31 @@ export function App() {
               // so "Start over" is deliberately de-emphasized here — a muted,
               // icon-led button, not the accent primary — so it doesn't read as
               // the next logical step and get clicked instead of Download.
-              <button type="button" className={styles.btnStartOver} onClick={startOver}>
-                <RestartIcon size={15} />
-                {m.startOver}
-              </button>
+              confirmingStartOver ? (
+                <div className={styles.confirmRow} role="group" aria-label={m.startOver}>
+                  <span className={styles.confirmText}>{m.startOverConfirm}</span>
+                  <button
+                    type="button"
+                    className={styles.btnBack}
+                    onClick={() => setConfirmingStartOver(false)}
+                  >
+                    {m.cancel}
+                  </button>
+                  <button type="button" className={styles.btnStartOver} onClick={startOver}>
+                    <RestartIcon size={15} />
+                    {m.startOver}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.btnStartOver}
+                  onClick={() => setConfirmingStartOver(true)}
+                >
+                  <RestartIcon size={15} />
+                  {m.startOver}
+                </button>
+              )
             ) : (
               <button
                 type="button"
