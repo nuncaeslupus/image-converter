@@ -139,7 +139,10 @@
 .gridV,
 .gridH {
   position: absolute;
-  background: rgba(255, 255, 255, 0.55);
+  /* A white line with a thin dark halo so the straightening grid is visible on
+     any image — the halo shows on light photos, the white line on dark ones. */
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.45);
 }
 .gridV {
   top: 0;

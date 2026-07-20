@@ -164,6 +164,15 @@ export function CodeIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Right-pointing chevron — disclosure indicator (rotate 90° for "open"). */
+export function ChevronRightIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Stroke size={size}>
+      <path d="m9 18 6-6-6-6" />
+    </Stroke>
+  );
+}
+
 /** Chain-link — the "keep aspect ratio" toggle between width and height. */
 export function LinkIcon({ size = 15 }: { size?: number }) {
   return (

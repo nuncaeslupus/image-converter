@@ -2,6 +2,10 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Fill the panel so the markup preview (when open) grows into the leftover
+     space rather than making the card taller / adding an outer scrollbar. */
+  height: 100%;
+  min-height: 0;
 }
 
 .label {
@@ -100,8 +104,12 @@
   min-width: 0;
 }
 .field input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  /* An outward outline is clipped by the panel's overflow at the edge, so the
+     focus ring is drawn as an inset instead — the border turns accent and a
+     1px inner ring sits fully inside the input. */
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .viewBox {
@@ -165,52 +173,85 @@
   filter: brightness(0.97);
 }
 
-.secondary {
+/* Disclosure "section": the header and the code share one bordered box. When
+   open, the whole section grows to fill the panel's leftover space (never grows
+   the card), so it reads as the button expanding with the code inside it. */
+.markupSection {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.markupOpen {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.disclosureHeader {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 9px;
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   color: var(--fg);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 11px;
+  background: transparent;
+  border: none;
   padding: 12px;
   cursor: pointer;
 }
-.secondary:hover {
-  filter: brightness(0.97);
+.disclosureHeader:hover {
+  background: var(--surface-2);
+}
+.disclosureLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.chevron {
+  display: inline-flex;
+  color: var(--fg-3);
+  transition: transform 0.15s ease;
+}
+.chevronOpen {
+  transform: rotate(90deg);
 }
 
-/* The markup preview stays inside the panel; the copy button overlays its
-   top-right corner. */
-.markup {
+/* The code fills the rest of the section; the copy button overlays its top-right. */
+.markupBody {
   position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding: 0 10px 10px;
 }
 .markupText {
+  flex: 1;
   display: block;
   width: 100%;
   box-sizing: border-box;
-  height: 104px;
-  resize: vertical;
+  min-height: 0;
+  resize: none;
   font-size: 10.5px;
   line-height: 1.35;
   color: var(--fg-2);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 9px;
   /* Keep the first line clear of the overlaid Copy button. */
-  padding-top: 34px;
+  padding-top: 32px;
   white-space: pre;
   overflow: auto;
 }
 .markupCopy {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 6px;
+  right: 16px;
   display: inline-flex;
   align-items: center;
   gap: 5px;

@@ -189,6 +189,14 @@
   white-space: nowrap;
 }
 
+/* Replace/Remove sit at the bottom of the panel, below the file info. */
+.actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .replace,
 .removeBtn {
   display: inline-flex;

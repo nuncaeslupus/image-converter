@@ -141,7 +141,7 @@ export function TweakPanel({
 
   return (
     <div className={styles.panel}>
-      <fieldset className={styles.group}>
+      <fieldset className={`${styles.group} ${styles.colorsGroup}`}>
         <legend className={styles.label}>Colors</legend>
         <p className={styles.hint}>How many colors to keep.</p>
         <div

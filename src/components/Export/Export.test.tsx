@@ -63,7 +63,7 @@ describe("Export", () => {
     // "the field goes straight from one valid value to an invalid one".
     fireEvent.input(widthInput, { target: { value: "0" } }); // invalid — should NOT override the 200
 
-    await user.click(screen.getByRole("button", { name: /view svg markup/i }));
+    await user.click(screen.getByRole("button", { name: "SVG markup" }));
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalled());
@@ -76,7 +76,7 @@ describe("Export", () => {
     stubClipboard(writeText);
     render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
-    await user.click(screen.getByRole("button", { name: /view svg markup/i }));
+    await user.click(screen.getByRole("button", { name: "SVG markup" }));
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
     await waitFor(() => expect(screen.getByText("Copied!")).toBeInTheDocument());
@@ -88,7 +88,7 @@ describe("Export", () => {
     stubClipboard(writeText);
     render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
-    await user.click(screen.getByRole("button", { name: /view svg markup/i }));
+    await user.click(screen.getByRole("button", { name: "SVG markup" }));
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
 
     await waitFor(() => expect(screen.getByText("Failed")).toBeInTheDocument());
@@ -101,7 +101,7 @@ describe("Export", () => {
     stubClipboard(writeText);
     const { unmount } = render(<Export svg={SAMPLE_SVG} defaultFileName="image.svg" />);
 
-    await user.click(screen.getByRole("button", { name: /view svg markup/i }));
+    await user.click(screen.getByRole("button", { name: "SVG markup" }));
     await user.click(screen.getByRole("button", { name: /copy svg markup/i }));
     await waitFor(() => expect(screen.getByText("Copied!")).toBeInTheDocument());
     unmount();

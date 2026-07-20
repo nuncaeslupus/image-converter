@@ -159,18 +159,20 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
                 </span>
               </div>
             </div>
-            <button
-              type="button"
-              className={styles.replace}
-              onClick={() => inputRef.current?.click()}
-            >
-              <ReplaceIcon size={15} />
-              Replace image
-            </button>
-            <button type="button" className={styles.removeBtn} onClick={removeImage}>
-              <XIcon size={15} />
-              Remove image
-            </button>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.replace}
+                onClick={() => inputRef.current?.click()}
+              >
+                <ReplaceIcon size={15} />
+                Replace image
+              </button>
+              <button type="button" className={styles.removeBtn} onClick={removeImage}>
+                <XIcon size={15} />
+                Remove image
+              </button>
+            </div>
           </div>
         </div>
       ) : (
