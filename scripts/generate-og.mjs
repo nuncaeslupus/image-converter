@@ -1,10 +1,15 @@
 /**
  * Generates the Open Graph / social share cards (1200×630) — one PNG per
  * language — from a single SVG template, so adding a language is one entry in
- * CARDS + a re-run of `npm run og`. No CDN / no browser: renders with resvg.
+ * CARDS + a re-run. No CDN / no browser: renders with resvg.
  *
- * Usage:  node scripts/generate-og.mjs      (or: npm run og)
- * Output: public/og/og-<lang>.png            (referenced from index.html)
+ * The generated cards are COMMITTED (public/og/*.png), so resvg is NOT a
+ * committed dependency (it's a native binary that would bloat the lockfile and
+ * every CI install). Install it ad-hoc only when regenerating:
+ *
+ *   npm i -D @resvg/resvg-js && node scripts/generate-og.mjs   (then: npm uninstall @resvg/resvg-js)
+ *
+ * Output: public/og/og-<lang>.png            (referenced from the HTML shells)
  *
  * Keep CARDS' keys in sync with i18n `Lang` and the copy in sync with the
  * header (src/lib/i18n.tsx). The card is intentionally standalone (its own copy
