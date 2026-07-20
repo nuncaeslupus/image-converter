@@ -9,7 +9,18 @@ import {
 } from "../../lib/svgExport";
 import { ExportStepIcon, CopyIcon, CodeIcon, ChevronRightIcon, LinkIcon } from "../shellIcons";
 import { useI18n } from "../../lib/i18n";
+import { highlightSvg, type SvgToken } from "../../lib/svgHighlight";
 import styles from "./Export.module.css";
+
+const TOKEN_CLASS: Record<SvgToken["cls"], string | undefined> = {
+  tag: styles.tokTag,
+  attr: styles.tokAttr,
+  val: styles.tokVal,
+  punct: styles.tokPunct,
+  com: styles.tokCom,
+  // Plain text/whitespace needs no color — inherits the panel's default.
+  txt: undefined,
+};
 
 function formatBytes(bytes: number): string {
   return bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
@@ -143,6 +154,11 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
   );
   const estimate = useMemo(() => estimateSvg(effectiveSvg), [effectiveSvg]);
   const colorCount = useMemo(() => countSvgColors(effectiveSvg), [effectiveSvg]);
+  // Tokenize only while the panel is open — no cost when the code is collapsed.
+  const tokens = useMemo(
+    () => (showMarkup ? highlightSvg(effectiveSvg) : []),
+    [showMarkup, effectiveSvg],
+  );
 
   async function handleCopy() {
     try {
@@ -324,14 +340,13 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         </button>
         {showMarkup && (
           <div className={styles.markupBody}>
-            <textarea
-              className={`${styles.markupText} mono`}
-              readOnly
-              value={effectiveSvg}
-              aria-label="SVG markup"
-              spellcheck={false}
-              onFocus={(event) => event.currentTarget.select()}
-            />
+            <pre className={`${styles.markupText} mono`} aria-label={m.svgMarkup} tabIndex={0}>
+              {tokens.map((tok, i) => (
+                <span key={i} className={TOKEN_CLASS[tok.cls]}>
+                  {tok.text}
+                </span>
+              ))}
+            </pre>
             <button
               type="button"
               className={styles.markupCopy}

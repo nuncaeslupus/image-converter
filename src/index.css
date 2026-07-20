@@ -42,6 +42,12 @@
   --trace-b: #eaf7f5;
   --trace-line: #a9d9d3;
   --trace-fg: #3f9b93;
+  /* SVG code highlighting — all >= 4.5:1 vs --surface-2 (the code background). */
+  --code-tag: #1668b8;
+  --code-attr: #8a5a00;
+  --code-val: #2f7d55;
+  --code-punct: #626c7a;
+  --code-com: #6b7682;
 }
 
 :root[data-theme="dark"] {
@@ -73,6 +79,12 @@
   --trace-b: #16302e;
   --trace-line: #2f6b64;
   --trace-fg: #58c2b8;
+  /* >= 4.5:1 vs --surface-2 (#1a2126). */
+  --code-tag: #6cb6ff;
+  --code-attr: #e2b877;
+  --code-val: #8fd0a8;
+  --code-punct: #98a4ae;
+  --code-com: #7f8b95;
 }
 
 * {

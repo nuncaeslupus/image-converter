@@ -235,7 +235,7 @@
   width: 100%;
   box-sizing: border-box;
   min-height: 0;
-  resize: none;
+  margin: 0;
   font-size: 10.5px;
   line-height: 1.35;
   color: var(--fg-2);
@@ -247,6 +247,28 @@
   padding-top: 32px;
   white-space: pre;
   overflow: auto;
+}
+.markupText:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.tokTag {
+  color: var(--code-tag);
+}
+.tokAttr {
+  color: var(--code-attr);
+}
+.tokVal {
+  color: var(--code-val);
+}
+.tokPunct {
+  color: var(--code-punct);
+}
+.tokCom {
+  color: var(--code-com);
+  font-style: italic;
 }
 .markupCopy {
   position: absolute;
