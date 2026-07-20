@@ -24,8 +24,15 @@ export default defineConfig(({ command }) => ({
     preact(),
     VitePWA({
       registerType: "autoUpdate",
-      // wasm isn't in workbox's default glob; the tracer won't work offline without it.
-      workbox: { globPatterns: ["**/*.{js,css,html,svg,wasm,png}"] },
+      workbox: {
+        // wasm isn't in workbox's default glob; the tracer won't work offline without it.
+        globPatterns: ["**/*.{js,css,html,svg,wasm,png}"],
+        // The SPA navigation fallback (index.html) otherwise swallows real
+        // static files — a visitor whose SW is active who opens sitemap.xml /
+        // robots.txt / the GSC token gets the app shell instead of the file.
+        // Exclude non-app paths so they resolve as themselves.
+        navigateFallbackDenylist: [/\.(?:xml|txt)$/, /\/google[0-9a-f]+\.html$/],
+      },
       manifest: {
         name: "Halftone — Free Image to SVG Vectorizer",
         short_name: "Halftone",
