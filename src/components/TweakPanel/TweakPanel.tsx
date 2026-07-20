@@ -84,17 +84,19 @@ export function TweakPanel({
     onChange({ ...values, [key]: value });
   }
 
-  // Only offer color counts the image can actually fill. B&W (1), 2 colors, and
-  // Auto always apply, so they're the floor; 3+ appear only when the image has
-  // that many meaningful colors. Until the sample is in, show every option.
-  const paletteOptions = PALETTE_OPTIONS.filter(
-    (preset) =>
-      preset === 1 ||
-      preset === 2 ||
-      preset === "auto" ||
-      maxColors === undefined ||
-      (typeof preset === "number" && preset <= maxColors),
-  );
+  // Only offer color counts the image can actually fill. B&W (1) and Auto always
+  // apply; 3+ appear only when the image has that many meaningful colors. Until
+  // the sample is in, show every option.
+  const paletteOptions = PALETTE_OPTIONS.filter((preset) => {
+    if (preset === "auto" || preset === 1) return true;
+    // "2 colors" is a floor — offered even when a real second color is a
+    // minority that significantColorCount (95% coverage) drops from maxColors.
+    // But for a genuinely monochrome image its preview collapses to a single
+    // swatch, making it identical to Black & white — so once the sample is in
+    // and shows < 2 colors, hide the redundant row. (jsdom has no sample.)
+    if (preset === 2) return !palettePreviews || (palettePreviews["2"]?.length ?? 2) >= 2;
+    return maxColors === undefined || preset <= maxColors;
+  });
 
   // WAI-ARIA radiogroup keyboard pattern: arrow keys move *and select* the
   // next/previous radio (wrapping), independent of which one currently has
