@@ -70,11 +70,16 @@ interface PaletteInfo {
  */
 async function computePaletteInfo(bitmap: ImageBitmap): Promise<PaletteInfo | undefined> {
   let scaled: ImageBitmap;
+  // Clone first — downscaleForPreview closes the bitmap it downscales, and
+  // `bitmap` is the shared baked image the trace also reads. Hold the clone in
+  // its own var so a downscale failure (resizeImage rejecting) still closes it
+  // rather than leaking the GPU-backed bitmap.
+  let clone: ImageBitmap | undefined;
   try {
-    // Clone first — downscaleForPreview closes the bitmap it downscales, and
-    // `bitmap` is the shared baked image the trace also reads.
-    scaled = await downscaleForPreview(await createImageBitmap(bitmap));
+    clone = await createImageBitmap(bitmap);
+    scaled = await downscaleForPreview(clone);
   } catch {
+    clone?.close();
     return undefined;
   }
   try {
