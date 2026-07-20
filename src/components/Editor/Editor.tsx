@@ -495,7 +495,16 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                   <div
                     key={handle}
                     className={styles.cropHandle}
-                    style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
+                    style={{
+                      ...handleOffset(handle),
+                      cursor: handleCursor(handle),
+                      // Counter the stage's scale(zoom) so the grab targets keep
+                      // a constant on-screen size instead of ballooning when
+                      // zoomed in. Origin is the handle's center (it's already
+                      // centered on its corner via margin), so its anchor point
+                      // is unchanged — only the visual size is neutralized.
+                      transform: `scale(${1 / zoom})`,
+                    }}
                     role="button"
                     aria-label={m.cropHandleLabel(m[HANDLE_LABEL_KEY[handle]])}
                     onPointerDown={(event) => onCropDown(handle, event)}
@@ -510,6 +519,15 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 <button
                   type="button"
                   className={styles.rotateHandle}
+                  // Counter the stage's scale(zoom): keep the widget a constant
+                  // size, glued just above the image's top-center edge, instead
+                  // of growing and drifting away as you zoom. Origin at its
+                  // bottom-center (the point touching the edge) keeps that
+                  // anchor fixed while the size is neutralized.
+                  style={{
+                    transform: `translate(-50%, -100%) scale(${1 / zoom})`,
+                    transformOrigin: "50% 100%",
+                  }}
                   aria-label={m.rotateHandleLabel}
                   title={m.rotateHandleTitle}
                   onPointerDown={onRotateDown}
