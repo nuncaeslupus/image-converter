@@ -17,7 +17,7 @@ import {
   GitHubIcon,
   RestartIcon,
 } from "./components/shellIcons";
-import { Fragment, type FunctionComponent } from "preact";
+import { Fragment, type FunctionComponent, type JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useI18n } from "./lib/i18n";
 import { LanguageSelect } from "./components/LanguageSelect";
@@ -96,7 +96,31 @@ export function App() {
   const [confirmingStartOver, setConfirmingStartOver] = useState(false);
   const startOverBtnRef = useRef<HTMLButtonElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const confirmWasOpen = useRef(false);
+
+  // Focus trap + Esc for the confirmation modal. Keydown only fires while focus
+  // is inside the dialog (it's focused on open), so Escape is always reachable;
+  // Tab/Shift+Tab wrap between the first and last focusable so focus can't
+  // escape to the page behind the modal.
+  function handleDialogKeyDown(event: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      setConfirmingStartOver(false);
+      return;
+    }
+    if (event.key !== "Tab" || !dialogRef.current) return;
+    const focusables = dialogRef.current.querySelectorAll<HTMLElement>("button");
+    if (focusables.length === 0) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
 
   // Reset the pending confirmation whenever the step changes, so leaving Export
   // mid-confirm and returning doesn't strand the app in the confirming state.
@@ -241,34 +265,18 @@ export function App() {
               // Last step: the forward action is Download (in the Export panel),
               // so "Start over" is deliberately de-emphasized here — a muted,
               // icon-led button, not the accent primary — so it doesn't read as
-              // the next logical step and get clicked instead of Download.
-              confirmingStartOver ? (
-                <div className={styles.confirmRow} role="group" aria-label={m.startOver}>
-                  <span className={styles.confirmText}>{m.startOverConfirm}</span>
-                  <button
-                    ref={cancelBtnRef}
-                    type="button"
-                    className={styles.btnBack}
-                    onClick={() => setConfirmingStartOver(false)}
-                  >
-                    {m.cancel}
-                  </button>
-                  <button type="button" className={styles.btnStartOver} onClick={startOver}>
-                    <RestartIcon size={15} />
-                    {m.startOver}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  ref={startOverBtnRef}
-                  type="button"
-                  className={styles.btnStartOver}
-                  onClick={() => setConfirmingStartOver(true)}
-                >
-                  <RestartIcon size={15} />
-                  {m.startOver}
-                </button>
-              )
+              // the next logical step and get clicked instead of Download. It
+              // opens a confirmation modal (rendered below) rather than acting
+              // immediately, so a stray click can't wipe the work.
+              <button
+                ref={startOverBtnRef}
+                type="button"
+                className={styles.btnStartOver}
+                onClick={() => setConfirmingStartOver(true)}
+              >
+                <RestartIcon size={15} />
+                {m.startOver}
+              </button>
             ) : (
               <button
                 type="button"
@@ -294,6 +302,45 @@ export function App() {
           </a>
         </footer>
       </div>
+
+      {confirmingStartOver && (
+        // Backdrop click cancels; the modal stops propagation so clicks inside
+        // don't. Esc + focus trap live in handleDialogKeyDown.
+        <div className={styles.modalBackdrop} onClick={() => setConfirmingStartOver(false)}>
+          <div
+            ref={dialogRef}
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="startOverTitle"
+            aria-describedby="startOverDesc"
+            tabIndex={-1}
+            onKeyDown={handleDialogKeyDown}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="startOverTitle" className={styles.modalTitle}>
+              {m.startOver}
+            </h2>
+            <p id="startOverDesc" className={styles.modalText}>
+              {m.startOverConfirm}
+            </p>
+            <div className={styles.modalActions}>
+              <button
+                ref={cancelBtnRef}
+                type="button"
+                className={styles.btnBack}
+                onClick={() => setConfirmingStartOver(false)}
+              >
+                {m.cancel}
+              </button>
+              <button type="button" className={styles.btnStartOver} onClick={startOver}>
+                <RestartIcon size={15} />
+                {m.startOver}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
