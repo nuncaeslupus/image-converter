@@ -191,3 +191,13 @@ body.faqPage {
   line-height: 1.6;
   color: var(--fg-2);
 }
+.faqBack {
+  display: inline-block;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--fg-3);
+  text-decoration: none;
+}
+.faqBack:hover {
+  color: var(--accent-fg);
+}
