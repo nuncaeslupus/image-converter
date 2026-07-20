@@ -304,3 +304,25 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* Last-step "Start over": deliberately quiet — a ghost, icon-led button so it
+   reads as a secondary escape hatch, not the accent "next step" primary (the
+   real forward action on Export is Download, inside the panel). */
+.btnStartOver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 11px 20px;
+  cursor: pointer;
+  color: var(--fg-2);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+.btnStartOver:hover {
+  color: var(--fg);
+  filter: brightness(0.97);
+}

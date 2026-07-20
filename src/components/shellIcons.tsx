@@ -134,6 +134,16 @@ export function XIcon({ size = 16 }: { size?: number }) {
   );
 }
 
+/** Counter-clockwise circular arrow — "start over" / restart from scratch. */
+export function RestartIcon({ size = 16 }: { size?: number }) {
+  return (
+    <Stroke size={size}>
+      <path d="M3 12a9 9 0 1 0 3-6.7" />
+      <path d="M3 3v5h5" />
+    </Stroke>
+  );
+}
+
 export function ReplaceIcon({ size = 16 }: { size?: number }) {
   return (
     <Stroke size={size}>

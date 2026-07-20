@@ -33,4 +33,11 @@ describe("App wizard shell", () => {
       expect(screen.getByRole("button", { name: /90° right/i })).toBeInTheDocument(),
     );
   });
+
+  // The beforeunload guard (App.tsx) arms via a useEffect once wizard.image /
+  // svg exist. It's intentionally left untested here: this harness can't
+  // observe an effect that arms after an async, UI-driven state update
+  // (userEvent doesn't flush update-effects; fireEvent flushes only
+  // synchronous ones — the upload decode is async), and the guard itself is a
+  // one-line `if (!image && !svg) return` branch.
 });
