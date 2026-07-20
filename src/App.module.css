@@ -324,5 +324,5 @@
 }
 .btnStartOver:hover {
   color: var(--fg);
-  filter: brightness(0.97);
+  background: var(--surface);
 }
