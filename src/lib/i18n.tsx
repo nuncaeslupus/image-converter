@@ -37,6 +37,8 @@ export interface Messages {
   continueToTrace: string;
   continueToExport: string;
   startOver: string;
+  startOverConfirm: string;
+  cancel: string;
   back: string;
   nowOnStep: (step: string) => string;
   // ---- Upload ----
@@ -161,6 +163,8 @@ const en: Messages = {
   continueToTrace: "Continue to Trace",
   continueToExport: "Continue to Export",
   startOver: "Start over",
+  startOverConfirm: "This clears the image and your changes.",
+  cancel: "Cancel",
   back: "Back",
   nowOnStep: (step) => `Now on step: ${step}`,
   addImage: "Add an image to vectorize",
@@ -278,6 +282,8 @@ const es: Messages = {
   continueToTrace: "Continuar a Vectorizar",
   continueToExport: "Continuar a Exportar",
   startOver: "Empezar de nuevo",
+  startOverConfirm: "Se borrarán la imagen y los cambios.",
+  cancel: "Cancelar",
   back: "Atrás",
   nowOnStep: (step) => `Ahora en el paso: ${step}`,
   addImage: "Añade una imagen para vectorizar",

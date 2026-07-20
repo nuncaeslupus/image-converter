@@ -91,10 +91,37 @@ export function App() {
     // `m` intentionally omitted — announce on step change, not on language switch.
   }, [wizard.step, current]);
 
+  // Two-step "Start over" so a stray double-click can't wipe the work: the
+  // first click asks to confirm, the second (Yes) actually resets.
+  const [confirmingStartOver, setConfirmingStartOver] = useState(false);
+  const startOverBtnRef = useRef<HTMLButtonElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+  const confirmWasOpen = useRef(false);
+
+  // Reset the pending confirmation whenever the step changes, so leaving Export
+  // mid-confirm and returning doesn't strand the app in the confirming state.
+  useEffect(() => {
+    setConfirmingStartOver(false);
+  }, [current]);
+
+  // Keep focus sensible when the button swaps to/from the confirmation row
+  // (otherwise it drops to <body>): focus the safe Cancel action on open, and
+  // return focus to the Start-over button on cancel.
+  useEffect(() => {
+    if (confirmingStartOver) {
+      confirmWasOpen.current = true;
+      cancelBtnRef.current?.focus();
+    } else if (confirmWasOpen.current) {
+      confirmWasOpen.current = false;
+      startOverBtnRef.current?.focus();
+    }
+  }, [confirmingStartOver]);
+
   function startOver() {
     // Closes the outgoing image + original — safe here because "Start over"
     // is only reachable from the last (Export) step, where the Editor is
     // unmounted (see `Wizard.replaceImage`'s doc comment).
+    setConfirmingStartOver(false);
     wizard.replaceImage(null, null);
     wizard.setSvg(null);
     wizard.goTo("upload");
@@ -215,10 +242,33 @@ export function App() {
               // so "Start over" is deliberately de-emphasized here — a muted,
               // icon-led button, not the accent primary — so it doesn't read as
               // the next logical step and get clicked instead of Download.
-              <button type="button" className={styles.btnStartOver} onClick={startOver}>
-                <RestartIcon size={15} />
-                {m.startOver}
-              </button>
+              confirmingStartOver ? (
+                <div className={styles.confirmRow} role="group" aria-label={m.startOver}>
+                  <span className={styles.confirmText}>{m.startOverConfirm}</span>
+                  <button
+                    ref={cancelBtnRef}
+                    type="button"
+                    className={styles.btnBack}
+                    onClick={() => setConfirmingStartOver(false)}
+                  >
+                    {m.cancel}
+                  </button>
+                  <button type="button" className={styles.btnStartOver} onClick={startOver}>
+                    <RestartIcon size={15} />
+                    {m.startOver}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  ref={startOverBtnRef}
+                  type="button"
+                  className={styles.btnStartOver}
+                  onClick={() => setConfirmingStartOver(true)}
+                >
+                  <RestartIcon size={15} />
+                  {m.startOver}
+                </button>
+              )
             ) : (
               <button
                 type="button"
