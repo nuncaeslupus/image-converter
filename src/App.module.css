@@ -93,6 +93,11 @@
   text-decoration: none;
   color: inherit;
 }
+.brand:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
 
 .brandText {
   display: flex;
