@@ -8,6 +8,7 @@ import {
   estimateSvg,
 } from "../../lib/svgExport";
 import { ExportStepIcon, CopyIcon, CodeIcon, ChevronRightIcon, LinkIcon } from "../shellIcons";
+import { useI18n } from "../../lib/i18n";
 import styles from "./Export.module.css";
 
 function formatBytes(bytes: number): string {
@@ -80,6 +81,7 @@ function intrinsicSize(svg: string): { width: string; height: string; viewBox: s
  * call — so it's reflected instantly in the estimate, download, and copy.
  */
 export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: ExportProps) {
+  const { m } = useI18n();
   // Pre-fill the download name from the source; re-seed if the default changes.
   const [fileName, setFileName] = useState(defaultFileName);
   useEffect(() => setFileName(defaultFileName), [defaultFileName]);
@@ -194,35 +196,36 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
     downloadSvg(effectiveSvg, /\.svg$/i.test(name) ? name : `${name}.svg`);
   }
 
-  const copyLabel = copyState === "copied" ? "Copied!" : copyState === "failed" ? "Failed" : "Copy";
+  const copyLabel =
+    copyState === "copied" ? m.copied : copyState === "failed" ? m.copyFailed : m.copy;
 
   return (
     <div className={styles.export}>
       <div className={styles.estimate}>
         <div className={styles.estimateRow}>
-          <span className={styles.estimateLabel}>Estimated size</span>
+          <span className={styles.estimateLabel}>{m.estimatedSize}</span>
           <span className={`${styles.estimateValue} mono`}>{formatBytes(estimate.bytes)}</span>
         </div>
         <div className={styles.estimateRow}>
-          <span className={styles.estimateLabel}>Path count</span>
+          <span className={styles.estimateLabel}>{m.pathCount}</span>
           <span className={`${styles.estimateValue} mono`}>
             {estimate.pathCount.toLocaleString()}
           </span>
         </div>
         <div className={styles.estimateRow}>
-          <span className={styles.estimateLabel}>Colors</span>
+          <span className={styles.estimateLabel}>{m.colors}</span>
           <span className={`${styles.estimateValue} mono`}>{colorCount.toLocaleString()}</span>
         </div>
       </div>
 
       <div>
-        <div className={styles.label}>File name</div>
+        <div className={styles.label}>{m.fileName}</div>
         <label className={styles.field}>
           <input
             type="text"
             className="mono"
             value={fileName}
-            aria-label="Download file name"
+            aria-label={m.downloadFileName}
             spellcheck={false}
             onInput={(event) => setFileName(event.currentTarget.value)}
           />
@@ -231,8 +234,8 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
 
       <div>
         <div className={styles.sizeHead}>
-          <div className={styles.label}>Output size</div>
-          <div className={styles.unitToggle} role="group" aria-label="Size unit">
+          <div className={styles.label}>{m.outputSize}</div>
+          <div className={styles.unitToggle} role="group" aria-label={m.sizeUnit}>
             <button
               type="button"
               className={styles.unitButton}
@@ -253,13 +256,13 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         </div>
         <div className={styles.sizeRow}>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Width</span>
+            <span className={styles.fieldLabel}>{m.width}</span>
             <input
               type="number"
               min={1}
               className="mono"
               value={wStr}
-              aria-label="Width"
+              aria-label={m.width}
               aria-invalid={widthInvalid ? "true" : undefined}
               onInput={handleWidthInput}
             />
@@ -268,20 +271,20 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
             type="button"
             className={styles.chain}
             aria-pressed={keepRatio}
-            aria-label="Keep aspect ratio"
-            title={keepRatio ? "Aspect ratio locked" : "Aspect ratio unlocked"}
+            aria-label={m.keepAspectRatio}
+            title={keepRatio ? m.ratioLocked : m.ratioUnlocked}
             onClick={() => setKeepRatio((v) => !v)}
           >
             <LinkIcon />
           </button>
           <label className={styles.field}>
-            <span className={styles.fieldLabel}>Height</span>
+            <span className={styles.fieldLabel}>{m.height}</span>
             <input
               type="number"
               min={1}
               className="mono"
               value={hStr}
-              aria-label="Height"
+              aria-label={m.height}
               aria-invalid={heightInvalid ? "true" : undefined}
               onInput={handleHeightInput}
             />
@@ -290,10 +293,10 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         {(widthInvalid || heightInvalid) && (
           <p className={styles.sizeError} role="alert">
             {widthInvalid && heightInvalid
-              ? "Width and height must be positive numbers — using the last valid size instead."
+              ? m.sizeErrorBoth
               : widthInvalid
-                ? "Width must be a positive number — using the last valid size instead."
-                : "Height must be a positive number — using the last valid size instead."}
+                ? m.sizeErrorWidth
+                : m.sizeErrorHeight}
           </p>
         )}
         <div className={`${styles.viewBox} mono`}>viewBox {intrinsic.viewBox}</div>
@@ -301,7 +304,7 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
 
       <button type="button" className={styles.primary} onClick={handleDownload}>
         <ExportStepIcon size={17} />
-        Download .svg
+        {m.downloadSvg}
       </button>
 
       <div className={`${styles.markupSection} ${showMarkup ? styles.markupOpen : ""}`}>
@@ -313,7 +316,7 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
         >
           <span className={styles.disclosureLabel}>
             <CodeIcon />
-            SVG markup
+            {m.svgMarkup}
           </span>
           <span className={`${styles.chevron} ${showMarkup ? styles.chevronOpen : ""}`}>
             <ChevronRightIcon size={16} />
@@ -333,7 +336,7 @@ export function Export({ svg, defaultFileName, defaultWidth, defaultHeight }: Ex
               type="button"
               className={styles.markupCopy}
               onClick={() => void handleCopy()}
-              aria-label="Copy SVG markup"
+              aria-label={m.copySvgMarkup}
             >
               <CopyIcon size={14} />
               <span aria-live="polite">{copyLabel}</span>

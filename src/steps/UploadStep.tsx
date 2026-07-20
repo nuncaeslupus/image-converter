@@ -3,6 +3,7 @@ import type { JSX } from "preact";
 import type { Wizard } from "../lib/wizard";
 import { decodeImage, ImageDecodeError, SUPPORTED_IMAGE_MIME_TYPES } from "../lib/imageDecode";
 import { ReplaceIcon, UploadTrayIcon, XIcon } from "../components/shellIcons";
+import { useI18n } from "../lib/i18n";
 import styles from "./UploadStep.module.css";
 
 type Status =
@@ -18,6 +19,7 @@ type Status =
  * Remove controls so it's obvious an image is present.
  */
 export function UploadStep({ wizard }: { wizard: Wizard }) {
+  const { m } = useI18n();
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [isDragOver, setIsDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,16 +47,13 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         setStatus({ kind: "idle" });
         wizard.next();
       } catch (err) {
-        const message =
-          err instanceof ImageDecodeError
-            ? err.message
-            : "Something went wrong reading that file. Please try again.";
+        const message = err instanceof ImageDecodeError ? err.message : m.decodeGenericError;
         setStatus({ kind: "error", message });
       } finally {
         decodingRef.current = false;
       }
     },
-    [wizard],
+    [wizard, m],
   );
 
   // A file dropped anywhere on the window — not just the dropzone tile —
@@ -131,7 +130,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
           <div className={styles.previewCol}>
             <div className={styles.previewCard}>
               <div className={styles.previewHead}>
-                <h2 className={styles.previewTitle}>Your image</h2>
+                <h2 className={styles.previewTitle}>{m.yourImage}</h2>
               </div>
               <div className={styles.thumbWrap}>
                 <canvas
@@ -139,7 +138,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
                   className={styles.thumb}
                   data-testid="upload-thumb"
                   role="img"
-                  aria-label="Uploaded image preview"
+                  aria-label={m.uploadedPreview}
                 />
               </div>
             </div>
@@ -147,13 +146,13 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
           <div className={styles.controls}>
             <div className={styles.info}>
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>File name</span>
+                <span className={styles.infoLabel}>{m.fileName}</span>
                 <span className={`${styles.infoValue} mono`} title={wizard.fileName ?? undefined}>
                   {wizard.fileName ?? "—"}
                 </span>
               </div>
               <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Dimensions</span>
+                <span className={styles.infoLabel}>{m.dimensions}</span>
                 <span className={`${styles.infoValue} mono`}>
                   {image.width} × {image.height}
                 </span>
@@ -166,11 +165,11 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
                 onClick={() => inputRef.current?.click()}
               >
                 <ReplaceIcon size={15} />
-                Replace image
+                {m.replaceImage}
               </button>
               <button type="button" className={styles.removeBtn} onClick={removeImage}>
                 <XIcon size={15} />
-                Remove image
+                {m.removeImage}
               </button>
             </div>
           </div>
@@ -178,10 +177,8 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
       ) : (
         <>
           <div className={styles.head}>
-            <h2 className={styles.heading}>Add an image to vectorize</h2>
-            <p className={styles.subtext}>
-              It’s traced right here in your browser — nothing is uploaded anywhere.
-            </p>
+            <h2 className={styles.heading}>{m.addImage}</h2>
+            <p className={styles.subtext}>{m.uploadSubtext}</p>
           </div>
           <button
             type="button"
@@ -200,16 +197,15 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
             <span>
               <span className={styles.cta}>
                 {status.kind === "decoding" ? (
-                  `Decoding ${status.fileName}…`
+                  m.decoding(status.fileName)
                 ) : (
                   <>
-                    Drop an image here, or <span>browse</span>
+                    {m.dropHerePrefix}
+                    <span>{m.browse}</span>
                   </>
                 )}
               </span>
-              <span className={styles.formats}>
-                PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
-              </span>
+              <span className={styles.formats}>{m.formats}</span>
             </span>
           </button>
         </>
@@ -219,7 +215,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
         ref={inputRef}
         type="file"
         className={styles.hiddenInput}
-        aria-label="Choose file"
+        aria-label={m.chooseFile}
         accept={SUPPORTED_IMAGE_MIME_TYPES.join(",")}
         onChange={handleInputChange}
         tabIndex={-1}
@@ -228,7 +224,7 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
       {status.kind === "decoding" && (
         <p className={styles.status} role="status">
-          Decoding {status.fileName}…
+          {m.decoding(status.fileName)}
         </p>
       )}
       {status.kind === "error" && (
