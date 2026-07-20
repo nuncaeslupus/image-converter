@@ -56,7 +56,9 @@
 /* Each step's root <section> grows to fill the constant-height body. */
 .body > section {
   flex: 1;
-  min-height: 0;
+  /* Grow to fill the screen, but never below a usable floor — on a short
+     window the page scrolls rather than crushing the card. */
+  min-height: 440px;
 }
 
 /* Visually hidden but still exposed to assistive tech — used for the

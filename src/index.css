@@ -8,6 +8,12 @@
 :root,
 :root[data-theme="light"] {
   color-scheme: light;
+  /* Shared step layout — every step (Upload/Edit/Trace/Export) uses these so
+     the image card and the right panel are identical in size across steps.
+     Theme-independent; not overridden in the dark block below. */
+  --panel-width: 340px;
+  --step-gap: 22px;
+  --step-head-min: 34px;
   --page: #e2e7ef;
   --bg: #f2f5fa;
   --surface: #ffffff;

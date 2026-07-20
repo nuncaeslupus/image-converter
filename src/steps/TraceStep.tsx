@@ -19,7 +19,7 @@ import {
 import { downscaleForPreview, BW_PREVIEW_MAX_DIMENSION } from "../lib/previewDownscale";
 import { useBakedImage } from "../lib/useBakedImage";
 import { medianCutPalette, rgbToHex, significantColorCount } from "../lib/quantize";
-import { estimateSvg, countPaths, countSvgColors } from "../lib/svgExport";
+import { countSvgColors } from "../lib/svgExport";
 import appStyles from "../App.module.css";
 import styles from "./TraceStep.module.css";
 
@@ -99,9 +99,6 @@ function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
 export function TraceStep({ wizard }: { wizard: Wizard }) {
   const [values, setValues] = useState<TweakValues>(() => wizard.tweakValues ?? DEFAULT_VALUES);
   const [tracedSvg, setTracedSvg] = useState<string | null>(() => wizard.svg);
-  const [pathCount, setPathCount] = useState<number | null>(() =>
-    wizard.svg ? countPaths(wizard.svg) : null,
-  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -149,7 +146,6 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
       if (response.type === "trace-result") {
         rawSvgRef.current = response.svg;
         setError(null);
-        setPathCount(response.pathCount);
         setTracedSvg(applyBackground(response.svg, valuesRef.current.background));
       } else {
         setError(response.message);
@@ -247,16 +243,6 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
     );
   }
 
-  const paletteLabel = values.paletteSize === "auto" ? "Auto" : String(values.paletteSize);
-  const caption = tracedSvg
-    ? (() => {
-        const { bytes } = estimateSvg(tracedSvg);
-        const size = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
-        const paths = pathCount ?? 0;
-        return `${paths.toLocaleString()} paths · ~${size} · palette: ${paletteLabel}`;
-      })()
-    : `palette: ${paletteLabel}`;
-
   return (
     <section className={styles.root}>
       <div className={styles.layout}>
@@ -266,7 +252,6 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
               title="Trace & Tweak"
               tracedSvg={tracedSvg}
               originalImage={image}
-              caption={caption}
               busy={busy}
             />
           ) : (
@@ -289,7 +274,6 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
           <TweakPanel
             values={values}
             onChange={handleChange}
-            busy={busy}
             palettePreviews={paletteInfo?.previews}
             maxColors={paletteInfo?.maxColors}
             autoColorCount={

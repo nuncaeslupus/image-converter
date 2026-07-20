@@ -81,7 +81,10 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
     if (!image) return;
     const canvas = thumbRef.current;
     if (!canvas) return;
-    const MAX = 400;
+    // Backing-store cap: large enough that the preview fills the card box
+    // crisply (like Edit), still bounded so a huge photo doesn't allocate a
+    // full-resolution canvas just for a preview.
+    const MAX = 1024;
     const scale = Math.min(1, MAX / Math.max(image.width, image.height));
     canvas.width = Math.max(1, Math.round(image.width * scale));
     canvas.height = Math.max(1, Math.round(image.height * scale));
@@ -123,79 +126,93 @@ export function UploadStep({ wizard }: { wizard: Wizard }) {
 
   return (
     <section className={styles.step}>
-      <div className={styles.head}>
-        <h2 className={styles.heading}>
-          {image ? "Image ready to vectorize" : "Add an image to vectorize"}
-        </h2>
-        <p className={styles.subtext}>
-          It’s traced right here in your browser — nothing is uploaded anywhere.
-        </p>
-      </div>
-
       {image ? (
         <div className={styles.ready}>
-          <div className={styles.thumbWrap}>
-            <canvas
-              ref={thumbRef}
-              className={styles.thumb}
-              data-testid="upload-thumb"
-              role="img"
-              aria-label="Uploaded image preview"
-            />
-            <button
-              type="button"
-              className={styles.remove}
-              onClick={removeImage}
-              title="Remove image"
-              aria-label="Remove image"
-            >
-              <XIcon size={16} />
-            </button>
+          <div className={styles.previewCol}>
+            <div className={styles.previewCard}>
+              <div className={styles.previewHead}>
+                <h2 className={styles.previewTitle}>Your image</h2>
+              </div>
+              <div className={styles.thumbWrap}>
+                <canvas
+                  ref={thumbRef}
+                  className={styles.thumb}
+                  data-testid="upload-thumb"
+                  role="img"
+                  aria-label="Uploaded image preview"
+                />
+              </div>
+            </div>
           </div>
-          <div className={styles.readyActions}>
-            <span className={`${styles.dims} mono`}>
-              {image.width} × {image.height}
-            </span>
-            <button
-              type="button"
-              className={styles.replace}
-              onClick={() => inputRef.current?.click()}
-            >
-              <ReplaceIcon size={15} />
-              Replace image
-            </button>
+          <div className={styles.controls}>
+            <div className={styles.info}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>File name</span>
+                <span className={`${styles.infoValue} mono`} title={wizard.fileName ?? undefined}>
+                  {wizard.fileName ?? "—"}
+                </span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Dimensions</span>
+                <span className={`${styles.infoValue} mono`}>
+                  {image.width} × {image.height}
+                </span>
+              </div>
+            </div>
+            <div className={styles.actions}>
+              <button
+                type="button"
+                className={styles.replace}
+                onClick={() => inputRef.current?.click()}
+              >
+                <ReplaceIcon size={15} />
+                Replace image
+              </button>
+              <button type="button" className={styles.removeBtn} onClick={removeImage}>
+                <XIcon size={15} />
+                Remove image
+              </button>
+            </div>
           </div>
         </div>
       ) : (
-        <button
-          type="button"
-          className={styles.dropzone}
-          onClick={() => !isDecoding && inputRef.current?.click()}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          data-drag-over={isDragOver || undefined}
-          disabled={isDecoding}
-          aria-busy={isDecoding}
-        >
-          <span className={styles.tile}>
-            <UploadTrayIcon size={28} />
-          </span>
-          <span>
-            <span className={styles.cta}>
-              {status.kind === "decoding" ? (
-                `Decoding ${status.fileName}…`
-              ) : (
-                <>
-                  Drop an image here, or <span>browse</span>
-                </>
-              )}
+        <>
+          <div className={styles.head}>
+            <h2 className={styles.heading}>Add an image to vectorize</h2>
+            <p className={styles.subtext}>
+              It’s traced right here in your browser — nothing is uploaded anywhere.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.dropzone}
+            onClick={() => !isDecoding && inputRef.current?.click()}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            data-drag-over={isDragOver || undefined}
+            disabled={isDecoding}
+            aria-busy={isDecoding}
+          >
+            <span className={styles.tile}>
+              <UploadTrayIcon size={28} />
             </span>
-            <span className={styles.formats}>
-              PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
+            <span>
+              <span className={styles.cta}>
+                {status.kind === "decoding" ? (
+                  `Decoding ${status.fileName}…`
+                ) : (
+                  <>
+                    Drop an image here, or <span>browse</span>
+                  </>
+                )}
+              </span>
+              <span className={styles.formats}>
+                PNG · JPEG · WebP · GIF · BMP · AVIF · up to 25 MB
+              </span>
             </span>
-          </span>
-        </button>
+          </button>
+        </>
       )}
 
       <input

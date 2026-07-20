@@ -1,7 +1,10 @@
 .step {
   display: flex;
   flex-direction: column;
-  padding: 6px 0 4px;
+  /* No padding — the loaded card must fill the section height exactly like
+     Trace/Export/Edit so all four steps' cards are identical in size. */
+  height: 100%;
+  min-height: 0;
 }
 
 /* On short/narrow viewports the dropzone/thumbnail's own min-height (240px)
@@ -86,13 +89,59 @@
   margin-top: 5px;
 }
 
-/* ---- image-ready state ---- */
+/* ---- image-ready state: two columns (image card left, info + actions right)
+   so Upload shares the shape of Edit / Trace / Export ---- */
 .ready {
   flex: 1;
   min-height: 240px;
   display: flex;
+  flex-direction: row;
+  gap: 22px;
+}
+.previewCol {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.previewCard {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+}
+.previewHead {
+  display: flex;
+  align-items: center;
+  min-height: var(--step-head-min);
+}
+.previewTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.controls {
+  flex: 0 0 var(--panel-width);
+  width: var(--panel-width);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .ready {
+    flex-direction: column;
+  }
+  .controls {
+    flex: none;
+    width: auto;
+  }
 }
 
 .thumbWrap {
@@ -102,7 +151,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-2);
   padding: 16px;
@@ -110,47 +158,50 @@
 }
 
 .thumb {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   border-radius: 3px;
 }
 
-.remove {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.infoLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.infoValue {
+  font-size: 13px;
   color: var(--fg-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Replace/Remove sit at the bottom of the panel, below the file info. */
+.actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.replace,
+.removeBtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-}
-.remove:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.readyActions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dims {
-  font-size: 12.5px;
-  color: var(--fg-3);
-}
-
-.replace {
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
   font: inherit;
   font-size: 13px;
@@ -159,14 +210,23 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 9px;
-  padding: 9px 14px;
+  padding: 10px 14px;
   cursor: pointer;
 }
 .replace :global(svg) {
   color: var(--accent);
 }
-.replace:hover {
+.replace:hover,
+.removeBtn:hover {
   filter: brightness(0.97);
+}
+.removeBtn {
+  color: var(--fg-2);
+}
+.removeBtn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  filter: none;
 }
 
 .status {
