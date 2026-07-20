@@ -389,7 +389,7 @@ function initialLang(): Lang {
   } catch {
     // localStorage can throw in private-mode/sandboxed contexts — fall through.
   }
-  return typeof navigator !== "undefined" && navigator.language?.toLowerCase().startsWith("es")
+  return typeof navigator !== "undefined" && navigator.language?.toLowerCase()?.startsWith("es")
     ? "es"
     : "en";
 }

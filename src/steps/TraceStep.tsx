@@ -99,6 +99,13 @@ function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
  */
 export function TraceStep({ wizard }: { wizard: Wizard }) {
   const { m } = useI18n();
+  // The trace-worker effect below only re-runs when `image` changes, so its
+  // error handlers would capture a stale `m` if the user switched language
+  // mid-trace. Keep the latest translations in a ref the handlers read live.
+  const mRef = useRef(m);
+  useEffect(() => {
+    mRef.current = m;
+  }, [m]);
   const [values, setValues] = useState<TweakValues>(() => wizard.tweakValues ?? DEFAULT_VALUES);
   const [tracedSvg, setTracedSvg] = useState<string | null>(() => wizard.svg);
   const [busy, setBusy] = useState(false);
@@ -161,11 +168,11 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
     // the user gets an actionable error instead.
     worker.onerror = () => {
       setBusy(false);
-      setError(m.tracerFailedStart);
+      setError(mRef.current.tracerFailedStart);
     };
     worker.onmessageerror = () => {
       setBusy(false);
-      setError(m.tracerBadResponse);
+      setError(mRef.current.tracerBadResponse);
     };
 
     async function runRetrace(params: TraceParams) {
@@ -192,7 +199,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         // pressure); without this the rejection escapes the void call and
         // `busy` sticks at true with the controls disabled forever.
         setBusy(false);
-        setError(m.tracePrepareError);
+        setError(mRef.current.tracePrepareError);
       }
     }
 
