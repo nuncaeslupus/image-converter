@@ -18,30 +18,32 @@ import {
 } from "./components/shellIcons";
 import { Fragment, type FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useI18n } from "./lib/i18n";
+import { LanguageSelect } from "./components/LanguageSelect";
 import styles from "./App.module.css";
 
 const STEP_META: {
   key: WizardStep;
-  label: string;
+  labelKey: "stepUpload" | "stepEdit" | "stepTrace" | "stepExport";
   icon: FunctionComponent<{ size?: number }>;
 }[] = [
   // Same tray-upload glyph as the dropzone tile, for consistency.
-  { key: "upload", label: "Upload", icon: UploadTrayIcon },
-  { key: "edit", label: "Edit", icon: EditStepIcon },
-  { key: "trace", label: "Trace", icon: TraceStepIcon },
-  { key: "export", label: "Export", icon: ExportStepIcon },
-];
-
-const PRIMARY_LABELS = [
-  "Continue to Edit",
-  "Continue to Trace",
-  "Continue to Export",
-  "Start over",
+  { key: "upload", labelKey: "stepUpload", icon: UploadTrayIcon },
+  { key: "edit", labelKey: "stepEdit", icon: EditStepIcon },
+  { key: "trace", labelKey: "stepTrace", icon: TraceStepIcon },
+  { key: "export", labelKey: "stepExport", icon: ExportStepIcon },
 ];
 
 export function App() {
   const wizard = useWizard();
   const { theme, toggle } = useTheme();
+  const { m } = useI18n();
+  const primaryLabels: string[] = [
+    m.continueToEdit,
+    m.continueToTrace,
+    m.continueToExport,
+    m.startOver,
+  ];
   const current = wizard.stepIndex;
   const mainRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(false);
@@ -72,7 +74,8 @@ export function App() {
       return;
     }
     mainRef.current?.focus();
-    setAnnouncement(`Step ${current + 1} of ${WIZARD_STEPS.length}: ${STEP_META[current].label}`);
+    setAnnouncement(m.nowOnStep(m[STEP_META[current].labelKey]));
+    // `m` intentionally omitted — announce on step change, not on language switch.
   }, [wizard.step, current]);
 
   function startOver() {
@@ -104,20 +107,21 @@ export function App() {
             <LogoMark size={52} />
             <div className={styles.brandText}>
               <h1 className={styles.wordmark}>Halftone</h1>
-              <span className={styles.tagline}>Free, easy & private image vectorizer</span>
+              <span className={styles.tagline}>{m.tagline}</span>
             </div>
           </div>
           <div className={styles.topActions}>
             <span className={styles.badge}>
               <LockIcon />
-              Private — files never leave your device
+              {m.privateBadge}
             </span>
+            <LanguageSelect />
             <button
               type="button"
               className={styles.themeToggle}
               onClick={toggle}
-              title="Toggle theme"
-              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={m.toggleTheme}
+              aria-label={theme === "dark" ? m.switchToLight : m.switchToDark}
             >
               {theme === "dark" ? <SunIcon /> : <MoonIcon />}
             </button>
@@ -125,7 +129,7 @@ export function App() {
         </header>
 
         <div className={styles.card}>
-          <nav className={styles.stepper} aria-label="Wizard steps">
+          <nav className={styles.stepper} aria-label={m.wizardSteps}>
             {STEP_META.map((meta, i) => {
               const state = i < current ? "done" : i === current ? "current" : "upcoming";
               const Icon = meta.icon;
@@ -166,7 +170,7 @@ export function App() {
                             : styles.labelUpcoming
                       }`}
                     >
-                      {meta.label}
+                      {m[meta.labelKey]}
                     </span>
                   </button>
                 </Fragment>
@@ -188,7 +192,7 @@ export function App() {
           <footer className={styles.footer}>
             {current > 0 ? (
               <button type="button" className={styles.btnBack} onClick={wizard.back}>
-                Back
+                {m.back}
               </button>
             ) : (
               <span />
@@ -199,7 +203,7 @@ export function App() {
               onClick={current === WIZARD_STEPS.length - 1 ? startOver : wizard.next}
               disabled={primaryDisabled}
             >
-              {PRIMARY_LABELS[current]}
+              {primaryLabels[current]}
             </button>
           </footer>
         </div>
@@ -212,7 +216,7 @@ export function App() {
             rel="noopener noreferrer"
           >
             <GitHubIcon size={16} />
-            View source on GitHub
+            {m.viewSource}
           </a>
         </footer>
       </div>

@@ -21,6 +21,7 @@ import { useBakedImage } from "../lib/useBakedImage";
 import { medianCutPalette, rgbToHex, significantColorCount } from "../lib/quantize";
 import { countSvgColors } from "../lib/svgExport";
 import appStyles from "../App.module.css";
+import { useI18n } from "../lib/i18n";
 import styles from "./TraceStep.module.css";
 
 const DEFAULT_VALUES: TweakValues = DEFAULT_TWEAK_VALUES;
@@ -97,6 +98,7 @@ function computePaletteInfo(bitmap: ImageBitmap): PaletteInfo | undefined {
  * invalidated it — see EditStep).
  */
 export function TraceStep({ wizard }: { wizard: Wizard }) {
+  const { m } = useI18n();
   const [values, setValues] = useState<TweakValues>(() => wizard.tweakValues ?? DEFAULT_VALUES);
   const [tracedSvg, setTracedSvg] = useState<string | null>(() => wizard.svg);
   const [busy, setBusy] = useState(false);
@@ -154,16 +156,16 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
 
     // The worker module can fail to load entirely (offline first visit, a
     // bad deploy path) — with only `onmessage` wired, no message ever
-    // arrives and the UI is stuck on "Tracing…" forever with controls
+    // arrives and the UI is stuck on m.tracing forever with controls
     // disabled. `onerror`/`onmessageerror` make sure `busy` always clears and
     // the user gets an actionable error instead.
     worker.onerror = () => {
       setBusy(false);
-      setError("The tracer failed to start. Please try again.");
+      setError(m.tracerFailedStart);
     };
     worker.onmessageerror = () => {
       setBusy(false);
-      setError("The tracer sent a response that couldn't be read. Please try again.");
+      setError(m.tracerBadResponse);
     };
 
     async function runRetrace(params: TraceParams) {
@@ -190,7 +192,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
         // pressure); without this the rejection escapes the void call and
         // `busy` sticks at true with the controls disabled forever.
         setBusy(false);
-        setError("Couldn't prepare the image for tracing. Please try again.");
+        setError(m.tracePrepareError);
       }
     }
 
@@ -238,7 +240,7 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
   if (!wizard.image) {
     return (
       <section>
-        <p role="alert">No image to trace yet — go back and choose one first.</p>
+        <p role="alert">{m.noImageToTrace}</p>
       </section>
     );
   }
@@ -248,23 +250,18 @@ export function TraceStep({ wizard }: { wizard: Wizard }) {
       <div className={styles.layout}>
         <div className={styles.previewCol}>
           {tracedSvg ? (
-            <Preview
-              title="Trace & Tweak"
-              tracedSvg={tracedSvg}
-              originalImage={image}
-              busy={busy}
-            />
+            <Preview title={m.traceTweak} tracedSvg={tracedSvg} originalImage={image} busy={busy} />
           ) : (
             <div className={styles.loading} role={error ? "alert" : "status"}>
               {error ? (
                 <div className={styles.initialError}>
                   <span className={styles.error}>{error}</span>
                   <button type="button" className={appStyles.btnPrimary} onClick={handleRetry}>
-                    Try again
+                    {m.tryAgain}
                   </button>
                 </div>
               ) : (
-                "Tracing…"
+                m.tracing
               )}
             </div>
           )}

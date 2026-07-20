@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren, JSX } from "preact";
 import { ZoomInIcon, ZoomOutIcon } from "../Editor/icons";
+import { useI18n } from "../../lib/i18n";
 import styles from "./Preview.module.css";
 
 export interface PreviewProps {
@@ -47,6 +48,7 @@ function clamp(value: number, min: number, max: number): number {
  * original share the same zoom/pan, so comparing stays aligned.
  */
 export function Preview({ title, tracedSvg, originalImage, caption, busy }: PreviewProps) {
+  const { m } = useI18n();
   const [showOriginal, setShowOriginal] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -151,8 +153,8 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
               className={styles.zoomButton}
               disabled={zoom <= ZOOM_MIN}
               onClick={() => zoomBy(1 / ZOOM_STEP)}
-              aria-label="Zoom out"
-              title="Zoom out"
+              aria-label={m.zoomOut}
+              title={m.zoomOut}
             >
               <ZoomOutIcon />
             </button>
@@ -164,8 +166,8 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
               className={styles.zoomButton}
               disabled={zoom >= ZOOM_MAX}
               onClick={() => zoomBy(ZOOM_STEP)}
-              aria-label="Zoom in"
-              title="Zoom in"
+              aria-label={m.zoomIn}
+              title={m.zoomIn}
             >
               <ZoomInIcon />
             </button>
@@ -175,9 +177,9 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
             className={styles.fitButton}
             onClick={fit}
             disabled={atFit}
-            title="Fit the image to the frame"
+            title={m.fitTitle}
           >
-            Fit
+            {m.fit}
           </button>
         </div>
 
@@ -186,7 +188,7 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
             type="button"
             className={styles.compareButton}
             aria-pressed={showOriginal}
-            title="Press and hold (or Space/Enter) to reveal the original image"
+            title={m.holdToSeeOriginalTitle}
             onPointerDown={() => setShowOriginal(true)}
             onPointerUp={() => setShowOriginal(false)}
             onPointerLeave={() => setShowOriginal(false)}
@@ -194,7 +196,7 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
             onKeyUp={handleKeyUp}
             onBlur={() => setShowOriginal(false)}
           >
-            Hold to see original
+            {m.holdToSeeOriginal}
           </button>
         )}
       </div>
@@ -218,7 +220,7 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
               data-testid="preview-original"
               hidden={!showingOriginal}
               role="img"
-              aria-label="Original image"
+              aria-label={m.originalImage}
             />
           )}
           {/* svg is our own worker's trace output, not user-supplied markup. */}
@@ -227,13 +229,13 @@ export function Preview({ title, tracedSvg, originalImage, caption, busy }: Prev
             data-testid="preview-traced"
             hidden={showingOriginal}
             role="img"
-            aria-label="Traced SVG preview"
+            aria-label={m.tracedPreview}
             dangerouslySetInnerHTML={{ __html: tracedSvg }}
           />
         </div>
 
         {busy && (
-          <div className={styles.spinnerOverlay} role="status" aria-label="Retracing">
+          <div className={styles.spinnerOverlay} role="status" aria-label={m.retracing}>
             <span className={styles.spinner} />
           </div>
         )}

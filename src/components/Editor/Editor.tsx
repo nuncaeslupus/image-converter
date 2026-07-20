@@ -16,6 +16,7 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from "./icons";
+import { useI18n } from "../../lib/i18n";
 import styles from "./Editor.module.css";
 
 type Handle = "nw" | "ne" | "sw" | "se" | "n" | "e" | "s" | "w";
@@ -37,15 +38,24 @@ function handleCursor(handle: Handle): string {
   return "nesw-resize"; // ne, sw
 }
 
-const HANDLE_LABEL: Record<Handle, string> = {
-  nw: "top-left corner",
-  ne: "top-right corner",
-  sw: "bottom-left corner",
-  se: "bottom-right corner",
-  n: "top edge",
-  e: "right edge",
-  s: "bottom edge",
-  w: "left edge",
+type HandleKey =
+  | "handleTopLeft"
+  | "handleTopRight"
+  | "handleBottomLeft"
+  | "handleBottomRight"
+  | "handleTop"
+  | "handleRight"
+  | "handleBottom"
+  | "handleLeft";
+const HANDLE_LABEL_KEY: Record<Handle, HandleKey> = {
+  nw: "handleTopLeft",
+  ne: "handleTopRight",
+  sw: "handleBottomLeft",
+  se: "handleBottomRight",
+  n: "handleTop",
+  e: "handleRight",
+  s: "handleBottom",
+  w: "handleLeft",
 };
 
 const ZOOM_MIN = 1;
@@ -118,6 +128,7 @@ export interface EditorProps {
  * snapshots — no bitmap history.
  */
 export function Editor({ image, transform, onChange }: EditorProps) {
+  const { m } = useI18n();
   const [history, setHistory] = useState<{ stack: EditTransform[]; index: number }>(() => ({
     stack: [transform],
     index: 0,
@@ -387,7 +398,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
     <div className={styles.editor}>
       <div className={styles.stageCol}>
         <div className={styles.stageHead}>
-          <h2 className={styles.stageTitle}>Straighten &amp; crop</h2>
+          <h2 className={styles.stageTitle}>{m.straightenCrop}</h2>
           <div className={styles.zoomRow}>
             <div className={styles.zoomGroup}>
               <button
@@ -395,8 +406,8 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 className={styles.zoomButton}
                 disabled={zoom <= ZOOM_MIN}
                 onClick={() => zoomBy(1 / ZOOM_STEP)}
-                aria-label="Zoom out"
-                title="Zoom out"
+                aria-label={m.zoomOut}
+                title={m.zoomOut}
               >
                 <ZoomOutIcon />
               </button>
@@ -408,8 +419,8 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 className={styles.zoomButton}
                 disabled={zoom >= ZOOM_MAX}
                 onClick={() => zoomBy(ZOOM_STEP)}
-                aria-label="Zoom in"
-                title="Zoom in"
+                aria-label={m.zoomIn}
+                title={m.zoomIn}
               >
                 <ZoomInIcon />
               </button>
@@ -422,9 +433,9 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 setZoom(1);
                 setPan({ x: 0, y: 0 });
               }}
-              title="Fit the whole image to the view"
+              title={m.fitTitle}
             >
-              Fit
+              {m.fit}
             </button>
           </div>
         </div>
@@ -486,7 +497,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                     className={styles.cropHandle}
                     style={{ ...handleOffset(handle), cursor: handleCursor(handle) }}
                     role="button"
-                    aria-label={`Crop ${HANDLE_LABEL[handle]}`}
+                    aria-label={m.cropHandleLabel(m[HANDLE_LABEL_KEY[handle]])}
                     onPointerDown={(event) => onCropDown(handle, event)}
                     onPointerMove={onCropMove}
                     onPointerUp={onCropUp}
@@ -499,8 +510,8 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 <button
                   type="button"
                   className={styles.rotateHandle}
-                  aria-label="Rotate image (arrow keys, Shift = 45°, Ctrl/Cmd = fine)"
-                  title="Drag or arrow keys to rotate · Shift = snap 45° · Ctrl/Cmd = fine"
+                  aria-label={m.rotateHandleLabel}
+                  title={m.rotateHandleTitle}
                   onPointerDown={onRotateDown}
                   onPointerMove={onRotateMove}
                   onPointerUp={onRotateUp}
@@ -538,30 +549,30 @@ export function Editor({ image, transform, onChange }: EditorProps) {
             className={styles.toolButton}
             disabled={!canUndo}
             onClick={undo}
-            title="Undo (Ctrl/Cmd+Z)"
+            title={m.undoTitle}
           >
             <UndoIcon />
-            <span className={styles.toolButtonLabel}>Undo</span>
+            <span className={styles.toolButtonLabel}>{m.undo}</span>
           </button>
           <button
             type="button"
             className={styles.toolButton}
             disabled={!canRedo}
             onClick={redo}
-            title="Redo (Ctrl/Cmd+Shift+Z)"
+            title={m.redoTitle}
           >
             <RedoIcon />
-            <span className={styles.toolButtonLabel}>Redo</span>
+            <span className={styles.toolButtonLabel}>{m.redo}</span>
           </button>
           <button
             type="button"
             className={`${styles.toolButton} ${styles.resetRight}`}
             disabled={isIdentityTransform(committed)}
             onClick={reset}
-            title="Reset to original"
+            title={m.resetToOriginal}
           >
             <ResetIcon />
-            <span className={styles.toolButtonLabel}>Reset</span>
+            <span className={styles.toolButtonLabel}>{m.reset}</span>
           </button>
         </div>
 
@@ -569,7 +580,7 @@ export function Editor({ image, transform, onChange }: EditorProps) {
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <span className={styles.groupLabel}>
-                <RotateRightIcon /> Rotate
+                <RotateRightIcon /> {m.rotate}
               </span>
               <span className={`${styles.angleValue} mono`}>{Math.round(rotation)}°</span>
             </div>
@@ -578,34 +589,34 @@ export function Editor({ image, transform, onChange }: EditorProps) {
                 type="button"
                 className={styles.toolButton}
                 onClick={() => rotate90(-90)}
-                title="Rotate left 90° (Shift+R)"
+                title={m.rotateLeftTitle}
               >
                 <RotateLeftIcon />
-                <span className={styles.toolButtonLabel}>90° left</span>
+                <span className={styles.toolButtonLabel}>{m.rotateLeft}</span>
               </button>
               <button
                 type="button"
                 className={styles.toolButton}
                 onClick={() => rotate90(90)}
-                title="Rotate right 90° (R)"
+                title={m.rotateRightTitle}
               >
                 <RotateRightIcon />
-                <span className={styles.toolButtonLabel}>90° right</span>
+                <span className={styles.toolButtonLabel}>{m.rotateRight}</span>
               </button>
             </div>
-            <p className={styles.hint}>Drag the handle above the image to straighten.</p>
+            <p className={styles.hint}>{m.straightenHint}</p>
           </div>
 
           <div className={styles.card}>
             <div className={styles.cardHead}>
               <span className={styles.groupLabel}>
-                <CropIcon /> Crop
+                <CropIcon /> {m.crop}
               </span>
               <span className={`${styles.cropDims} mono`}>
                 {outW} × {outH}
               </span>
             </div>
-            <p className={styles.hint}>Drag the corners or edges on the image.</p>
+            <p className={styles.hint}>{m.cropHint}</p>
           </div>
         </div>
       </div>

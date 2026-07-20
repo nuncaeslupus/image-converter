@@ -3,6 +3,7 @@ import type { TweakValues, BackgroundMode } from "../../lib/tweakPipeline";
 import type { PaletteSize } from "../../lib/traceProtocol";
 import { RADIOGROUP_KEYS, nextRovingIndex } from "../../lib/rovingFocus";
 import { ResetIcon } from "../Editor/icons";
+import { useI18n, type Messages } from "../../lib/i18n";
 import styles from "./TweakPanel.module.css";
 
 // Auto first — it's the default, so it belongs at the top rather than hidden at
@@ -13,38 +14,19 @@ import styles from "./TweakPanel.module.css";
 // reduce to that many colors, Auto lets VTracer cluster on its own.
 export const PALETTE_OPTIONS: PaletteSize[] = ["auto", 1, 2, 3, 4, 6, 8, 12, 16];
 
-function paletteLabel(preset: PaletteSize): string {
-  if (preset === "auto") return "Auto";
-  if (preset === 1) return "Black & white";
-  return `${preset} colors`;
+function paletteLabel(preset: PaletteSize, m: Messages): string {
+  if (preset === "auto") return m.auto;
+  if (preset === 1) return m.blackWhite;
+  return m.colorsCount(preset);
 }
 
 // The three retrace sliders, with their reset-to defaults (the midpoints).
+// `key` doubles as the value field and the Messages label key; `hintKey` is the
+// Messages hint key.
 const SLIDERS = [
-  {
-    key: "smoothness",
-    label: "Smoothness",
-    min: 0,
-    max: 100,
-    def: 50,
-    hint: "Rounds off jagged edges.",
-  },
-  {
-    key: "detail",
-    label: "Detail",
-    min: 0,
-    max: 100,
-    def: 50,
-    hint: "Keeps small features and fine lines.",
-  },
-  {
-    key: "contrast",
-    label: "Contrast",
-    min: -100,
-    max: 100,
-    def: 0,
-    hint: "Splits colors into more or fewer layers.",
-  },
+  { key: "smoothness", hintKey: "smoothnessHint", min: 0, max: 100, def: 50 },
+  { key: "detail", hintKey: "detailHint", min: 0, max: 100, def: 50 },
+  { key: "contrast", hintKey: "contrastHint", min: -100, max: 100, def: 0 },
 ] as const;
 
 /**
@@ -54,9 +36,9 @@ const SLIDERS = [
  * that doesn't exist yet, so the option was removed rather than ship a
  * control that silently does nothing.
  */
-const BACKGROUND_OPTIONS: { value: BackgroundMode; label: string }[] = [
-  { value: "transparent", label: "Transparent" },
-  { value: "solid", label: "Solid" },
+const BACKGROUND_OPTIONS: { value: BackgroundMode; labelKey: "transparent" | "solid" }[] = [
+  { value: "transparent", labelKey: "transparent" },
+  { value: "solid", labelKey: "solid" },
 ];
 
 export interface TweakPanelProps {
@@ -97,6 +79,7 @@ export function TweakPanel({
   autoColorCount,
   maxColors,
 }: TweakPanelProps) {
+  const { m } = useI18n();
   function set<K extends keyof TweakValues>(key: K, value: TweakValues[K]) {
     onChange({ ...values, [key]: value });
   }
@@ -142,12 +125,12 @@ export function TweakPanel({
   return (
     <div className={styles.panel}>
       <fieldset className={`${styles.group} ${styles.colorsGroup}`}>
-        <legend className={styles.label}>Colors</legend>
-        <p className={styles.hint}>How many colors to keep.</p>
+        <legend className={styles.label}>{m.colors}</legend>
+        <p className={styles.hint}>{m.colorsHint}</p>
         <div
           className={styles.paletteList}
           role="radiogroup"
-          aria-label="Number of colors"
+          aria-label={m.numberOfColors}
           onKeyDown={(event) =>
             handleRadioKeyDown(event, paletteOptions, paletteIndex, (option) =>
               set("paletteSize", option),
@@ -167,12 +150,10 @@ export function TweakPanel({
                 tabIndex={selected ? 0 : -1}
                 onClick={() => set("paletteSize", preset)}
               >
-                <span className={styles.paletteName}>{paletteLabel(preset)}</span>
+                <span className={styles.paletteName}>{paletteLabel(preset, m)}</span>
                 {preset === "auto" ? (
                   <span className={styles.paletteAuto}>
-                    {autoColorCount
-                      ? `${autoColorCount} color${autoColorCount === 1 ? "" : "s"}`
-                      : ""}
+                    {autoColorCount ? m.autoColorsCount(autoColorCount) : ""}
                   </span>
                 ) : (
                   <span className={styles.swatches} aria-hidden="true">
@@ -192,45 +173,48 @@ export function TweakPanel({
       </fieldset>
 
       <fieldset className={styles.group}>
-        <legend className={styles.srOnly}>Trace adjustments</legend>
-        {SLIDERS.map(({ key, label, min, max, def, hint }) => (
-          <div key={key} className={styles.slider}>
-            <div className={styles.sliderHead}>
-              <span className={styles.sliderName}>{label}</span>
-              <span className={styles.sliderMeta}>
-                <span className={`${styles.value} mono`}>{values[key]}</span>
-                {values[key] !== def && (
-                  <button
-                    type="button"
-                    className={styles.sliderReset}
-                    onClick={() => set(key, def)}
-                    aria-label={`Reset ${label}`}
-                    title={`Reset ${label} to ${def}`}
-                  >
-                    <ResetIcon />
-                  </button>
-                )}
-              </span>
+        <legend className={styles.srOnly}>{m.traceAdjustments}</legend>
+        {SLIDERS.map(({ key, hintKey, min, max, def }) => {
+          const label = m[key];
+          return (
+            <div key={key} className={styles.slider}>
+              <div className={styles.sliderHead}>
+                <span className={styles.sliderName}>{label}</span>
+                <span className={styles.sliderMeta}>
+                  <span className={`${styles.value} mono`}>{values[key]}</span>
+                  {values[key] !== def && (
+                    <button
+                      type="button"
+                      className={styles.sliderReset}
+                      onClick={() => set(key, def)}
+                      aria-label={m.resetControl(label)}
+                      title={m.resetControl(label)}
+                    >
+                      <ResetIcon />
+                    </button>
+                  )}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={min}
+                max={max}
+                value={values[key]}
+                aria-label={label}
+                onInput={(event) => set(key, Number(event.currentTarget.value))}
+              />
+              <p className={styles.hint}>{m[hintKey]}</p>
             </div>
-            <input
-              type="range"
-              min={min}
-              max={max}
-              value={values[key]}
-              aria-label={label}
-              onInput={(event) => set(key, Number(event.currentTarget.value))}
-            />
-            <p className={styles.hint}>{hint}</p>
-          </div>
-        ))}
+          );
+        })}
       </fieldset>
 
       <fieldset className={styles.group}>
-        <legend className={styles.label}>Background</legend>
+        <legend className={styles.label}>{m.background}</legend>
         <div
           className={styles.segmented}
           role="radiogroup"
-          aria-label="Background handling"
+          aria-label={m.backgroundHandling}
           onKeyDown={(event) =>
             handleRadioKeyDown(
               event,
@@ -252,7 +236,7 @@ export function TweakPanel({
               tabIndex={values.background === option.value ? 0 : -1}
               onClick={() => set("background", option.value)}
             >
-              {option.label}
+              {m[option.labelKey]}
             </button>
           ))}
         </div>

@@ -3,6 +3,7 @@ import { Export } from "../components/Export/Export";
 import { svgDownloadName } from "../lib/svgExport";
 import { Preview } from "../components/Preview/Preview";
 import { useBakedImage } from "../lib/useBakedImage";
+import { useI18n } from "../lib/i18n";
 import styles from "./ExportStep.module.css";
 
 /**
@@ -16,6 +17,7 @@ import styles from "./ExportStep.module.css";
  * image dimensions, read from the baked bitmap.
  */
 export function ExportStep({ wizard }: { wizard: Wizard }) {
+  const { m } = useI18n();
   const previewSvg = wizard.svg;
   // Baked source (crop/rotate applied) — used only for its dimensions, which
   // seed the default output size so the export matches the image the user
@@ -25,7 +27,7 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
   if (!previewSvg) {
     return (
       <section>
-        <p role="alert">No traced image yet — go back and trace one first.</p>
+        <p role="alert">{m.noTracedImage}</p>
       </section>
     );
   }
@@ -33,7 +35,7 @@ export function ExportStep({ wizard }: { wizard: Wizard }) {
   return (
     <section className={styles.layout}>
       <div className={styles.previewCol}>
-        <Preview title="Your SVG is ready" tracedSvg={previewSvg} />
+        <Preview title={m.svgReady} tracedSvg={previewSvg} />
       </div>
       <div className={styles.controls}>
         <Export
