@@ -21,7 +21,13 @@ const SEGMENT = /<!--[\s\S]*?-->|<[^>]+>|[^<]+/g;
 // closing punct | any leftover run (whitespace, bare attrs, `<?xml …?>`).
 const TAG_PART = /(<\/?)([\w:.-]+)|([\w:.-]+)(\s*=\s*)("[^"]*"|'[^']*')|(\/?\??>)|([^]+?)/g;
 
+// Above this, highlighting isn't worth thousands of <span> nodes (a complex
+// trace can emit huge markup) — fall back to one plain token so the panel stays
+// responsive. It reads the same, just uncolored.
+const MAX_HIGHLIGHT_CHARS = 100_000;
+
 export function highlightSvg(src: string): SvgToken[] {
+  if (src.length > MAX_HIGHLIGHT_CHARS) return [{ cls: "txt", text: src }];
   const tokens: SvgToken[] = [];
   for (const [seg] of src.matchAll(SEGMENT)) {
     if (seg.startsWith("<!--")) {

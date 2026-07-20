@@ -12,13 +12,14 @@ import { useI18n } from "../../lib/i18n";
 import { highlightSvg, type SvgToken } from "../../lib/svgHighlight";
 import styles from "./Export.module.css";
 
-const TOKEN_CLASS: Record<SvgToken["cls"], string> = {
+const TOKEN_CLASS: Record<SvgToken["cls"], string | undefined> = {
   tag: styles.tokTag,
   attr: styles.tokAttr,
   val: styles.tokVal,
   punct: styles.tokPunct,
   com: styles.tokCom,
-  txt: styles.tokTxt,
+  // Plain text/whitespace needs no color — inherits the panel's default.
+  txt: undefined,
 };
 
 function formatBytes(bytes: number): string {

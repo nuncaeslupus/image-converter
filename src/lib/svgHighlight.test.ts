@@ -27,4 +27,10 @@ describe("highlightSvg", () => {
   it("keeps comments as a single token", () => {
     expect(highlightSvg("<!-- hi -->").filter((x) => x.cls === "com")).toHaveLength(1);
   });
+
+  it("skips tokenization for extremely large markup (one plain token)", () => {
+    const big = `<svg>${"a".repeat(100_001)}</svg>`;
+    const tokens = highlightSvg(big);
+    expect(tokens).toEqual([{ cls: "txt", text: big }]);
+  });
 });
