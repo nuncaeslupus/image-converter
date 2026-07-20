@@ -1,25 +1,20 @@
 import { WIZARD_STEPS, useWizard, type WizardStep } from "./lib/wizard";
-import { useTheme } from "./lib/theme";
 import { UploadStep } from "./steps/UploadStep";
 import { EditStep } from "./steps/EditStep";
 import { TraceStep } from "./steps/TraceStep";
 import { ExportStep } from "./steps/ExportStep";
 import {
-  LogoMark,
-  SunIcon,
-  MoonIcon,
   CheckIcon,
   UploadTrayIcon,
   EditStepIcon,
   TraceStepIcon,
   ExportStepIcon,
-  GitHubIcon,
   RestartIcon,
 } from "./components/shellIcons";
 import { Fragment, type FunctionComponent, type JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { useI18n } from "./lib/i18n";
-import { LanguageSelect } from "./components/LanguageSelect";
+import { SiteHeader, SiteFooter } from "./components/Chrome";
 import styles from "./App.module.css";
 
 const STEP_META: {
@@ -36,8 +31,7 @@ const STEP_META: {
 
 export function App() {
   const wizard = useWizard();
-  const { theme, toggle } = useTheme();
-  const { m, lang } = useI18n();
+  const { m } = useI18n();
   // One per non-final step; the final step renders its own de-emphasized
   // "Start over" button instead of an accent primary (see the footer).
   const primaryLabels: string[] = [m.continueToEdit, m.continueToTrace, m.continueToExport];
@@ -170,30 +164,7 @@ export function App() {
   return (
     <div className={styles.page}>
       <div className={styles.shell}>
-        <header className={styles.topbar}>
-          <div className={styles.brand}>
-            <LogoMark size={52} />
-            <div className={styles.brandText}>
-              <div className={styles.wordmarkRow}>
-                <h1 className={styles.wordmark}>Halftone</h1>
-                <span className={styles.keywords}>{m.keywords}</span>
-              </div>
-              <span className={styles.tagline}>{m.tagline}</span>
-            </div>
-          </div>
-          <div className={styles.topActions}>
-            <LanguageSelect />
-            <button
-              type="button"
-              className={styles.themeToggle}
-              onClick={toggle}
-              title={m.toggleTheme}
-              aria-label={theme === "dark" ? m.switchToLight : m.switchToDark}
-            >
-              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-            </button>
-          </div>
-        </header>
+        <SiteHeader />
 
         <div className={styles.card}>
           <nav className={styles.stepper} aria-label={m.wizardSteps}>
@@ -293,23 +264,7 @@ export function App() {
           </footer>
         </div>
 
-        <footer className={styles.siteFooter}>
-          <a
-            className={styles.githubLink}
-            href={`${import.meta.env.BASE_URL}${lang === "es" ? "es/" : ""}faq/`}
-          >
-            {m.faq}
-          </a>
-          <a
-            className={styles.githubLink}
-            href="https://github.com/nuncaeslupus/image-converter"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <GitHubIcon size={16} />
-            {m.viewSource}
-          </a>
-        </footer>
+        <SiteFooter />
       </div>
 
       {confirmingStartOver && (

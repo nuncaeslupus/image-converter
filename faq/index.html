@@ -118,81 +118,58 @@
     </script>
   </head>
   <body class="faqPage">
-    <header class="faqTop">
-      <a class="faqBrand" href="%BASE_URL%" aria-label="Halftone — go to the tool">
-        <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true" class="faqLogo">
-          <circle cx="20" cy="20" r="5" />
-          <circle cx="20" cy="7" r="2.6" />
-          <circle cx="20" cy="33" r="2.6" />
-          <circle cx="7" cy="20" r="2.6" />
-          <circle cx="33" cy="20" r="2.6" />
-          <circle cx="11" cy="11" r="1.8" />
-          <circle cx="29" cy="11" r="1.8" />
-          <circle cx="11" cy="29" r="1.8" />
-          <circle cx="29" cy="29" r="1.8" />
-        </svg>
-        <span class="faqWordmark">Halftone</span>
-      </a>
-      <nav class="faqNav">
-        <a href="%BASE_URL%es/faq/" hreflang="es">Español</a>
-        <a class="faqCta" href="%BASE_URL%">Open the tool →</a>
-      </nav>
-    </header>
+    <div class="faqShell">
+      <div id="faqTop"></div>
 
-    <main class="faqMain">
-      <h1>Frequently asked questions</h1>
+      <main class="faqMain">
+        <h1>Frequently asked questions</h1>
 
-      <section>
-        <h2>Is Halftone free?</h2>
-        <p>
-          Yes — completely free and open-source, with no ads, no sign-up, no watermark and no
-          limits.
-        </p>
-      </section>
-      <section>
-        <h2>Are my images uploaded to a server?</h2>
-        <p>
-          No. Vectorizing runs entirely in your browser using WebAssembly, so your images never
-          leave your device — nothing is uploaded anywhere.
-        </p>
-      </section>
-      <section>
-        <h2>Which image formats can I convert to SVG?</h2>
-        <p>PNG, JPEG, WebP, GIF, BMP and AVIF, up to 25 MB. The output is a clean, scalable SVG.</p>
-      </section>
-      <section>
-        <h2>What does vectorizing (tracing) an image do?</h2>
-        <p>
-          It converts a raster image made of pixels into a scalable SVG made of vector paths, so it
-          stays sharp at any size — ideal for logos, icons and pixel art.
-        </p>
-      </section>
-      <section>
-        <h2>Can I control the result?</h2>
-        <p>
-          Yes — it is simple but complete. Choose a color palette (or black &amp; white) and
-          fine-tune smoothness, detail and contrast, and crop or rotate before you export.
-        </p>
-      </section>
-      <section>
-        <h2>Is it really private?</h2>
-        <p>
-          Yes. Everything runs client-side, there are no analytics trackers, and both your images
-          and the resulting SVG stay on your machine.
-        </p>
-      </section>
-    </main>
+        <section>
+          <h2>Is Halftone free?</h2>
+          <p>
+            Yes — completely free and open-source, with no ads, no sign-up, no watermark and no
+            limits.
+          </p>
+        </section>
+        <section>
+          <h2>Are my images uploaded to a server?</h2>
+          <p>
+            No. Vectorizing runs entirely in your browser using WebAssembly, so your images never
+            leave your device — nothing is uploaded anywhere.
+          </p>
+        </section>
+        <section>
+          <h2>Which image formats can I convert to SVG?</h2>
+          <p>
+            PNG, JPEG, WebP, GIF, BMP and AVIF, up to 25 MB. The output is a clean, scalable SVG.
+          </p>
+        </section>
+        <section>
+          <h2>What does vectorizing (tracing) an image do?</h2>
+          <p>
+            It converts a raster image made of pixels into a scalable SVG made of vector paths, so
+            it stays sharp at any size — ideal for logos, icons and pixel art.
+          </p>
+        </section>
+        <section>
+          <h2>Can I control the result?</h2>
+          <p>
+            Yes — it is simple but complete. Choose a color palette (or black &amp; white) and
+            fine-tune smoothness, detail and contrast, and crop or rotate before you export.
+          </p>
+        </section>
+        <section>
+          <h2>Is it really private?</h2>
+          <p>
+            Yes. Everything runs client-side, there are no analytics trackers, and both your images
+            and the resulting SVG stay on your machine.
+          </p>
+        </section>
+      </main>
 
-    <footer class="faqBottom">
-      <a href="%BASE_URL%">← Back to the tool</a>
-      <a
-        href="https://github.com/nuncaeslupus/image-converter"
-        target="_blank"
-        rel="noopener noreferrer"
-        >View source on GitHub</a
-      >
-    </footer>
+      <div id="faqBottom"></div>
+    </div>
 
-    <script type="module" src="/src/faq.ts"></script>
+    <script type="module" src="/src/faq.tsx"></script>
   </body>
 </html>
