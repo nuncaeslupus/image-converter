@@ -22,7 +22,7 @@ export const LANGUAGES: { value: Lang; label: string }[] = [
 export interface Messages {
   // ---- shell / App ----
   tagline: string;
-  privateBadge: string;
+  keywords: string;
   toggleTheme: string;
   switchToLight: string;
   switchToDark: string;
@@ -148,8 +148,8 @@ export interface Messages {
 }
 
 const en: Messages = {
-  tagline: "Free, easy & private image vectorizer",
-  privateBadge: "Private — files never leave your device",
+  tagline: "simple image → SVG vectorizer, with full control",
+  keywords: "Free · Private · No Ads",
   toggleTheme: "Toggle theme",
   switchToLight: "Switch to light theme",
   switchToDark: "Switch to dark theme",
@@ -269,8 +269,8 @@ const en: Messages = {
 };
 
 const es: Messages = {
-  tagline: "Vectorizador de imágenes libre, fácil y privado",
-  privateBadge: "Privado — los archivos nunca salen de tu dispositivo",
+  tagline: "vectorizador de imágenes → SVG simple, con control total",
+  keywords: "Gratis · Privado · Sin anuncios",
   toggleTheme: "Cambiar tema",
   switchToLight: "Cambiar al tema claro",
   switchToDark: "Cambiar al tema oscuro",
