@@ -56,7 +56,7 @@ export function SiteFooter() {
       </a>
       <a
         className={styles.githubLink}
-        href="https://github.com/nuncaeslupus/image-converter"
+        href="https://github.com/nuncaeslupus/halftone"
         target="_blank"
         rel="noopener noreferrer"
       >

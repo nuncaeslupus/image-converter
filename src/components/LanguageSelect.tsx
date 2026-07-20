@@ -7,7 +7,7 @@ import styles from "./LanguageSelect.module.css";
  * Language lives in the URL (one static shell per language), so switching is a
  * navigation, not client state. */
 function langHref(lang: Lang): string {
-  const base = import.meta.env.BASE_URL; // "/image-converter/" (build) or "/" (dev)
+  const base = import.meta.env.BASE_URL; // "/halftone/" (build) or "/" (dev)
   const isFaq = /\/faq\/?$/.test(location.pathname);
   return base + (lang === "es" ? "es/" : "") + (isFaq ? "faq/" : "");
 }
