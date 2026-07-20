@@ -29,9 +29,12 @@ export default defineConfig(({ command }) => ({
         globPatterns: ["**/*.{js,css,html,svg,wasm,png}"],
         // The SPA navigation fallback (index.html) otherwise swallows real
         // static files — a visitor whose SW is active who opens sitemap.xml /
-        // robots.txt / the GSC token gets the app shell instead of the file.
-        // Exclude non-app paths so they resolve as themselves.
-        navigateFallbackDenylist: [/\.(?:xml|txt)$/, /\/google[0-9a-f]+\.html$/],
+        // robots.txt / a search-engine verification token gets the app shell
+        // instead of the file. Every real page is a directory path (/, /es/,
+        // /faq/…), so anything ending in a file extension is a static file:
+        // deny it from the fallback so it resolves as itself (covers sitemap,
+        // robots, and any engine's verification file — Google/Bing/Yandex/…).
+        navigateFallbackDenylist: [/\.[a-z0-9]+$/i],
       },
       manifest: {
         name: "Halftone — Free Image to SVG Vectorizer",
