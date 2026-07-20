@@ -6,7 +6,6 @@ import { TraceStep } from "./steps/TraceStep";
 import { ExportStep } from "./steps/ExportStep";
 import {
   LogoMark,
-  LockIcon,
   SunIcon,
   MoonIcon,
   CheckIcon,
@@ -175,15 +174,14 @@ export function App() {
           <div className={styles.brand}>
             <LogoMark size={52} />
             <div className={styles.brandText}>
-              <h1 className={styles.wordmark}>Halftone</h1>
+              <div className={styles.wordmarkRow}>
+                <h1 className={styles.wordmark}>Halftone</h1>
+                <span className={styles.keywords}>{m.keywords}</span>
+              </div>
               <span className={styles.tagline}>{m.tagline}</span>
             </div>
           </div>
           <div className={styles.topActions}>
-            <span className={styles.badge}>
-              <LockIcon />
-              {m.privateBadge}
-            </span>
             <LanguageSelect />
             <button
               type="button"

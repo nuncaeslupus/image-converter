@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { App } from "./App";
 import { I18nProvider } from "./lib/i18n";
+import "./fonts";
 import "./index.css";
 
 const root = document.getElementById("app");
