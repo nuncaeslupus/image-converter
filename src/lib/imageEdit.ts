@@ -22,6 +22,7 @@
  * re-expanding to the original bounds) reproduce the source exactly — see
  * this task's gate, `edit_roundtrip_pixel_diff_max == 0`.
  */
+import { isFlatColorImage } from "./quantize";
 
 /** A crop region in source-bitmap pixel coordinates. */
 export interface CropBox {
@@ -219,6 +220,7 @@ export async function rotateImageArbitrary(
   bitmap: ImageBitmap,
   degrees: number,
   fitToFrame = false,
+  crisp = false,
 ): Promise<ImageBitmap> {
   const rad = (degrees * Math.PI) / 180;
   const w = bitmap.width;
@@ -240,7 +242,14 @@ export async function rotateImageArbitrary(
   }
 
   const ctx = getContext2D(outW, outH);
-  ctx.imageSmoothingQuality = "high";
+  // Flat / pixel-art sources: rotate with nearest-neighbor (no smoothing) so the
+  // exact palette survives — smoothing would blend hard color edges into
+  // spurious in-between colors (crisp-but-blocky beats blurred-and-recolored).
+  if (crisp) {
+    ctx.imageSmoothingEnabled = false;
+  } else {
+    ctx.imageSmoothingQuality = "high";
+  }
   ctx.translate(outW / 2, outH / 2);
   ctx.rotate(rad);
   ctx.scale(scale, scale);
@@ -308,11 +317,19 @@ export async function bakeTransform(
 ): Promise<ImageBitmap> {
   const norm = ((transform.rotation % 360) + 360) % 360;
   const hasRotation = norm !== 0;
+  const arbitrary = hasRotation && norm % 90 !== 0;
   const base = !hasRotation
     ? source
-    : norm % 90 === 0
-      ? await rotateImage(source, norm)
-      : await rotateImageArbitrary(source, transform.rotation);
+    : arbitrary
+      ? // Only an off-axis rotation resamples (90° turns are lossless), so the
+        // flat-source pixel scan is paid only when it can actually matter.
+        await rotateImageArbitrary(
+          source,
+          transform.rotation,
+          false,
+          isFlatColorImage(bitmapToPixels(source).data),
+        )
+      : await rotateImage(source, norm);
   try {
     if (!transform.crop) {
       // No crop: hand off the fresh rotated bitmap, or a copy of the source.

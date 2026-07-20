@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   binarizeToBlack,
+  isFlatColorImage,
   medianCutPalette,
   quantizeRgba,
   rgbToHex,
@@ -108,6 +109,20 @@ describe("quantize", () => {
     expect(rgbToHex([0, 0, 0])).toBe("#000000");
     expect(rgbToHex([255, 255, 255])).toBe("#ffffff");
     expect(rgbToHex([16, 32, 48])).toBe("#102030");
+  });
+
+  it("isFlatColorImage flags few-color images and rejects rich ones", () => {
+    const flat: Rgb[] = [
+      [0, 0, 0],
+      [255, 255, 255],
+      [255, 0, 0],
+    ];
+    expect(isFlatColorImage(rgba(flat))).toBe(true);
+    // 40 distinct colors, above the default cap of 32 → not flat.
+    const rich: Rgb[] = Array.from({ length: 40 }, (_, i) => [i, i, i]);
+    expect(isFlatColorImage(rgba(rich))).toBe(false);
+    // Transparent pixels are ignored, so an all-transparent buffer isn't "flat".
+    expect(isFlatColorImage(rgba([[0, 0, 0]], [0]))).toBe(false);
   });
 });
 

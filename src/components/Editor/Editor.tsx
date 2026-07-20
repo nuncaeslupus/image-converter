@@ -3,9 +3,11 @@ import type { JSX } from "preact";
 import {
   IDENTITY_TRANSFORM,
   isIdentityTransform,
+  readImagePixels,
   type EditTransform,
   type NormalizedRect,
 } from "../../lib/imageEdit";
+import { isFlatColorImage } from "../../lib/quantize";
 import {
   CropIcon,
   RedoIcon,
@@ -157,6 +159,24 @@ export function Editor({ image, transform, onChange }: EditorProps) {
 
   const atFit = zoom === 1;
   const panning = zoom > 1;
+
+  // Detect a flat / pixel-art source once per image (off the render path) so the
+  // rotate panel can warn that free rotation trades smooth edges for exact
+  // colors on such images (matching `bakeTransform`'s nearest-neighbor rotate).
+  const [flatSource, setFlatSource] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    readImagePixels(image)
+      .then(({ data }) => {
+        if (!cancelled) setFlatSource(isFlatColorImage(data));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [image]);
+  // A non-orthogonal straighten is the only rotation that resamples.
+  const freeRotated = rotation % 90 !== 0;
 
   function commit(next: EditTransform) {
     setHistory((h) => {
@@ -617,6 +637,11 @@ export function Editor({ image, transform, onChange }: EditorProps) {
               </button>
             </div>
             <p className={styles.hint}>{m.straightenHint}</p>
+            {flatSource && freeRotated && (
+              <p className={styles.flatRotateNote} role="note">
+                {m.flatRotateNote}
+              </p>
+            )}
           </div>
 
           <div className={styles.card}>

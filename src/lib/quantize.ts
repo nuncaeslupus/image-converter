@@ -104,6 +104,30 @@ export function significantColorCount(rgba: Uint8Array, coverage = 0.95): number
   return n;
 }
 
+/** Distinct opaque colors below which an image is treated as "flat" / pixel
+ * art — the case where resampling (free-rotation smoothing) blends an otherwise
+ * exact palette into spurious in-between colors. */
+export const FLAT_COLOR_MAX = 32;
+
+/**
+ * Whether `rgba` uses few enough distinct opaque colors to be flat / pixel art.
+ * Counts exact distinct RGB with an early exit at {@link FLAT_COLOR_MAX}, so a
+ * photograph (thousands of colors) bails after a few pixels while genuine flat
+ * art scans out to its true, small count. Fully transparent pixels are ignored.
+ */
+export function isFlatColorImage(
+  rgba: Uint8Array | Uint8ClampedArray,
+  maxColors = FLAT_COLOR_MAX,
+): boolean {
+  const seen = new Set<number>();
+  for (let i = 0; i < rgba.length; i += 4) {
+    if (rgba[i + 3] === 0) continue;
+    seen.add((rgba[i] << 16) | (rgba[i + 1] << 8) | rgba[i + 2]);
+    if (seen.size > maxColors) return false;
+  }
+  return seen.size > 0;
+}
+
 function channelRange(buckets: Bucket[], channel: 0 | 1 | 2): number {
   let min = 255;
   let max = 0;
