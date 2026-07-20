@@ -243,11 +243,12 @@
   /* Keep longer translated labels (e.g. "Restablecer") on one line — the whole
      button wraps to the next row if needed, but the text never breaks. */
   white-space: nowrap;
-  color: var(--fg);
-  /* Enabled = actionable: an accent tint + accent icon so an available action
-     (Undo/Redo/Reset/Rotate) visibly "lights up". Disabled shares neither, so
-     the two states no longer look alike (they used to differ only by opacity on
-     an identical surface, which read as barely-there). */
+  /* Enabled = actionable: an accent tint + accent text/icon so an available
+     action (Undo/Redo/Reset/Rotate) visibly "lights up". --accent-fg is the
+     token designed for text on --accent-soft. Disabled shares neither, so the
+     two states no longer look alike (they used to differ only by opacity on an
+     identical surface, which read as barely-there). */
+  color: var(--accent-fg);
   background: var(--accent-soft);
   border: 1px solid var(--border);
   border-radius: 10px;
