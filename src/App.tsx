@@ -113,7 +113,12 @@ export function App() {
     if (focusables.length === 0) return;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    // Clicking the dialog body focuses the container itself (tabIndex -1);
+    // treat that like "before first" so Shift+Tab wraps in instead of leaking
+    // focus to the page behind.
+    const atStart =
+      document.activeElement === first || document.activeElement === dialogRef.current;
+    if (event.shiftKey && atStart) {
       event.preventDefault();
       last.focus();
     } else if (!event.shiftKey && document.activeElement === last) {
