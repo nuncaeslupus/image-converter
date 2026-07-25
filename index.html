@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moved — Image to SVG</title>
+<link rel="canonical" href="https://nuncaeslupus.github.io/image-to-svg/">
+<meta name="robots" content="noindex">
+<script>
+  (function () {
+    // Retire the old PWA on returning devices: unregister its service worker
+    // and drop its caches so it stops serving the old app offline-first.
+    try {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (rs) {
+          rs.forEach(function (r) { r.unregister(); });
+        });
+      }
+      if (window.caches && caches.keys) {
+        caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+      }
+    } catch (e) {}
+    // Map the old path to the matching new one: /image-converter/es/ -> /image-to-svg/es/
+    var NEW_BASE = 'https://nuncaeslupus.github.io/image-to-svg/';
+    var OLD = '/image-converter/';
+    var p = location.pathname;
+    var rest = p.indexOf(OLD) === 0 ? p.slice(OLD.length) : '';
+    location.replace(NEW_BASE + rest + location.search + location.hash);
+  })();
+</script>
+<meta http-equiv="refresh" content="0; url=https://nuncaeslupus.github.io/image-to-svg/">
+<style>body{font-family:system-ui,sans-serif;margin:14vh auto;max-width:32rem;text-align:center;color:#334;padding:0 1rem;line-height:1.5}a{color:#0e8f86}</style>
+</head>
+<body>
+<p>This tool moved to <a href="https://nuncaeslupus.github.io/image-to-svg/">Image&nbsp;to&nbsp;SVG</a>. Redirecting…</p>
+</body>
+</html>
