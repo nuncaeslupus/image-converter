@@ -22,3 +22,7 @@ Pages are marked `noindex` with a canonical link to the new site.
 - [doc-control](https://github.com/nuncaeslupus/doc-control) — lets AI agents edit Word documents as tracked changes.
 - [literary-critic](https://github.com/nuncaeslupus/literary-critic) — LLM manuscript analysis the way a professional editor would.
 - [integral-job-search](https://github.com/nuncaeslupus/integral-job-search) — candidate-centred job search run in Claude Code.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
